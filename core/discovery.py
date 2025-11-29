@@ -1,32 +1,38 @@
 import asyncio
+import logging
 from pywizlight import discovery
-from typing import List, Dict
+from typing import List, Dict, Any
 
 class BulbDiscovery:
     @staticmethod
-    async def discover_bulbs(timeout: int = 3) -> List[Dict[str, str]]:
-        """Discover WiZ bulbs on the network.
-
-        Args:
-            timeout (int): Time in seconds to wait for discovery.
-
-        Returns:
-            List[Dict[str, str]]: A list of discovered bulbs with their IP and MAC addresses.
+    async def discover_bulbs(timeout: int = 3) -> list[dict]:
         """
+        Descubre bombillas WiZ en la red local.
+        Args:
+            timeout (int): Tiempo de espera en segundos.
+        Returns:
+            list[dict]: Lista de bombillas encontradas con IP y MAC.
+        """
+        logging.info("Buscando bombillas WiZ en la red...")
         try:
             devices = await discovery.discover_lights(broadcast_space="192.168.1.255", wait_time=timeout)
             return [
-                {"ip": bulb.ip, "mac": getattr(bulb, "mac", None)}
-                for bulb in devices
+                {"ip": d.ip, "mac": d.mac} for d in devices
             ]
         except Exception as e:
-            print(f"Error during bulb discovery: {e}")
+            logging.error(f"Error descubriendo bombillas: {e}")
             return []
 
-# Example usage
-if __name__ == "__main__":
-    async def main():
-        bulbs = await BulbDiscovery.discover_bulbs()
-        print("Discovered bulbs:", bulbs)
-
-    asyncio.run(main())
+def discover_wiz_bulbs(timeout: int = 3) -> list[dict]:
+    """
+    Wrapper síncrono para descubrir bombillas WiZ.
+    Args:
+        timeout (int): Tiempo de espera en segundos.
+    Returns:
+        list[dict]: Lista de bombillas encontradas.
+    """
+    try:
+        return asyncio.run(BulbDiscovery.discover_bulbs(timeout))
+    except Exception as e:
+        logging.error(f"Error en discover_wiz_bulbs: {e}")
+        return []

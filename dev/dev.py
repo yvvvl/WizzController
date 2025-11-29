@@ -11,19 +11,27 @@ TARGET_SCRIPT = "Wizz/main.py"
 WATCH_DIRECTORY = "Wizz"
 
 class RestartHandler(FileSystemEventHandler):
-    def __init__(self):
+    """
+    Handler para reiniciar la app WiZ al modificar archivos Python.
+    """
+    def __init__(self) -> None:
         self.process = None
         self.start_process()
 
-    def start_process(self):
+    def start_process(self) -> None:
+        """
+        Inicia o reinicia el proceso principal de la app.
+        """
         if self.process:
             self.process.kill() # Mata el proceso anterior
         print(f"🔄 Reiniciando {TARGET_SCRIPT}...")
         # Lanza tu aplicación como un subproceso
         self.process = subprocess.Popen([sys.executable, TARGET_SCRIPT])
 
-    def on_modified(self, event):
-        # Si el archivo modificado es un .py, reinicia
+    def on_modified(self, event) -> None:
+        """
+        Reinicia el proceso si se modifica un archivo .py.
+        """
         if event.src_path.endswith(".py"):
             self.start_process()
 

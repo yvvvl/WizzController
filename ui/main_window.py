@@ -1,15 +1,21 @@
 import customtkinter as ctk
-from core.light_manager import LightManager
-from core.discovery import BulbDiscovery
-import asyncio
-from config.bulbs_manager import BulbsManager
 import threading
-from .color_picker import ColorPickerWidget
+import logging
+import tkinter as tk
+from core.light_manager import LightManager
+from config.bulbs_manager import BulbsManager
+from ui.color_picker import ColorPickerWidget
+from ui.hotkeys_settings import HotkeysSettings
+from config.hotkeys_manager import HotkeysManager
 
 class MainWindow(ctk.CTk):
-    def __init__(self, light_manager, *args, **kwargs):
+    """
+    Ventana principal de la app WiZ. Permite controlar bombillas y acceder a configuraciones.
+    """
+    def __init__(self, light_manager: LightManager, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.light_manager = light_manager
+        self.selected_bulb = getattr(light_manager, 'selected_bulb', None)
         self.title("Control de Bombillas WiZ")
         self.geometry("600x400")
         self.grid_columnconfigure(0, weight=1)
@@ -47,6 +53,44 @@ class MainWindow(ctk.CTk):
         # Botones de Control
         self.create_controls()
         self._bind_hotkeys()
+        self._build_menu()
+
+        # Función para actualizar hotkeys globales
+        def update_hotkeys():
+            from config.hotkeys_manager import HotkeysManager
+            from core.actions import get_action
+            import keyboard
+            hotkeys_manager = HotkeysManager()
+            keyboard.unhook_all()
+            for combo, entry in hotkeys_manager.get_hotkeys().items():
+                try:
+                    action_id = entry["action"] if isinstance(entry, dict) else entry
+                    color = entry.get("color") if isinstance(entry, dict) else None
+                    def run_action(aid=action_id, col=color):
+                        if aid == "set_color_custom" and col:
+                            get_action("set_color_custom")(self.light_manager, col)
+                        else:
+                            get_action(aid)(self.light_manager)
+                    keyboard.add_hotkey(combo, run_action, suppress=False)
+                except Exception as e:
+                    print(f"Error registrando hotkey {combo}: {e}")
+
+        # Registrar hotkeys globales al iniciar la app
+        update_hotkeys()
+
+        # Abrir ventana de hotkeys pasando managers y función de reinicio
+        from config.hotkeys_manager import HotkeysManager
+        hotkeys_manager = HotkeysManager()
+        self.btn_hotkeys = ctk.CTkButton(
+            self.main_frame,
+            text="Configurar Hotkeys",
+            command=lambda: HotkeysSettings(
+                self,
+                hotkeys_manager,
+                update_hotkeys
+            )
+        )
+        self.btn_hotkeys.grid(row=2, column=0, pady=10)
 
     def _bind_hotkeys(self):
         # Encender bombilla: Ctrl+E
@@ -71,21 +115,25 @@ class MainWindow(ctk.CTk):
         self.search_btn = ctk.CTkButton(self.controls_frame, text="Buscar Ampolleta", command=self._search_bulb)
         self.search_btn.grid(row=3, column=0, columnspan=2, padx=10, pady=10)
 
-    def _turn_on(self):
+    def _turn_on(self) -> None:
         self.light_manager.turn_on()
 
-    def _turn_off(self):
+    def _turn_off(self) -> None:
         self.light_manager.turn_off()
 
-    def _search_bulb(self):
+    def _search_bulb(self) -> None:
         # Ejecutar la búsqueda en segundo plano para evitar congelar la UI
         threading.Thread(target=self._discover_bulbs_thread, daemon=True).start()
 
-    def _discover_bulbs_thread(self):
-        bulbs = self.light_manager.discover_bulbs()
+    def _discover_bulbs_thread(self) -> None:
+        try:
+            bulbs = self.light_manager.discover_bulbs()
+        except Exception as e:
+            logging.error(f"Error buscando bombillas: {e}")
+            bulbs = []
         self.after(0, lambda: self._show_bulb_list(bulbs))
 
-    def _show_bulb_list(self, bulbs):
+    def _show_bulb_list(self, bulbs: list[dict]) -> None:
         # Permite seleccionar una ampolleta encontrada
         popup = ctk.CTkToplevel(self)
         popup.title("Ampolletas encontradas")
@@ -101,21 +149,31 @@ class MainWindow(ctk.CTk):
             btn.pack(pady=2)
         ctk.CTkButton(popup, text="Cerrar", command=popup.destroy).pack(pady=10)
 
-    def _select_bulb(self, bulb, popup):
-        self.selected_bulb = bulb
-        self.light_manager.set_selected_bulb(bulb)
+    def _select_bulb(self, bulb: dict, popup: ctk.CTkToplevel) -> None:
+        try:
+            self.selected_bulb = bulb
+            self.light_manager.set_selected_bulb(bulb)
+            from config.bulbs_manager import BulbsManager
+            bulbs_manager = BulbsManager()
+            bulbs_manager.add_bulb(bulb)
+        except Exception as e:
+            logging.error(f"Error guardando bombilla: {e}")
+            self.show_toast(f"Error guardando bombilla: {e}")
         popup.destroy()
         self._show_selected_bulb()
 
-    def _show_selected_bulb(self):
+    def _show_selected_bulb(self) -> None:
         # Muestra la ampolleta seleccionada en la UI principal
         if hasattr(self, 'bulb_label'):
             self.bulb_label.destroy()
-        info = f"Ampolleta seleccionada: IP={self.selected_bulb.get('ip', '')} MAC={self.selected_bulb.get('mac', '')}"
+        if self.selected_bulb:
+            info = f"Ampolleta seleccionada: IP={self.selected_bulb.get('ip', '')} MAC={self.selected_bulb.get('mac', '')}"
+        else:
+            info = "No hay ampolleta seleccionada."
         self.bulb_label = ctk.CTkLabel(self.main_frame, text=info, font=("Helvetica", 12))
         self.bulb_label.grid(row=2, column=0, pady=5)
 
-    def _on_color_change(self, rgb):
+    def _on_color_change(self, rgb: tuple[int, int, int]) -> None:
         self.light_manager.set_color(rgb)
 
     def _on_brightness_change(self, value):
@@ -155,6 +213,34 @@ class MainWindow(ctk.CTk):
 
     def notify_no_bulb_found(self):
         self.show_toast("No se encontró ninguna ampolleta en la red.")
+
+    def open_hotkeys_settings(self):
+        hotkeys_manager = HotkeysManager()
+        # Usa la misma función update_hotkeys que en el botón principal
+        def update_hotkeys():
+            import keyboard
+            keyboard.unhook_all()
+            for combo, entry in hotkeys_manager.get_hotkeys().items():
+                try:
+                    action_id = entry["action"] if isinstance(entry, dict) else entry
+                    color = entry.get("color") if isinstance(entry, dict) else None
+                    from core.actions import get_action
+                    def run_action(aid=action_id, col=color):
+                        if aid == "set_color_custom" and col:
+                            get_action("set_color_custom")(self.light_manager, col)
+                        else:
+                            get_action(aid)(self.light_manager)
+                    keyboard.add_hotkey(combo, run_action, suppress=False)
+                except Exception as e:
+                    print(f"Error registrando hotkey {combo}: {e}")
+        HotkeysSettings(self, hotkeys_manager, update_hotkeys)
+
+    def _build_menu(self):
+        menubar = tk.Menu(self)
+        settings_menu = tk.Menu(menubar, tearoff=0)
+        settings_menu.add_command(label="Configurar Hotkeys", command=self.open_hotkeys_settings)
+        menubar.add_cascade(label="Opciones", menu=settings_menu)
+        self.config(menu=menubar)
 
 if __name__ == "__main__":
     ctk.set_appearance_mode("Dark")

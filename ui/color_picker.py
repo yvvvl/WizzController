@@ -3,13 +3,16 @@ import tkinter as tk
 from tkinter import colorchooser
 
 class ColorPickerWidget(ctk.CTkFrame):
-    def __init__(self, master, on_color_change=None, **kwargs):
+    """
+    Widget de selección de color para la app WiZ.
+    """
+    def __init__(self, master: ctk.CTkFrame, on_color_change: callable = None, **kwargs) -> None:
         super().__init__(master, **kwargs)
         self.on_color_change = on_color_change
         self.selected_color = "#0087c3"
         self._build_ui()
 
-    def _build_ui(self):
+    def _build_ui(self) -> None:
         self.label = ctk.CTkLabel(self, text="Color Picker", font=("Helvetica", 16))
         self.label.grid(row=0, column=0, columnspan=2, pady=10)
 
@@ -27,21 +30,27 @@ class ColorPickerWidget(ctk.CTkFrame):
         self.done_btn = ctk.CTkButton(self, text="Aplicar", command=self._apply_color)
         self.done_btn.grid(row=2, column=1, padx=10, pady=10)
 
-    def _choose_color(self):
-        color = colorchooser.askcolor(title="Elige un color")[1]
-        if color:
-            self.selected_color = color
-            self.color_preview.configure(fg_color=color)
-            self.hex_entry.delete(0, tk.END)
-            self.hex_entry.insert(0, color)
+    def _choose_color(self) -> None:
+        try:
+            color = colorchooser.askcolor(title="Elige un color")[1]
+            if color:
+                self.selected_color = color
+                self.color_preview.configure(fg_color=color)
+                self.hex_entry.delete(0, tk.END)
+                self.hex_entry.insert(0, color)
+        except Exception as e:
+            print(f"Error eligiendo color: {e}")
 
-    def _on_hex_enter(self, event):
-        color = self.hex_entry.get()
-        if color:
-            self.selected_color = color
-            self.color_preview.configure(fg_color=color)
+    def _on_hex_enter(self, event: tk.Event) -> None:
+        try:
+            color = self.hex_entry.get()
+            if color:
+                self.selected_color = color
+                self.color_preview.configure(fg_color=color)
+        except Exception as e:
+            print(f"Error aplicando color hex: {e}")
 
-    def _apply_color(self):
+    def _apply_color(self) -> None:
         color = self.selected_color
         if self.on_color_change:
             # Convertir HEX a RGB

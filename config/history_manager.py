@@ -1,29 +1,48 @@
 import os
 import json
+import logging
+from typing import Dict, Any
+from .config_manager import ensure_json_file
 
-HISTORY_DIR = os.path.join(os.path.dirname(__file__), "json")
-HISTORY_PATH = os.path.join(HISTORY_DIR, "history.json")
+HISTORY_PATH = os.path.join(os.path.dirname(__file__), 'json', 'history.json')
 
 class HistoryManager:
-    def __init__(self):
-        self.history = []
-        self._load()
+    """
+    Gestor de historial de la app WiZ. Permite cargar, guardar y administrar historial de acciones.
+    """
+    def __init__(self) -> None:
+        self.file_path: str = HISTORY_PATH
+        ensure_json_file(self.file_path)
+        self.history: Dict[str, Any] = self._load()
 
-    def _load(self):
-        if os.path.exists(HISTORY_PATH):
-            with open(HISTORY_PATH, "r", encoding="utf-8") as f:
-                self.history = json.load(f)
+    def _load(self) -> Dict[str, dict]:
+        try:
+            with open(self.file_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            logging.error(f"Error cargando historial: {e}")
+            return {}
+
+    def save(self) -> None:
+        try:
+            with open(self.file_path, 'w', encoding='utf-8') as f:
+                json.dump(self.history, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            logging.error(f"Error guardando historial: {e}")
+
+    def add_entry(self, entry: dict) -> None:
+        """
+        Agrega una entrada al historial.
+        """
+        key = entry.get('timestamp')
+        if key:
+            self.history[key] = entry
+            self.save()
         else:
-            self.history = []
+            logging.warning("Intento de agregar entrada sin timestamp.")
 
-    def save(self):
-        os.makedirs(HISTORY_DIR, exist_ok=True)
-        with open(HISTORY_PATH, "w", encoding="utf-8") as f:
-            json.dump(self.history, f, indent=2, ensure_ascii=False)
-
-    def add_entry(self, entry):
-        self.history.append(entry)
-        self.save()
-
-    def get_history(self):
+    def get_history(self) -> Dict[str, dict]:
+        """
+        Devuelve todo el historial registrado.
+        """
         return self.history

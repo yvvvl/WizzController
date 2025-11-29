@@ -1,0 +1,8 @@
+{
+  "ctrl+o": {
+    "action": "turn_on"
+  },
+  "ctrl+i": {
+    "action": "turn_off"
+  }
+}
