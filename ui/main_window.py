@@ -239,8 +239,18 @@ class MainWindow(ctk.CTk):
         menubar = tk.Menu(self)
         settings_menu = tk.Menu(menubar, tearoff=0)
         settings_menu.add_command(label="Configurar Hotkeys", command=self.open_hotkeys_settings)
+        # Nueva opción para comandos de voz
+        settings_menu.add_command(label="Comandos de Voz", command=self.open_voice_commands_ui)
         menubar.add_cascade(label="Opciones", menu=settings_menu)
         self.config(menu=menubar)
+
+    def open_voice_commands_ui(self):
+        from core.voice_commands import VoiceCommandManager
+        from ui.voice_commands_ui import VoiceCommandsUI
+        # Instancia única para la sesión
+        if not hasattr(self, '_voice_manager'):
+            self._voice_manager = VoiceCommandManager()
+        VoiceCommandsUI(self, self._voice_manager)
 
 if __name__ == "__main__":
     ctk.set_appearance_mode("Dark")
