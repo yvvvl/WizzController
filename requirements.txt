@@ -1,0 +1,14 @@
+customtkinter
+SpeechRecognition
+sounddevice
+numpy
+Pillow
+pystray
+keyboard
+pywizlight
+schedule
+pytest
+parsedatetime
+requests
+# Duckling (optional, run as Docker container)
+
