@@ -5,6 +5,7 @@ Interfaz gráfica para crear, editar y eliminar comandos de voz personalizados e
 
 import customtkinter as ctk
 import tkinter as tk
+import os
 from core.voice_commands import VoiceCommandManager
 from typing import Callable
 
@@ -23,6 +24,7 @@ class VoiceCommandsUI(ctk.CTkToplevel):
     def _init_voice_manager(self, voice_manager):
         from core.voice_model_downloader import download_and_extract_model, get_model_path
         model_path = get_model_path()
+        
         if voice_manager:
             self.voice_manager = voice_manager
             self.status_label.configure(text="Estado: Listo para escuchar")
@@ -60,27 +62,34 @@ class VoiceCommandsUI(ctk.CTkToplevel):
         toast.after(duration, toast.destroy)
 
     def _create_voice_manager(self, model_path):
-        import os
         import logging
         if not model_path or not os.path.exists(model_path):
             logging.error(f"Ruta de modelo inválida: {model_path}")
             self._show_toast(f"Error: ruta de modelo inválida: {model_path}")
             raise RuntimeError(f"Ruta de modelo inválida: {model_path}")
+            
         files = os.listdir(model_path)
         logging.info(f"Inicializando vosk.Model con ruta: {model_path}")
-        logging.info(f"Archivos en modelo: {files}")
+        
         expected_files = ["model.conf", "am"]
         if not any(f in files for f in expected_files):
-            logging.error(f"Modelo no contiene archivos esperados: {expected_files}")
-            self._show_toast(f"Error: modelo no contiene archivos esperados: {expected_files}")
-            raise RuntimeError(f"Modelo no contiene archivos esperados: {expected_files}")
+            logging.warning(f"Modelo podría no contener archivos estándar: {expected_files}")
+
         from core.voice_commands import VoiceCommandManager
-        return VoiceCommandManager(model_path)
+        manager = VoiceCommandManager(model_path)
+
+        if hasattr(self.master, '_voice_manager'):
+             self.master._voice_manager = manager
+        else:
+             self.master._voice_manager = manager
+
+        return manager
 
     def _build_ui(self) -> None:
         self.command_listbox = tk.Listbox(self, font=("Arial", 12))
         self.command_listbox.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        self._refresh_commands()
+        if self.voice_manager:
+            self._refresh_commands()
 
         frame = ctk.CTkFrame(self)
         frame.pack(fill=tk.X, padx=10, pady=5)
@@ -100,7 +109,6 @@ class VoiceCommandsUI(ctk.CTkToplevel):
         del_btn = ctk.CTkButton(frame, text="Eliminar", command=self._delete_command)
         del_btn.pack(side=tk.LEFT, padx=5)
 
-        # Botón para activar reconocimiento de voz
         self.listen_btn = ctk.CTkButton(self, text="Escuchar comando de voz", command=self._listen_voice_command)
         self.listen_btn.pack(pady=10)
 
@@ -112,41 +120,77 @@ class VoiceCommandsUI(ctk.CTkToplevel):
             self.status_label.configure(text="Estado: Modelo no listo")
             return
         self.status_label.configure(text="Estado: Escuchando...")
+        
         def on_finish():
             self.status_label.configure(text="Estado: Esperando")
+            
         import threading
         def listen_and_update():
             self.voice_manager.listen_and_execute()
             self.after(0, on_finish)
+            
         threading.Thread(target=listen_and_update, daemon=True).start()
 
     def _refresh_commands(self) -> None:
+        if not self.voice_manager:
+            return
         self.command_listbox.delete(0, tk.END)
         for phrase in self.voice_manager.list_commands().keys():
             self.command_listbox.insert(tk.END, phrase)
 
-    def _add_command(self) -> None:
+    # --- AQUÍ ESTÁ LA SOLUCIÓN ---
+    # Creamos un "wrapper" (envoltorio) que inyecta el light_manager
+    # que está en self.master (la ventana principal) dentro de la acción.
+
+    def _get_wrapped_action(self, action_name):
         from core.actions import get_action
+        raw_action = get_action(action_name)
+        
+        # Esta es la función que realmente se guardará.
+        # Cuando se ejecute, buscará el light_manager y lo pasará.
+        def wrapped_action():
+            if hasattr(self.master, 'light_manager'):
+                raw_action(self.master.light_manager)
+            else:
+                print("Error: No se encontró light_manager en MainWindow")
+                
+        return wrapped_action
+
+    def _add_command(self) -> None:
+        if not self.voice_manager:
+            self._show_toast("Error: El sistema de voz no está listo")
+            return
+        
         phrase = self.phrase_entry.get().strip()
         action_name = self.action_entry.get().strip()
+        
         if phrase and action_name:
-            action_func = get_action(action_name)
+            # Usamos el wrapper en lugar de get_action directo
+            action_func = self._get_wrapped_action(action_name)
+            
             self.voice_manager.add_command(phrase, action_func)
             self._refresh_commands()
+            self.phrase_entry.delete(0, tk.END)
+            self.action_entry.delete(0, tk.END)
 
     def _edit_command(self) -> None:
-        from core.actions import get_action
+        if not self.voice_manager:
+            return
         selected = self.command_listbox.curselection()
         if selected:
             old_phrase = self.command_listbox.get(selected[0])
             new_phrase = self.phrase_entry.get().strip()
             action_name = self.action_entry.get().strip()
             if new_phrase and action_name:
-                action_func = get_action(action_name)
+                # Usamos el wrapper aquí también
+                action_func = self._get_wrapped_action(action_name)
+                
                 self.voice_manager.edit_command(old_phrase, new_phrase, action_func)
                 self._refresh_commands()
 
     def _delete_command(self) -> None:
+        if not self.voice_manager:
+            return
         selected = self.command_listbox.curselection()
         if selected:
             phrase = self.command_listbox.get(selected[0])

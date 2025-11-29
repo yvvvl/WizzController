@@ -2,8 +2,9 @@ import customtkinter as ctk
 import threading
 import logging
 import tkinter as tk
+import asyncio
 from core.light_manager import LightManager
-from config.bulbs_manager import BulbsManager
+from core.discovery import BulbDiscovery
 from ui.color_picker import ColorPickerWidget
 from ui.hotkeys_settings import HotkeysSettings
 from config.hotkeys_manager import HotkeysManager
@@ -184,25 +185,6 @@ class MainWindow(ctk.CTk):
         """Callback para manejar cambios en la temperatura."""
         self.light_manager.set_temperature(int(value))
 
-    def discover_bulbs(self):
-        def background_discover():
-            async def discover():
-                bulbs = await BulbDiscovery.discover_bulbs()
-                self.bulb_list.configure(values=[f"{bulb['ip']} ({bulb['mac']})" for bulb in bulbs])
-            asyncio.run(discover())
-
-        threading.Thread(target=background_discover, daemon=True).start()
-
-    def select_bulb(self):
-        selected = self.bulb_list.get()
-        if selected:
-            ip = selected.split(" ")[0]
-            bulb_id = ip  # Use IP as ID for simplicity
-            self.light_manager.register_bulb(bulb_id, ip)
-            self.light_manager.set_active_bulb(bulb_id)
-            # Save bulb to bulbs.json
-            self.bulbs_manager.add_bulb({"id": bulb_id, "ip": ip, "name": "Nueva Ampolleta"})
-
     def show_toast(self, message, duration=2500):
         toast = ctk.CTkToplevel(self)
         toast.overrideredirect(True)
@@ -239,21 +221,13 @@ class MainWindow(ctk.CTk):
         menubar = tk.Menu(self)
         settings_menu = tk.Menu(menubar, tearoff=0)
         settings_menu.add_command(label="Configurar Hotkeys", command=self.open_hotkeys_settings)
-        # Nueva opción para comandos de voz
         settings_menu.add_command(label="Comandos de Voz", command=self.open_voice_commands_ui)
         menubar.add_cascade(label="Opciones", menu=settings_menu)
         self.config(menu=menubar)
 
     def open_voice_commands_ui(self):
-        from core.voice_commands import VoiceCommandManager
         from ui.voice_commands_ui import VoiceCommandsUI
-        # Instancia única para la sesión
-        if not hasattr(self, '_voice_manager'):
-            self._voice_manager = VoiceCommandManager()
-        VoiceCommandsUI(self, self._voice_manager)
-
-if __name__ == "__main__":
-    ctk.set_appearance_mode("Dark")
-    ctk.set_default_color_theme("dark-blue")
-    app = MainWindow(LightManager())
-    app.mainloop()
+        # Intentamos recuperar el manager si ya existe en la ventana
+        manager = getattr(self, '_voice_manager', None)
+        # Importante: Solo pasamos el manager (sea None o instancia), no lo creamos aquí
+        VoiceCommandsUI(self, manager)
