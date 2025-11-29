@@ -8,17 +8,22 @@ PRESETS_PATH = os.path.join(os.path.dirname(__file__), 'json', 'presets.json')
 
 class PresetsManager:
     """
-    Gestor de presets de la app WiZ. Permite cargar, guardar y administrar presets.
+    Gestor de Colores Guardados (Presets).
+    Estructura: {"Nombre": [r, g, b], ...}
     """
     def __init__(self) -> None:
         self.file_path: str = PRESETS_PATH
         ensure_json_file(self.file_path)
-        self.presets: Dict[str, Any] = self._load()
+        self.presets: Dict[str, list] = self._load()
 
-    def _load(self) -> Dict[str, dict]:
+    def _load(self) -> Dict[str, list]:
         try:
             with open(self.file_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                data = json.load(f)
+                # Si el archivo estaba vacío o era una lista antigua, reiniciamos a dict
+                if isinstance(data, list): 
+                    return {}
+                return data
         except Exception as e:
             logging.error(f"Error cargando presets: {e}")
             return {}
@@ -30,19 +35,16 @@ class PresetsManager:
         except Exception as e:
             logging.error(f"Error guardando presets: {e}")
 
-    def add_preset(self, preset: dict) -> None:
-        """
-        Agrega un preset al registro.
-        """
-        name = preset.get('name')
-        if name:
-            self.presets[name] = preset
+    def add_preset(self, name: str, rgb: list) -> None:
+        """Guarda un color RGB con un nombre."""
+        if name and rgb:
+            self.presets[name] = rgb
             self.save()
-        else:
-            logging.warning("Intento de agregar preset sin nombre.")
 
-    def get_presets(self) -> Dict[str, dict]:
-        """
-        Devuelve todos los presets registrados.
-        """
+    def delete_preset(self, name: str) -> None:
+        if name in self.presets:
+            del self.presets[name]
+            self.save()
+
+    def get_presets(self) -> Dict[str, list]:
         return self.presets

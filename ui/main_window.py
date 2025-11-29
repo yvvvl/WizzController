@@ -220,14 +220,21 @@ class MainWindow(ctk.CTk):
     def _build_menu(self):
         menubar = tk.Menu(self)
         settings_menu = tk.Menu(menubar, tearoff=0)
+        
+        # --- AQUÍ ESTÁ EL CAMBIO ---
+        # Se agregan las opciones nuevas al menú
+        settings_menu.add_command(label="Galería de Luz", command=self.open_scenes_ui)
         settings_menu.add_command(label="Configurar Hotkeys", command=self.open_hotkeys_settings)
         settings_menu.add_command(label="Comandos de Voz", command=self.open_voice_commands_ui)
+        
         menubar.add_cascade(label="Opciones", menu=settings_menu)
         self.config(menu=menubar)
 
     def open_voice_commands_ui(self):
         from ui.voice_commands_ui import VoiceCommandsUI
-        # Intentamos recuperar el manager si ya existe en la ventana
         manager = getattr(self, '_voice_manager', None)
-        # Importante: Solo pasamos el manager (sea None o instancia), no lo creamos aquí
         VoiceCommandsUI(self, manager)
+
+    def open_scenes_ui(self):
+        from ui.scenes_ui import ScenesUI
+        ScenesUI(self, self.light_manager)
