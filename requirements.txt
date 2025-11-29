@@ -1,4 +1,7 @@
 customtkinter
 pywizlight
 keyboard
+vosk
+sounddevice
+Pillow
 

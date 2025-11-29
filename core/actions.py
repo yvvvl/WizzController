@@ -1,89 +1,56 @@
-from typing import Callable, Dict, Any
 import logging
+from typing import Callable, Any, Dict
+from core.wiz_scenes_data import SCENES_DATA
 
-action_registry: Dict[str, Callable] = {}
+# Registro maestro de acciones
+AVAILABLE_ACTIONS: Dict[str, str] = {}
+ACTION_CALLBACKS: Dict[str, Callable] = {}
 
-def register_action(action_id: str) -> Callable:
-    """
-    Decorador para registrar una acción en el sistema.
-    Args:
-        action_id (str): Identificador de la acción.
-    Returns:
-        Callable: Decorador que registra la función.
-    """
-    def decorator(func: Callable) -> Callable:
-        action_registry[action_id] = func
-        return func
-    return decorator
+def register(action_id: str, label: str, func: Callable):
+    AVAILABLE_ACTIONS[action_id] = label
+    ACTION_CALLBACKS[action_id] = func
 
-def get_action(action_id: str) -> Callable:
-    """
-    Devuelve la función asociada a un action_id.
-    Args:
-        action_id (str): Identificador de la acción.
-    Returns:
-        Callable: Función asociada o lambda vacía.
-    """
-    actions = {
-        "turn_on": lambda lm: safe_call(lm, "turn_on"),
-        "turn_off": lambda lm: safe_call(lm, "turn_off"),
-        "set_brightness": lambda lm, value=100: safe_call(lm, "set_brightness", value),
-        "set_temperature": lambda lm, value=4000: safe_call(lm, "set_temperature", value),
-        "set_color_custom": lambda lm, color: safe_call(lm, "set_color", color),
-    }
-    if action_id in actions:
-        return actions[action_id]
-    if action_id in action_registry:
-        return action_registry[action_id]
-    logging.warning(f"Acción desconocida: {action_id}")
-    return lambda *args, **kwargs: None
+def _safe_exec(manager: Any, method: str, *args, **kwargs):
+    if hasattr(manager, method):
+        try:
+            getattr(manager, method)(*args, **kwargs)
+        except Exception as e:
+            logging.error(f"Error ejecutando {method}: {e}")
 
-def safe_call(obj: Any, method: str, *args, **kwargs) -> Any:
-    """
-    Llama de forma segura a un método de un objeto.
-    Args:
-        obj (Any): Objeto destino.
-        method (str): Nombre del método.
-        *args: Argumentos posicionales.
-        **kwargs: Argumentos de palabra clave.
-    Returns:
-        Any: Resultado de la llamada o None si falla.
-    """
-    try:
-        return getattr(obj, method)(*args, **kwargs)
-    except Exception as e:
-        logging.error(f"Error ejecutando acción {method}: {e}")
-        return None
+# --- 1. COMANDOS BÁSICOS ---
+register("turn_on", "Encender", lambda lm: _safe_exec(lm, "turn_on"))
+register("turn_off", "Apagar", lambda lm: _safe_exec(lm, "turn_off"))
+register("toggle", "Alternar (ON/OFF)", lambda lm: _safe_exec(lm, "toggle_light"))
 
-# Ejemplo de registro de acciones
-@register_action("toggle_light")
-def toggle_light(manager: Any) -> None:
-    """
-    Alterna el estado de la luz usando el manager.
-    """
-    if hasattr(manager, "toggle_light"):
-        manager.toggle_light()
+# --- 2. BRILLO ---
+register("brightness_up", "Brillo: Subir (+10%)", lambda lm: _safe_exec(lm, "set_brightness", getattr(lm, 'last_brightness', 50) + 10))
+register("brightness_down", "Brillo: Bajar (-10%)", lambda lm: _safe_exec(lm, "set_brightness", getattr(lm, 'last_brightness', 50) - 10))
+register("brightness_max", "Brillo: Máximo (100%)", lambda lm: _safe_exec(lm, "set_brightness", 100))
+register("brightness_min", "Brillo: Mínimo (10%)", lambda lm: _safe_exec(lm, "set_brightness", 10))
 
-@register_action("turn_on")
-def turn_on(manager: Any) -> None:
-    """
-    Enciende la luz usando el manager.
-    """
-    manager.turn_on()
+# --- 3. TEMPERATURA ---
+register("temp_warm", "Temp: Cálido (2700K)", lambda lm: _safe_exec(lm, "set_temperature", 2700))
+register("temp_cold", "Temp: Frío (6500K)", lambda lm: _safe_exec(lm, "set_temperature", 6500))
 
-@register_action("turn_off")
-def turn_off(manager: Any) -> None:
-    """
-    Apaga la luz usando el manager.
-    """
-    manager.turn_off()
+# --- 4. COLOR PERSONALIZADO (Único) ---
+# Eliminamos el bucle de colores fijos. Solo dejamos la opción dinámica.
+AVAILABLE_ACTIONS["set_color_custom"] = "🎨 Color Personalizado (Selector)"
 
-@register_action("brightness_increase")
-def brightness_increase(manager: Any) -> None:
-    """
-    Aumenta el brillo usando el manager.
-    """
-    if hasattr(manager, "increase_brightness"):
-        manager.increase_brightness()
-    else:
-        manager.set_brightness(100)
+# --- 5. ESCENAS WiZ ---
+for category, scenes_list in SCENES_DATA.items():
+    for scene_name, scene_id, icon in scenes_list:
+        aid = f"scene_{scene_id}"
+        lbl = f"Escena: {icon} {scene_name}"
+        register(aid, lbl, lambda lm, v=scene_id: _safe_exec(lm, "activate_scene", v))
+
+# --- HELPERS ---
+def get_action_label(action_id: str) -> str:
+    return AVAILABLE_ACTIONS.get(action_id, action_id)
+
+def get_action_func(action_id: str) -> Callable:
+    if action_id == "set_color_custom":
+        return lambda lm, color: _safe_exec(lm, "set_color", color)
+    return ACTION_CALLBACKS.get(action_id, lambda lm: None)
+
+def get_all_actions() -> Dict[str, str]:
+    return dict(sorted(AVAILABLE_ACTIONS.items(), key=lambda item: item[1]))

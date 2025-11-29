@@ -7,33 +7,29 @@ from typing import Dict, List, Optional, Any
 
 class LightManager:
     """
-    Gestor principal de bombillas WiZ. Permite controlar encendido, apagado, color, brillo y temperatura.
+    Gestor principal de bombillas WiZ. 
+    Versión corregida: Sin context managers asíncronos para compatibilidad con pywizlight.
     """
     def __init__(self) -> None:
-        # Ensure compatibility with Windows event loop
         try:
             self.loop = asyncio.get_event_loop()
         except RuntimeError:
             self.loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self.loop)
+            
         self.bulbs: Dict[str, wizlight] = {}
         self.active_bulb_id: Optional[str] = None
         self.selected_bulb: Optional[Dict[str, Any]] = None
-        self.bulbs_list: List[Dict[str, Any]] = []
-        # Variables para recordar el estado (útil para guardar escenas)
+        
         self.last_rgb = (255, 255, 255)
         self.last_brightness = 100
 
+    # --- Descubrimiento ---
+    
     async def discover_bulbs_async(self, timeout: int = 3) -> list[dict]:
-        """
-        Descubre bombillas WiZ en la red local (async).
-        """
         return await BulbDiscovery.discover_bulbs(timeout=timeout)
 
     def discover_bulbs(self) -> list[dict]:
-        """
-        Descubre bombillas WiZ en la red local (sync).
-        """
         try:
             new_loop = asyncio.new_event_loop()
             asyncio.set_event_loop(new_loop)
@@ -44,30 +40,23 @@ class LightManager:
             bulbs = []
         return bulbs
 
-    def register_bulb(self, bulb_id: str, ip: str) -> None:
-        try:
-            asyncio.set_event_loop(self.loop)
-            self.bulbs[bulb_id] = wizlight(ip)
-            if not self.active_bulb_id:
-                self.active_bulb_id = bulb_id
-        except Exception as e:
-            logging.error(f"Error registering bulb {bulb_id}: {e}")
+    # --- Gestión de Selección ---
 
+    def register_bulb(self, bulb_id: str, ip: str) -> None:
+        self.active_bulb_id = bulb_id
+        
     def set_active_bulb(self, bulb_id: str) -> None:
-        if bulb_id in self.bulbs:
-            self.active_bulb_id = bulb_id
+        self.active_bulb_id = bulb_id
 
     def _get_active_bulb(self) -> str | None:
         if hasattr(self, 'selected_bulb') and self.selected_bulb:
-            ip = self.selected_bulb.get('ip')
-            if ip:
-                return ip
+            return self.selected_bulb.get('ip')
         return None
 
     def set_selected_bulb(self, bulb: dict) -> None:
         self.selected_bulb = bulb
 
-    # --- Métodos Síncronos (usados por la UI) ---
+    # --- Comandos Síncronos (UI) ---
 
     def turn_on(self) -> None:
         ip = self._get_active_bulb()
@@ -77,8 +66,6 @@ class LightManager:
                 await bulb.turn_on()
             asyncio.run(do())
             logging.info("Bombilla encendida")
-        else:
-            logging.warning("No hay bombilla seleccionada")
 
     def turn_off(self) -> None:
         ip = self._get_active_bulb()
@@ -88,8 +75,23 @@ class LightManager:
                 await bulb.turn_off()
             asyncio.run(do())
             logging.info("Bombilla apagada")
+
+    def toggle_light(self) -> None:
+        """Alterna el estado de la bombilla (Toggle)."""
+        ip = self._get_active_bulb()
+        if ip:
+            async def do():
+                bulb = wizlight(ip)
+                # Primero obtenemos el estado actual
+                await bulb.updateState()
+                if bulb.status:
+                    await bulb.turn_off()
+                else:
+                    await bulb.turn_on()
+            asyncio.run(do())
+            logging.info("Bombilla alternada (Toggle)")
         else:
-            logging.warning("No hay bombilla seleccionada")
+            logging.warning("No hay bombilla seleccionada para toggle")
 
     def set_color(self, rgb):
         self.last_rgb = rgb
@@ -101,66 +103,47 @@ class LightManager:
                 await bulb.turn_on(pilot)
             asyncio.run(do())
             logging.info(f"Color establecido: {rgb}")
-        else:
-            logging.warning("No hay bombilla seleccionada")
 
     def set_brightness(self, brightness):
         self.last_brightness = brightness
         ip = self._get_active_bulb()
         if ip:
-            # Mapeo de 0-100 a 10-255 (WiZ no suele aceptar menos de 10)
-            min_brightness = 10
-            max_brightness = 255
-            value = int(min_brightness + (max_brightness - min_brightness) * (brightness / 100))
-            value = max(min_brightness, min(max_brightness, value))
+            val = max(10, min(255, int(10 + (245 * (brightness / 100)))))
             async def do():
                 bulb = wizlight(ip)
-                pilot = PilotBuilder(brightness=value)
+                pilot = PilotBuilder(brightness=val)
                 await bulb.turn_on(pilot)
             asyncio.run(do())
-            logging.info(f"Brillo establecido: {value} (slider: {brightness})")
-        else:
-            logging.warning("No hay bombilla seleccionada")
+            logging.info(f"Brillo establecido: {val}")
 
     def set_temperature(self, kelvin):
         ip = self._get_active_bulb()
         if ip:
-            kelvin = max(2200, min(6500, kelvin))
+            k = max(2200, min(6500, kelvin))
             async def do():
                 bulb = wizlight(ip)
-                pilot = PilotBuilder(colortemp=kelvin)
+                pilot = PilotBuilder(colortemp=k)
                 await bulb.turn_on(pilot)
             asyncio.run(do())
-            logging.info(f"Temperatura establecida: {kelvin}")
-        else:
-            logging.warning("No hay bombilla seleccionada")
-            
-    # --- MÉTODOS DE ESCENAS (CORREGIDOS) ---
-
-    async def set_scene(self, scene_id: int) -> None:
-        """
-        Activa una escena nativa de WiZ por su ID (Async).
-        """
-        bulb = self.bulbs.get(self.active_bulb_id)
-        if bulb:
-            # CORRECCIÓN: Usar 'scene' en lugar de 'scene_id'
-            await bulb.turn_on(PilotBuilder(scene=scene_id))
-            logging.info(f"Escena {scene_id} activada en bombilla: {self.selected_bulb}")
+            logging.info(f"Temperatura establecida: {k}")
 
     def activate_scene(self, scene_id: int) -> None:
-        """
-        Activa una escena nativa de WiZ por su ID (Síncrono para UI).
-        """
         ip = self._get_active_bulb()
         if ip:
             async def do():
                 bulb = wizlight(ip)
-                # CORRECCIÓN: Usar 'scene' en lugar de 'scene_id'
+                # IMPORTANTE: Usamos 'scene'
                 await bulb.turn_on(PilotBuilder(scene=scene_id))
             asyncio.run(do())
             logging.info(f"Escena {scene_id} activada")
-        else:
-            logging.warning("No hay bombilla seleccionada")
+
+    # --- Comandos Asíncronos ---
+
+    async def set_scene(self, scene_id: int) -> None:
+        ip = self._get_active_bulb()
+        if ip:
+            bulb = wizlight(ip)
+            await bulb.turn_on(PilotBuilder(scene=scene_id))
 
     def _kelvin_to_rgb(self, temp_kelvin):
         """Convierte temperatura de color (Kelvin) a RGB."""

@@ -1,213 +1,205 @@
 import customtkinter as ctk
-import tkinter as tk
-import logging
-import threading
-import keyboard
-from typing import Callable, Any
+import tkinter as tk # Solo para constantes
 from config.hotkeys_manager import HotkeysManager
-from core.actions import action_registry
+from core.actions import get_all_actions
 from ui.color_picker import ColorPickerWidget
- # Las dependencias se pasan por argumento desde main_window.py
 
-ACTION_LABELS = {
-    "toggle_light": "Encender/Apagar (Automático)",
-    "turn_on": "Encender",
-    "turn_off": "Apagar",
-    "brightness_increase": "Subir brillo (+10%)",
-    "brightness_decrease": "Bajar brillo (-10%)",
-    "brightness_max": "Brillo máximo",
-    "brightness_min": "Brillo mínimo",
-    "temp_warmer": "Más cálido (+200K)",
-    "temp_cooler": "Más frío (-200K)",
-    "set_color_red": "Color rojo",
-    "set_color_blue": "Color azul",
-    "set_color_custom": "Color personalizado",
-    "set_color_green": "Color verde",
-    "set_color_yellow": "Color amarillo",
-    "set_color_white": "Color blanco",
-    "set_scene_x": "Activar escena guardada",
-    "search_bulbs": "Buscar ampolletas",
-    "show_settings": "Abrir configuración",
-    "show_hotkeys": "Configurar atajos de teclado",
-}
+class EditDialog(ctk.CTkToplevel):
+    """Ventana modal moderna para editar combinaciones."""
+    def __init__(self, master, title, current_value, on_confirm):
+        super().__init__(master)
+        self.title(title)
+        self.geometry("350x180")
+        self.resizable(False, False)
+        self.on_confirm = on_confirm
+        
+        # Centrar en pantalla
+        self.update_idletasks()
+        x = master.winfo_x() + (master.winfo_width() // 2) - 175
+        y = master.winfo_y() + (master.winfo_height() // 2) - 90
+        self.geometry(f"+{x}+{y}")
+        self.lift()
+        self.focus_force()
+
+        ctk.CTkLabel(self, text="Nueva combinación de teclas:", font=("Arial", 14)).pack(pady=(20, 10))
+        
+        self.entry = ctk.CTkEntry(self, width=200, justify="center")
+        self.entry.insert(0, current_value)
+        self.entry.pack(pady=10)
+        self.entry.focus_set()
+
+        btn_frame = ctk.CTkFrame(self, fg_color="transparent")
+        btn_frame.pack(pady=20)
+
+        ctk.CTkButton(btn_frame, text="Cancelar", fg_color="transparent", border_width=1, width=100, command=self.destroy).pack(side="left", padx=10)
+        ctk.CTkButton(btn_frame, text="Guardar", width=100, command=self._confirm).pack(side="left", padx=10)
+
+    def _confirm(self):
+        val = self.entry.get().strip()
+        if val:
+            self.on_confirm(val)
+            self.destroy()
 
 class HotkeysSettings(ctk.CTkToplevel):
-    """
-    Ventana de configuración de hotkeys. Permite editar, limpiar y agregar atajos de teclado.
-    """
     def __init__(self, master: ctk.CTk, hotkeys_manager: HotkeysManager, update_hotkeys: callable, *args, **kwargs) -> None:
         super().__init__(master, *args, **kwargs)
         self.title("Configuración de Hotkeys")
-        self.geometry("600x500")
+        self.geometry("800x600")
         self.hotkeys_manager = hotkeys_manager
         self.update_hotkeys = update_hotkeys
-        # Ya no depende de importaciones globales, todo se pasa por argumento
+        self.available_actions = get_all_actions()
         self._build_ui()
         self.lift()
         self.focus_force()
 
     def _build_ui(self) -> None:
-        self.table_frame = ctk.CTkFrame(self)
-        self.table_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        # --- LISTA ---
+        self.table_frame = ctk.CTkScrollableFrame(self, label_text="Tus Atajos")
+        self.table_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
-        ctk.CTkLabel(self.table_frame, text="Acción", font=("Helvetica", 12, "bold")).grid(row=0, column=0, padx=5)
-        ctk.CTkLabel(self.table_frame, text="Atajo", font=("Helvetica", 12, "bold")).grid(row=0, column=1, padx=5)
-        ctk.CTkLabel(self.table_frame, text="Editar", font=("Helvetica", 12, "bold")).grid(row=0, column=2, padx=5)
-        ctk.CTkLabel(self.table_frame, text="Limpiar", font=("Helvetica", 12, "bold")).grid(row=0, column=3, padx=5)
-        ctk.CTkLabel(self.table_frame, text="Eliminar", font=("Helvetica", 12, "bold")).grid(row=0, column=4, padx=5)
+        current_hotkeys = self.hotkeys_manager.get_hotkeys()
+        
+        if not current_hotkeys:
+            ctk.CTkLabel(self.table_frame, text="No hay atajos configurados.", text_color="gray").pack(pady=20)
 
-        self.rows = []
-        for idx, action_id in enumerate(action_registry.keys()):
-            action_name = ACTION_LABELS.get(action_id, action_id.replace('_', ' ').capitalize())
-            hotkey = self.hotkeys_manager.get_hotkeys()
-            key_combo = next((k for k, v in hotkey.items() if isinstance(v, dict) and v.get('action') == action_id), "Ninguno")
-            lbl_action = ctk.CTkLabel(self.table_frame, text=action_name)
-            lbl_action.grid(row=idx+1, column=0, padx=5, pady=2)
-            lbl_hotkey = ctk.CTkLabel(self.table_frame, text=key_combo)
-            lbl_hotkey.grid(row=idx+1, column=1, padx=5, pady=2)
-            btn_edit = ctk.CTkButton(self.table_frame, text="Editar", command=lambda aid=action_id, row=idx+1: self._edit_hotkey(aid, row))
-            btn_edit.grid(row=idx+1, column=2, padx=5, pady=2)
-            btn_clear = ctk.CTkButton(self.table_frame, text="Limpiar", command=lambda aid=action_id: self._clear_hotkey(aid))
-            btn_clear.grid(row=idx+1, column=3, padx=5, pady=2)
-            btn_delete = ctk.CTkButton(self.table_frame, text="Eliminar", command=lambda aid=action_id: self._delete_action(aid))
-            btn_delete.grid(row=idx+1, column=4, padx=5, pady=2)
-            self.rows.append((lbl_action, lbl_hotkey, btn_edit, btn_clear, btn_delete))
+        for combo, data in current_hotkeys.items():
+            self._create_row(combo, data)
 
-        # Agregar nueva hotkey con lista seleccionable de acciones
+        # --- AGREGAR ---
         self.add_frame = ctk.CTkFrame(self)
-        self.add_frame.pack(fill="x", padx=10, pady=10)
-        ctk.CTkLabel(self.add_frame, text="Agregar nueva hotkey:").pack(side="left", padx=5)
-        self.action_var = tk.StringVar()
-        self.action_menu = ctk.CTkOptionMenu(self.add_frame, variable=self.action_var, values=[ACTION_LABELS.get(a, a.replace('_', ' ').capitalize()) for a in action_registry.keys()])
-        self.action_menu.pack(side="left", padx=5)
-        self.new_hotkey_entry = ctk.CTkEntry(self.add_frame, placeholder_text="Combinación (ej: ctrl+g)")
-        self.new_hotkey_entry.pack(side="left", padx=5)
-        self.add_btn = ctk.CTkButton(self.add_frame, text="Agregar", command=self._add_hotkey)
-        self.add_btn.pack(side="left", padx=5)
+        self.add_frame.pack(fill="x", padx=20, pady=20)
+        
+        ctk.CTkLabel(self.add_frame, text="Nuevo Atajo:", font=("Arial", 12, "bold")).pack(side="left", padx=15)
+        
+        self.action_var = ctk.StringVar(value=list(self.available_actions.values())[0])
+        self.action_menu = ctk.CTkOptionMenu(
+            self.add_frame, 
+            variable=self.action_var, 
+            values=list(self.available_actions.values()),
+            width=250
+        )
+        self.action_menu.pack(side="left", padx=10)
 
-    def _add_hotkey(self) -> None:
-        action_label = self.action_var.get().strip()
-        key_combo = self.new_hotkey_entry.get().strip()
-        action_id = next((aid for aid, label in ACTION_LABELS.items() if label == action_label), None)
-        if action_id and key_combo:
-            if key_combo in self.hotkeys_manager.get_hotkeys():
-                ctk.CTkLabel(self, text="Atajo duplicado!", text_color="red").pack()
-                return
-            # Si es acción de color personalizado, mostrar color picker
-            if action_id in ["set_color_custom", "set_color_red", "set_color_blue", "set_color_green", "set_color_yellow", "set_color_white"]:
-                def on_color(rgb):
-                    self.hotkeys_manager.set_hotkey(key_combo, action_id)
-                    self.hotkeys_manager.set_hotkey("color_value", rgb)
-                    self.destroy()
-                    HotkeysSettings(self.master, self.hotkeys_manager, self.update_hotkeys)
-                picker = ColorPickerWidget(self, on_color_change=on_color)
-                picker.pack(pady=10)
-            else:
-                self.hotkeys_manager.set_hotkey(key_combo, action_id)
-                self.destroy()
-                HotkeysSettings(self.master, self.hotkeys_manager, self.update_hotkeys)
+        self.new_hotkey_entry = ctk.CTkEntry(self.add_frame, placeholder_text="Ej: ctrl+alt+p", width=150)
+        self.new_hotkey_entry.pack(side="left", padx=10)
+        
+        ctk.CTkButton(self.add_frame, text="+ Agregar", width=100, command=self._add_hotkey_flow).pack(side="left", padx=10)
 
-    def _edit_hotkey(self, action_id: str, row: int) -> None:
-        modal = ctk.CTkToplevel(self)
-        modal.title("Grabar atajo")
-        modal.geometry("340x220")
-        modal.lift()
-        modal.focus_force()
-        ctk.CTkLabel(modal, text="Presiona tu combinación y haz clic en 'Aceptar'", font=("Helvetica", 12)).pack(pady=10)
-        key_var = tk.StringVar()
-        entry = ctk.CTkEntry(modal, textvariable=key_var)
-        entry.pack(pady=5)
-        entry.focus_set()
-        combo_captured = {'value': None}
-        feedback_label = ctk.CTkLabel(modal, text="", text_color="red")
-        feedback_label.pack(pady=2)
-        ctk.CTkLabel(modal, text="Ejemplo: ctrl+shift+L", font=("Helvetica", 10, "italic"), text_color="#aaa").pack()
-        color_value = [255, 255, 255]  # Valor por defecto
-        color_picker_widget = None
+    def _create_row(self, combo, data):
+        """Crea una fila visual para un atajo."""
+        row_frame = ctk.CTkFrame(self.table_frame, fg_color="transparent")
+        row_frame.pack(fill="x", pady=2)
 
-        def listen_keys():
-            import keyboard
-            try:
-                # Captura solo la última combinación pulsada, limpia el estado
-                combo = keyboard.read_hotkey(suppress=False)
-                combo_captured['value'] = combo
-                self.after(0, lambda: key_var.set(combo))
-            except Exception as exc:
-                def show_error(err=exc):
-                    feedback_label.configure(text=f"Error: {err}")
-                self.after(0, show_error)
-        threading.Thread(target=listen_keys, daemon=True).start()
+        action_id = data.get("action")
+        is_enabled = data.get("enabled", True)
+        color_data = data.get("color")
+        
+        # Nombre de la acción
+        action_name = self.available_actions.get(action_id, action_id)
+        if action_id == "set_color_custom" and color_data:
+            # Mostramos un cuadradito de color
+            hex_col = f"#{color_data[0]:02x}{color_data[1]:02x}{color_data[2]:02x}"
+            color_indicator = ctk.CTkLabel(row_frame, text="  ", fg_color=hex_col, width=20, height=20, corner_radius=5)
+            color_indicator.pack(side="left", padx=(10, 5))
+            ctk.CTkLabel(row_frame, text="Color Personalizado", width=200, anchor="w").pack(side="left")
+        else:
+            ctk.CTkLabel(row_frame, text=action_name, width=230, anchor="w").pack(side="left", padx=10)
 
-        def is_modifier_only(combo: str) -> bool:
-            mods = {"ctrl", "alt", "shift", "windows"}
-            keys = set(combo.replace("+", " ").split())
-            return keys.issubset(mods)
+        # Combinación de teclas
+        ctk.CTkLabel(row_frame, text=combo, width=150, anchor="center", text_color="#3daee9", font=("Consolas", 12, "bold")).pack(side="left", padx=10)
 
-        def on_color_change(rgb):
-            nonlocal color_value
-            color_value = rgb
+        # Controles
+        controls_frame = ctk.CTkFrame(row_frame, fg_color="transparent")
+        controls_frame.pack(side="right", padx=10)
+
+        # 1. Switch Habilitar/Deshabilitar
+        switch = ctk.CTkSwitch(
+            controls_frame, 
+            text="", 
+            width=40,
+            command=lambda c=combo, v=is_enabled: self._toggle_hotkey(c)
+        )
+        if is_enabled: switch.select()
+        else: switch.deselect()
+        switch.pack(side="left", padx=10)
+
+        # 2. Editar (Lápiz)
+        ctk.CTkButton(
+            controls_frame, 
+            text="✎", 
+            width=40, 
+            fg_color="#444", 
+            command=lambda c=combo, aid=action_id: self._open_edit_modal(aid, c)
+        ).pack(side="left", padx=5)
+
+        # 3. Eliminar (Sin confirmación, directo)
+        ctk.CTkButton(
+            controls_frame, 
+            text="🗑", 
+            width=40, 
+            fg_color="#c0392b", 
+            hover_color="#e74c3c",
+            command=lambda c=combo: self._delete_hotkey(c)
+        ).pack(side="left", padx=5)
+
+    def _add_hotkey_flow(self):
+        label_selected = self.action_var.get()
+        key_combo = self.new_hotkey_entry.get().strip().lower()
+        
+        if not key_combo: return
+
+        action_id = next((k for k, v in self.available_actions.items() if v == label_selected), None)
+        if not action_id: return
 
         if action_id == "set_color_custom":
-            ctk.CTkLabel(modal, text="Selecciona el color para este atajo:").pack(pady=5)
-            color_picker_widget = ColorPickerWidget(modal, on_color_change=on_color_change)
-            color_picker_widget.pack(pady=5)
+            self._open_color_picker_modal(key_combo)
+        else:
+            self.hotkeys_manager.set_hotkey(key_combo, action_id)
+            self._reload_ui()
 
-        def accept_hotkey():
-            combo = key_var.get().strip()
-            if not combo:
-                feedback_label.configure(text="No se capturó ninguna combinación")
-                return
-            if is_modifier_only(combo):
-                feedback_label.configure(text="No puedes usar solo modificadores")
-                return
-            if combo in self.hotkeys_manager.get_hotkeys():
-                confirm = tk.messagebox.askyesno("Duplicado", f"El atajo '{combo}' ya está en uso. ¿Deseas reemplazarlo?")
-                if not confirm:
-                    return
-            try:
-                if action_id == "set_color_custom":
-                    self.hotkeys_manager.set_hotkey(combo, action_id, color=color_value)
-                else:
-                    self.hotkeys_manager.set_hotkey(combo, action_id)
-                self.update_hotkeys()
-                modal.destroy()
-                tk.messagebox.showinfo("Hotkey", f"Hotkey '{combo}' asignado correctamente.")
-            except Exception as e:
-                logging.error(f"Error registrando hotkey: {e}")
-                feedback_label.configure(text=f"Error: {e}")
-        btn_accept = ctk.CTkButton(modal, text="Aceptar", command=accept_hotkey)
-        btn_accept.pack(pady=5)
-        btn_cancel = ctk.CTkButton(modal, text="Cancelar", command=modal.destroy)
-        btn_cancel.pack(pady=2)
+    def _toggle_hotkey(self, combo):
+        """Cambia el estado enabled/disabled y actualiza bindings."""
+        current = self.hotkeys_manager.get_hotkeys().get(combo, {})
+        new_state = not current.get("enabled", True)
+        self.hotkeys_manager.set_enabled(combo, new_state)
+        self.update_hotkeys() # Actualiza keyboard hooks inmediatamente
+        # No recargamos toda la UI para que el switch no parpadee, 
+        # pero idealmente el estado visual ya cambió al hacer click.
 
-        # Si es acción de color personalizado, mostrar color picker
-        if action_id in ["set_color_custom", "set_color_red", "set_color_blue", "set_color_green", "set_color_yellow", "set_color_white"]:
-            def on_color(rgb):
-                combo = key_var.get().strip()
-                if combo:
-                    self.hotkeys_manager.set_hotkey(combo, action_id)
-                    self.hotkeys_manager.set_hotkey("color_value", rgb)
-                    modal.destroy()
-                    self.destroy()
-                    HotkeysSettings(self.master, self.hotkeys_manager, self.update_hotkeys)
-            picker = ColorPickerWidget(modal, on_color_change=on_color)
-            picker.pack(pady=10)
+    def _open_edit_modal(self, action_id, current_combo):
+        """Abre nuestro modal personalizado bonito."""
+        def on_save(new_combo):
+            current_data = self.hotkeys_manager.get_hotkeys().get(current_combo)
+            color = current_data.get("color") if current_data else None
+            
+            self.hotkeys_manager.remove_hotkey(current_combo)
+            self.hotkeys_manager.set_hotkey(new_combo.lower(), action_id, color=color)
+            self._reload_ui()
 
-    def _clear_hotkey(self, action_id: str) -> None:
-        hotkeys = self.hotkeys_manager.get_hotkeys()
-        for k, v in list(hotkeys.items()):
-            if isinstance(v, dict) and v.get('action') == action_id:
-                self.hotkeys_manager.remove_hotkey(k)
-                self.update_hotkeys()
-                self.destroy()
-                break
+        EditDialog(self, "Editar Atajo", current_combo, on_save)
 
-    def _delete_action(self, action_id: str) -> None:
-        # Elimina la acción del registro y su hotkey
-        hotkeys = self.hotkeys_manager.get_hotkeys()
-        for k, v in list(hotkeys.items()):
-            if v == action_id:
-                self.hotkeys_manager.remove_hotkey(k)
-        if action_id in action_registry:
-            del action_registry[action_id]
+    def _delete_hotkey(self, combo):
+        # Eliminación directa sin preguntas
+        self.hotkeys_manager.remove_hotkey(combo)
+        self._reload_ui()
+
+    def _reload_ui(self):
+        self.update_hotkeys()
         self.destroy()
+        HotkeysSettings(self.master, self.hotkeys_manager, self.update_hotkeys)
+
+    def _open_color_picker_modal(self, key_combo):
+        modal = ctk.CTkToplevel(self)
+        modal.title("Color para atajo")
+        modal.geometry("400x320")
+        modal.lift()
+        modal.focus_force()
+        
+        def on_color_picked(rgb):
+            self.hotkeys_manager.set_hotkey(key_combo, "set_color_custom", color=rgb)
+            modal.destroy()
+            self._reload_ui()
+            
+        picker = ColorPickerWidget(modal, on_color_change=None)
+        picker.pack(pady=20)
+        picker.done_btn.configure(command=lambda: on_color_picked(tuple(int(picker.selected_color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))))

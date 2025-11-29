@@ -97,7 +97,7 @@ class VoiceCommandsUI(ctk.CTkToplevel):
         self.phrase_entry = ctk.CTkEntry(frame, placeholder_text="Frase en español")
         self.phrase_entry.pack(side=tk.LEFT, padx=5)
 
-        self.action_entry = ctk.CTkEntry(frame, placeholder_text="Función (ej: turn_on)")
+        self.action_entry = ctk.CTkEntry(frame, placeholder_text="ID Función (ej: turn_on)")
         self.action_entry.pack(side=tk.LEFT, padx=5)
 
         add_btn = ctk.CTkButton(frame, text="Añadir", command=self._add_command)
@@ -138,19 +138,26 @@ class VoiceCommandsUI(ctk.CTkToplevel):
         for phrase in self.voice_manager.list_commands().keys():
             self.command_listbox.insert(tk.END, phrase)
 
-    # --- AQUÍ ESTÁ LA SOLUCIÓN ---
-    # Creamos un "wrapper" (envoltorio) que inyecta el light_manager
-    # que está en self.master (la ventana principal) dentro de la acción.
-
-    def _get_wrapped_action(self, action_name):
-        from core.actions import get_action
-        raw_action = get_action(action_name)
+    def _get_wrapped_action(self, action_id):
+        # --- CAMBIO AQUÍ: Usamos get_action_func del nuevo sistema ---
+        from core.actions import get_action_func
+        raw_action = get_action_func(action_id)
         
-        # Esta es la función que realmente se guardará.
-        # Cuando se ejecute, buscará el light_manager y lo pasará.
         def wrapped_action():
             if hasattr(self.master, 'light_manager'):
-                raw_action(self.master.light_manager)
+                # raw_action ya viene configurada con sus argumentos (color, escena, etc)
+                # desde core/actions.py, así que solo necesita el manager.
+                # PERO: get_action_func devuelve un lambda que espera (manager, *args).
+                # Como actions.py ya usa lambdas "pre-baked" (con argumentos fijos),
+                # la mayoría solo necesita el manager.
+                
+                # Sin embargo, get_action_func devuelve: lambda lm: ...
+                # Así que la llamamos pasando el manager.
+                try:
+                    raw_action(self.master.light_manager)
+                except TypeError:
+                    # Fallback por si la función requiere más argumentos (ej: custom color sin params)
+                    print(f"Advertencia: La acción {action_id} requiere argumentos extra no provistos por voz.")
             else:
                 print("Error: No se encontró light_manager en MainWindow")
                 
@@ -165,9 +172,7 @@ class VoiceCommandsUI(ctk.CTkToplevel):
         action_name = self.action_entry.get().strip()
         
         if phrase and action_name:
-            # Usamos el wrapper en lugar de get_action directo
             action_func = self._get_wrapped_action(action_name)
-            
             self.voice_manager.add_command(phrase, action_func)
             self._refresh_commands()
             self.phrase_entry.delete(0, tk.END)
@@ -182,9 +187,7 @@ class VoiceCommandsUI(ctk.CTkToplevel):
             new_phrase = self.phrase_entry.get().strip()
             action_name = self.action_entry.get().strip()
             if new_phrase and action_name:
-                # Usamos el wrapper aquí también
                 action_func = self._get_wrapped_action(action_name)
-                
                 self.voice_manager.edit_command(old_phrase, new_phrase, action_func)
                 self._refresh_commands()
 
