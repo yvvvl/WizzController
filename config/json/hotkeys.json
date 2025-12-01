@@ -1,10 +1,6 @@
 {
-  "ctrl+p": {
-    "action": "toggle",
-    "enabled": true
-  },
-  "ctrl+i": {
-    "action": "turn_on",
+  "ctrl + p": {
+    "action": "toggle_power",
     "enabled": true
   }
 }

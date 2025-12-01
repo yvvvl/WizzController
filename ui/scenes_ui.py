@@ -1,137 +1,159 @@
-import customtkinter as ctk
-import tkinter as tk
-from tkinter import simpledialog, messagebox
+from PyQt6.QtWidgets import (QDialog, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
+                             QPushButton, QScrollArea, QFrame, QGridLayout, 
+                             QTabWidget, QInputDialog, QMessageBox)
+from PyQt6.QtCore import Qt
 from core.wiz_scenes_data import SCENES_DATA
 from config.presets_manager import PresetsManager
 
-class ScenesUI(ctk.CTkToplevel):
-    def __init__(self, master, light_manager, *args, **kwargs):
-        super().__init__(master, *args, **kwargs)
-        self.title("Galería de Luz")
-        self.geometry("700x550")
+class ScenesUI(QDialog):
+    def __init__(self, parent, light_manager):
+        super().__init__(parent)
+        self.setWindowTitle("Galería de Luz")
+        self.resize(750, 600)
         self.light_manager = light_manager
         self.presets_manager = PresetsManager()
+
+        layout = QVBoxLayout(self)
         
-        # Crear sistema de Pestañas
-        self.tab_view = ctk.CTkTabview(self)
-        self.tab_view.pack(fill="both", expand=True, padx=10, pady=10)
+        # Pestañas
+        self.tabs = QTabWidget()
+        layout.addWidget(self.tabs)
         
-        self.tab_scenes = self.tab_view.add("Escenas WiZ")
-        self.tab_colors = self.tab_view.add("Mis Colores")
-        
+        # Pestaña 1: Escenas WiZ
+        self.tab_scenes = QWidget()
         self._build_scenes_tab()
+        self.tabs.addTab(self.tab_scenes, "Escenas WiZ")
+        
+        # Pestaña 2: Mis Colores
+        self.tab_colors = QWidget()
         self._build_colors_tab()
+        self.tabs.addTab(self.tab_colors, "Mis Colores")
 
     def _build_scenes_tab(self):
-        # Frame desplazable para que quepan todas
-        scroll = ctk.CTkScrollableFrame(self.tab_scenes, fg_color="transparent")
-        scroll.pack(fill="both", expand=True)
-
+        layout = QVBoxLayout(self.tab_scenes)
+        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        
         for category, scenes in SCENES_DATA.items():
-            # Título de Categoría
-            ctk.CTkLabel(scroll, text=category, font=("Helvetica", 16, "bold"), anchor="w").pack(fill="x", pady=(15, 5), padx=5)
+            # Título Categoría
+            lbl_cat = QLabel(category)
+            lbl_cat.setStyleSheet("font-size: 16px; font-weight: bold; margin-top: 15px; color: #ddd;")
+            content_layout.addWidget(lbl_cat)
             
-            # Grid para los botones
-            grid_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-            grid_frame.pack(fill="x", padx=5)
+            # Grid de botones
+            grid_frame = QWidget()
+            grid = QGridLayout(grid_frame)
+            grid.setSpacing(10)
             
-            # Crear botones en columnas de 3
             columns = 3
             for i, (name, scene_id, icon) in enumerate(scenes):
-                btn = ctk.CTkButton(
-                    grid_frame,
-                    text=f"{icon}  {name}",
-                    height=40,
-                    fg_color="#2B2B2B", # Color oscuro tipo tarjeta
-                    hover_color="#3A3A3A",
-                    command=lambda sid=scene_id: self.light_manager.activate_scene(sid)
-                )
-                btn.grid(row=i // columns, column=i % columns, padx=5, pady=5, sticky="ew")
+                btn = QPushButton(f"{icon}  {name}")
+                btn.setFixedHeight(45)
+                # Estilo tarjeta
+                btn.setStyleSheet("""
+                    QPushButton { background-color: #333; border: 1px solid #444; border-radius: 5px; text-align: left; padding-left: 10px; }
+                    QPushButton:hover { background-color: #444; border-color: #666; }
+                """)
+                # Usamos lambda con default arg para capturar el valor
+                btn.clicked.connect(lambda _, sid=scene_id: self.light_manager.activate_scene(sid))
+                
+                grid.addWidget(btn, i // columns, i % columns)
             
-            # Configurar columnas para que se expandan
-            for c in range(columns):
-                grid_frame.grid_columnconfigure(c, weight=1)
+            content_layout.addWidget(grid_frame)
+
+        content_layout.addStretch()
+        scroll.setWidget(content)
+        layout.addWidget(scroll)
 
     def _build_colors_tab(self):
-        # Panel superior: Guardar color actual
-        top_frame = ctk.CTkFrame(self.tab_colors)
-        top_frame.pack(fill="x", padx=10, pady=10)
+        layout = QVBoxLayout(self.tab_colors)
         
-        ctk.CTkButton(
-            top_frame, 
-            text="💾 Guardar Color Actual", 
-            fg_color="#1f6aa5",
-            command=self._save_current_color
-        ).pack(side="left", expand=True, fill="x")
-
-        # Área de colores guardados
-        self.colors_scroll = ctk.CTkScrollableFrame(self.tab_colors, fg_color="transparent")
-        self.colors_scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        # Panel Superior
+        top_frame = QFrame()
+        top_layout = QHBoxLayout(top_frame)
+        btn_save = QPushButton("💾 Guardar Color Actual")
+        btn_save.setStyleSheet("background-color: #1f6aa5; color: white; padding: 8px;")
+        btn_save.clicked.connect(self._save_current_color)
+        top_layout.addWidget(btn_save)
+        layout.addWidget(top_frame)
+        
+        # Área de Scroll para colores
+        self.colors_scroll = QScrollArea()
+        self.colors_scroll.setWidgetResizable(True)
+        self.colors_scroll_content = QWidget()
+        self.colors_grid = QGridLayout(self.colors_scroll_content)
+        self.colors_grid.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        
+        self.colors_scroll.setWidget(self.colors_scroll_content)
+        layout.addWidget(self.colors_scroll)
         
         self._refresh_colors_grid()
 
     def _refresh_colors_grid(self):
-        # Limpiar grid anterior
-        for widget in self.colors_scroll.winfo_children():
-            widget.destroy()
+        # Limpiar grid
+        # Truco para borrar widgets en Qt Layouts
+        for i in reversed(range(self.colors_grid.count())): 
+            widget = self.colors_grid.itemAt(i).widget()
+            if widget: widget.setParent(None)
 
         presets = self.presets_manager.get_presets()
         if not presets:
-            ctk.CTkLabel(self.colors_scroll, text="No hay colores guardados.", text_color="gray").pack(pady=20)
+            self.colors_grid.addWidget(QLabel("No hay colores guardados."), 0, 0)
             return
 
         columns = 4
         i = 0
         for name, rgb in presets.items():
-            # Convertir RGB lista a Hex para mostrar en el botón
             hex_color = f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}"
             
-            # Contenedor de "Tarjeta"
-            card = ctk.CTkFrame(self.colors_scroll, fg_color="#333333")
-            card.grid(row=i // columns, column=i % columns, padx=5, pady=5, sticky="ew")
+            card = QFrame()
+            card.setFixedSize(100, 120)
+            card.setStyleSheet("background-color: #2b2b2b; border-radius: 8px;")
+            card_layout = QVBoxLayout(card)
+            card_layout.setContentsMargins(5,5,5,5)
             
-            # Muestra del color (Botón funcional)
-            color_btn = ctk.CTkButton(
-                card, 
-                text="", 
-                fg_color=hex_color, 
-                hover_color=hex_color,
-                height=50,
-                width=50,
-                command=lambda r=rgb: self.light_manager.set_color(tuple(r))
-            )
-            color_btn.pack(pady=5, padx=5)
-
-            # Nombre
-            ctk.CTkLabel(card, text=name, font=("Arial", 11)).pack(pady=(0,2))
+            # Botón de Color
+            btn_col = QPushButton()
+            btn_col.setFixedSize(80, 60)
+            btn_col.setStyleSheet(f"background-color: {hex_color}; border: none; border-radius: 5px;")
+            btn_col.clicked.connect(lambda _, r=rgb: self.light_manager.set_color(tuple(r)))
             
-            # Botón borrar (pequeño)
-            del_btn = ctk.CTkButton(
-                card, 
-                text="X", 
-                width=20, 
-                height=20, 
-                fg_color="#cc0000", 
-                hover_color="#aa0000",
-                command=lambda n=name: self._delete_color(n)
-            )
-            del_btn.pack(pady=(0, 5))
+            # Etiqueta
+            lbl_name = QLabel(name)
+            lbl_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            # Cortar texto largo
+            lbl_name.setStyleSheet("font-size: 10px; color: #ccc;")
             
+            # Botón Borrar pequeño
+            btn_del = QPushButton("×")
+            btn_del.setFixedSize(20, 20)
+            btn_del.setStyleSheet("background-color: #c0392b; border-radius: 10px; padding: 0px;")
+            btn_del.clicked.connect(lambda _, n=name: self._delete_color(n))
+            
+            card_layout.addWidget(btn_col, 0, Qt.AlignmentFlag.AlignCenter)
+            card_layout.addWidget(lbl_name)
+            card_layout.addWidget(btn_del, 0, Qt.AlignmentFlag.AlignCenter)
+            
+            self.colors_grid.addWidget(card, i // columns, i % columns)
             i += 1
-            
-        for c in range(columns):
-            self.colors_scroll.grid_columnconfigure(c, weight=1)
 
     def _save_current_color(self):
-        # Intentamos obtener el último color enviado desde el manager
+        # Intentamos obtener el último color (el manager debe tener esta prop)
         last_rgb = getattr(self.light_manager, 'last_rgb', (255, 255, 255))
         
-        name = simpledialog.askstring("Guardar Color", "Nombre para este color:")
-        if name:
+        name, ok = QInputDialog.getText(self, "Guardar Color", "Nombre para este color:")
+        if ok and name:
             self.presets_manager.add_preset(name, list(last_rgb))
             self._refresh_colors_grid()
 
     def _delete_color(self, name):
-        if messagebox.askyesno("Confirmar", f"¿Eliminar '{name}'?"):
+        reply = QMessageBox.question(self, "Confirmar", f"¿Eliminar '{name}'?",
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
             self.presets_manager.delete_preset(name)
             self._refresh_colors_grid()

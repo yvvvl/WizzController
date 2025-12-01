@@ -1,14 +1,15 @@
 import os
 import json
 import logging
-from typing import Dict
+from typing import Dict, Any
 from .config_manager import ensure_json_file
 
 BULBS_PATH = os.path.join(os.path.dirname(__file__), 'json', 'bulbs.json')
 
 class BulbsManager:
     """
-    Gestor de bombillas WiZ. Permite cargar, guardar y administrar bombillas.
+    Gestor de bombillas WiZ. 
+    Versión robusta: Maneja corrupción de datos y asegura formato de diccionario.
     """
     def __init__(self) -> None:
         self.file_path: str = BULBS_PATH
@@ -17,8 +18,23 @@ class BulbsManager:
 
     def _load(self) -> Dict[str, dict]:
         try:
+            # Si el archivo está vacío, devolver dict vacío
+            if os.path.getsize(self.file_path) == 0:
+                return {}
+
             with open(self.file_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                content = json.load(f)
+                
+                # --- CORRECCIÓN DEL ERROR ---
+                # Si el JSON es una lista (formato antiguo o erróneo), forzamos reinicio
+                if isinstance(content, list):
+                    logging.warning("bulbs.json tenía formato de lista. Reseteando a diccionario...")
+                    return {}
+                
+                return content
+        except json.JSONDecodeError:
+            logging.warning("bulbs.json corrupto. Iniciando vacío.")
+            return {}
         except Exception as e:
             logging.error(f"Error cargando bombillas: {e}")
             return {}
@@ -32,7 +48,7 @@ class BulbsManager:
 
     def add_bulb(self, bulb: dict) -> None:
         """
-        Agrega una bombilla al registro.
+        Agrega una bombilla al registro usando su IP como clave.
         """
         ip = bulb.get('ip')
         if ip:
@@ -47,8 +63,7 @@ class BulbsManager:
         """
         return self.bulbs
 
-# Example usage
+# Test rápido
 if __name__ == "__main__":
     manager = BulbsManager()
-    manager.add_bulb({"id": "1", "ip": "192.168.1.100", "name": "Living Room"})
-    print(manager.get_bulbs())
+    print("Bombillas cargadas:", manager.get_bulbs())

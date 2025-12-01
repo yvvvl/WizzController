@@ -1,213 +1,319 @@
-import customtkinter as ctk
-import threading
-import logging
-import tkinter as tk
-from core.light_manager import LightManager
+import keyboard
+from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
+                             QLabel, QPushButton, QSlider, QFrame, QMessageBox)
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QColor, QPalette, QKeySequence, QShortcut
+
+# Widgets y Ventanas Migradas
+from ui.widgets.modern_color_picker import ModernColorPicker 
+from ui.scenes_ui import ScenesUI
 from ui.hotkeys_settings import HotkeysSettings
+from ui.voice_commands_ui import VoiceCommandsUI
+
+# Managers Lógicos
 from config.hotkeys_manager import HotkeysManager
-from ui.widgets.modern_color_picker import ModernColorPicker # Asegúrate de la ruta
+from core.actions import get_action_func
 
-class MainWindow(ctk.CTk):
-    """
-    Ventana principal de la app WiZ. UI Renovada.
-    """
-    def __init__(self, light_manager: LightManager, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+class MainWindow(QMainWindow):
+    def __init__(self, light_manager):
+        super().__init__()
         self.light_manager = light_manager
-        self.selected_bulb = getattr(light_manager, 'selected_bulb', None)
-        self.title("WizZ Controller")
-        self.geometry("800x500") # Un poco más ancha para que quepa todo bien
         
-        # Configuración de Grid Principal
-        self.grid_columnconfigure(0, weight=1) # Panel Izquierdo (Color)
-        self.grid_columnconfigure(1, weight=2) # Panel Derecho (Controles)
-        self.grid_rowconfigure(0, weight=1)
-
-        # --- PANEL IZQUIERDO: Rueda de Color ---
-        self.left_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.left_frame.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        # Inicializar Managers UI
+        self.hotkeys_manager = HotkeysManager()
         
-        # Instanciamos nuestro NUEVO Color Picker
-        # OJO: Asegúrate de crear la carpeta ui/widgets/ o ajusta la importación
-        self.modern_picker = ModernColorPicker(
-            self.left_frame, 
-            on_color_change=self._on_color_change
-        )
-        self.modern_picker.pack(fill="both", expand=True)
-
-
-        # --- PANEL DERECHO: Controles Generales ---
-        self.right_frame = ctk.CTkFrame(self)
-        self.right_frame.grid(row=0, column=1, sticky="nsew", padx=(0, 20), pady=20)
-        self.right_frame.grid_columnconfigure(0, weight=1)
+        # Configuración Ventana
+        self.setWindowTitle("WizZ Controller Pro (PyQt6)")
+        self.resize(950, 600)
+        self.setMinimumSize(850, 550)
         
-        # 1. Info Ampolleta
-        self.bulb_info_frame = ctk.CTkFrame(self.right_frame, fg_color="transparent")
-        self.bulb_info_frame.pack(fill="x", padx=20, pady=20)
-        
-        self.lbl_status = ctk.CTkLabel(self.bulb_info_frame, text="Estado: --", font=("Arial", 16, "bold"))
-        self.lbl_status.pack(anchor="w")
-        
-        self.bulb_label = ctk.CTkLabel(self.bulb_info_frame, text="No hay ampolleta seleccionada", text_color="gray")
-        self.bulb_label.pack(anchor="w")
+        # Aplicar Tema Oscuro
+        self._apply_dark_theme()
 
-        # 2. Sliders
-        self.sliders_frame = ctk.CTkFrame(self.right_frame, fg_color="transparent")
-        self.sliders_frame.pack(fill="x", padx=20, pady=10)
+        # --- UI PRINCIPAL ---
+        central = QWidget()
+        self.setCentralWidget(central)
+        
+        # Layout horizontal (Splitter: Izq | Der)
+        main_layout = QHBoxLayout(central)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(25)
 
+        # ==========================================
+        # PANEL IZQUIERDO: COLOR
+        # ==========================================
+        left_panel = QFrame()
+        left_panel.setStyleSheet(".QFrame { background-color: #2b2b2b; border-radius: 15px; }")
+        left_layout = QVBoxLayout(left_panel)
+        left_layout.setContentsMargins(20, 20, 20, 20)
+        
+        lbl_color = QLabel("Cromaticidad")
+        lbl_color.setStyleSheet("color: #888; font-weight: bold; font-size: 14px;")
+        lbl_color.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        left_layout.addWidget(lbl_color)
+
+        # Widget de Color Magnífico
+        self.color_picker = ModernColorPicker()
+        self.color_picker.colorChanged.connect(self._on_color_changed)
+        left_layout.addWidget(self.color_picker)
+        
+        main_layout.addWidget(left_panel, 1)
+
+        # ==========================================
+        # PANEL DERECHO: CONTROLES
+        # ==========================================
+        right_panel = QWidget()
+        right_layout = QVBoxLayout(right_panel)
+        right_layout.setSpacing(10)
+
+        # 1. Header
+        header = QHBoxLayout()
+        title = QLabel("WizZ Control Center")
+        title.setStyleSheet("font-size: 24px; font-weight: bold; color: white;")
+        header.addWidget(title)
+        header.addStretch()
+        
+        btn_search = QPushButton("🔍 Buscar")
+        btn_search.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_search.setFixedSize(100, 35)
+        btn_search.setStyleSheet("""
+            QPushButton { background-color: #34495e; color: white; border-radius: 5px; border: none; }
+            QPushButton:hover { background-color: #2c3e50; }
+        """)
+        btn_search.clicked.connect(self._search_bulbs)
+        header.addWidget(btn_search)
+        right_layout.addLayout(header)
+
+        # 2. Información Estado
+        self.info_box = QFrame()
+        self.info_box.setStyleSheet("background-color: #2b2b2b; border-radius: 10px;")
+        info_layout = QVBoxLayout(self.info_box)
+        
+        self.lbl_status = QLabel("Estado: Desconectado")
+        self.lbl_status.setStyleSheet("font-size: 14px; font-weight: bold; color: #e74c3c;")
+        
+        self.lbl_ip = QLabel("IP: --")
+        self.lbl_ip.setStyleSheet("color: #aaa;")
+        
+        info_layout.addWidget(self.lbl_status)
+        info_layout.addWidget(self.lbl_ip)
+        right_layout.addWidget(self.info_box)
+
+        right_layout.addSpacing(20)
+
+        # 3. Sliders Principales
         # Brillo
-        ctk.CTkLabel(self.sliders_frame, text="Brillo").pack(anchor="w")
-        self.brightness_slider = ctk.CTkSlider(self.sliders_frame, from_=0, to=100, command=self._on_brightness_change)
-        self.brightness_slider.set(100)
-        self.brightness_slider.pack(fill="x", pady=(0, 15))
+        right_layout.addWidget(QLabel("Brillo Maestro"))
+        self.slider_bri = QSlider(Qt.Orientation.Horizontal)
+        self.slider_bri.setRange(10, 100)
+        self.slider_bri.setValue(100)
+        self.slider_bri.valueChanged.connect(self._on_brightness_change)
+        right_layout.addWidget(self.slider_bri)
 
         # Temperatura
-        ctk.CTkLabel(self.sliders_frame, text="Temperatura (Calidez)").pack(anchor="w")
-        self.temperature_slider = ctk.CTkSlider(self.sliders_frame, from_=2200, to=6500, command=self._on_temperature_change)
-        self.temperature_slider.set(4000)
-        self.temperature_slider.pack(fill="x", pady=(0, 15))
+        right_layout.addWidget(QLabel("Temperatura (Kelvin)"))
+        self.slider_temp = QSlider(Qt.Orientation.Horizontal)
+        self.slider_temp.setRange(2200, 6500)
+        self.slider_temp.setValue(4000)
+        self.slider_temp.setInvertedAppearance(True) 
+        self.slider_temp.setStyleSheet("""
+            QSlider::groove:horizontal {
+                height: 6px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #aaddff, stop:1 #ffaa55);
+                border-radius: 3px;
+            }
+            QSlider::handle:horizontal {
+                background: white; width: 16px; margin: -5px 0; border-radius: 8px;
+            }
+        """)
+        self.slider_temp.valueChanged.connect(self._on_temp_change)
+        right_layout.addWidget(self.slider_temp)
 
-        # 3. Botones Grandes de Acción
-        self.actions_frame = ctk.CTkFrame(self.right_frame, fg_color="transparent")
-        self.actions_frame.pack(fill="x", padx=20, pady=10)
+        right_layout.addStretch()
+
+        # 4. Botones Grandes (ON/OFF)
+        actions_layout = QHBoxLayout()
         
-        self.btn_on = ctk.CTkButton(self.actions_frame, text="ENCENDER", height=40, fg_color="#27ae60", hover_color="#2ecc71", command=self._turn_on)
-        self.btn_on.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        btn_on = QPushButton("ENCENDER")
+        btn_on.setFixedHeight(50)
+        btn_on.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_on.setStyleSheet("""
+            QPushButton { background-color: #27ae60; color: white; border-radius: 8px; font-weight: bold; font-size: 14px; }
+            QPushButton:hover { background-color: #2ecc71; }
+            QPushButton:pressed { background-color: #1e8449; }
+        """)
+        btn_on.clicked.connect(self._turn_on)
         
-        self.btn_off = ctk.CTkButton(self.actions_frame, text="APAGAR", height=40, fg_color="#c0392b", hover_color="#e74c3c", command=self._turn_off)
-        self.btn_off.pack(side="right", fill="x", expand=True, padx=(5, 0))
+        btn_off = QPushButton("APAGAR")
+        btn_off.setFixedHeight(50)
+        btn_off.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_off.setStyleSheet("""
+            QPushButton { background-color: #c0392b; color: white; border-radius: 8px; font-weight: bold; font-size: 14px; }
+            QPushButton:hover { background-color: #e74c3c; }
+            QPushButton:pressed { background-color: #922b21; }
+        """)
+        btn_off.clicked.connect(self._turn_off)
 
-        # 4. Extras
-        self.btn_search = ctk.CTkButton(self.right_frame, text="Buscar Dispositivos en Red", fg_color="#2980b9", command=self._search_bulb)
-        self.btn_search.pack(pady=20)
+        actions_layout.addWidget(btn_on)
+        actions_layout.addWidget(btn_off)
+        right_layout.addLayout(actions_layout)
 
-
-        # Inicialización
-        self._bind_hotkeys()
-        self._build_menu()
-        self._show_selected_bulb()
+        # 5. Barra Inferior (Menú Secundario)
+        bottom_menu = QHBoxLayout()
         
-        # Hotkeys Init
-        self._init_hotkeys_system()
+        # Estilo botones secundarios
+        sec_style = """
+            QPushButton { background: transparent; color: #ccc; border: 1px solid #555; border-radius: 4px; padding: 8px; } 
+            QPushButton:hover { color: white; border-color: #888; background-color: #333; }
+        """
+        
+        btn_scenes = QPushButton("🎨 Galería de Escenas")
+        btn_scenes.setStyleSheet(sec_style)
+        btn_scenes.clicked.connect(self._open_scenes)
 
-    def _init_hotkeys_system(self):
-        def update_hotkeys():
-            from config.hotkeys_manager import HotkeysManager
-            from core.actions import get_action_func 
-            import keyboard
-            
-            hotkeys_manager = HotkeysManager()
+        btn_hotkeys = QPushButton("⌨ Config. Teclas")
+        btn_hotkeys.setStyleSheet(sec_style)
+        btn_hotkeys.clicked.connect(self._open_hotkeys)
+        
+        btn_voice = QPushButton("🎤 Comandos de Voz")
+        btn_voice.setStyleSheet(sec_style)
+        btn_voice.clicked.connect(self._open_voice)
+
+        bottom_menu.addWidget(btn_scenes)
+        bottom_menu.addWidget(btn_hotkeys)
+        bottom_menu.addWidget(btn_voice)
+        right_layout.addLayout(bottom_menu)
+
+        main_layout.addWidget(right_panel, 1)
+
+        # Inicialización lógica
+        self._init_shortcuts()
+        self._check_connection_status()
+        self._apply_global_hotkeys() # Cargar hooks iniciales
+
+    def _apply_dark_theme(self):
+        palette = QPalette()
+        palette.setColor(QPalette.ColorRole.Window, QColor(40, 40, 40))
+        palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)
+        palette.setColor(QPalette.ColorRole.Base, QColor(25, 25, 25))
+        palette.setColor(QPalette.ColorRole.AlternateBase, QColor(53, 53, 53))
+        palette.setColor(QPalette.ColorRole.ToolTipBase, Qt.GlobalColor.white)
+        palette.setColor(QPalette.ColorRole.ToolTipText, Qt.GlobalColor.white)
+        palette.setColor(QPalette.ColorRole.Text, Qt.GlobalColor.white)
+        palette.setColor(QPalette.ColorRole.Button, QColor(53, 53, 53))
+        palette.setColor(QPalette.ColorRole.ButtonText, Qt.GlobalColor.white)
+        palette.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
+        palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.black)
+        self.setPalette(palette)
+
+    def _init_shortcuts(self):
+        self.shortcut_on = QShortcut(QKeySequence("Ctrl+E"), self)
+        self.shortcut_on.activated.connect(self._turn_on)
+
+        self.shortcut_off = QShortcut(QKeySequence("Ctrl+A"), self)
+        self.shortcut_off.activated.connect(self._turn_off)
+
+    # --- VENTANAS SECUNDARIAS ---
+
+    def _open_scenes(self):
+        # Pasamos el light_manager para que la ventana pueda ejecutar acciones
+        dlg = ScenesUI(self, self.light_manager)
+        dlg.exec()
+
+    def _open_hotkeys(self):
+        # Pasamos el callback para recargar los hooks si el usuario cambia algo
+        dlg = HotkeysSettings(self, self.hotkeys_manager, self._apply_global_hotkeys)
+        dlg.exec()
+
+    def _open_voice(self):
+        # Abrimos la ventana de voz. El manager se crea dentro si no existe.
+        dlg = VoiceCommandsUI(self)
+        dlg.exec()
+
+    # --- LOGICA HOTKEYS GLOBALES ---
+    
+    def _apply_global_hotkeys(self):
+        """Lee la configuración y 'engancha' las teclas globales"""
+        try:
             keyboard.unhook_all()
+            hotkeys = self.hotkeys_manager.get_hotkeys()
             
-            hotkeys = hotkeys_manager.get_hotkeys()
-            for combo, entry in hotkeys.items():
-                try:
-                    if isinstance(entry, str): entry = {"action": entry, "enabled": True}
-                    if not entry.get("enabled", True): continue
-
-                    action_id = entry.get("action")
-                    if not action_id: continue
-
-                    action_func = get_action_func(action_id)
+            for combo, data in hotkeys.items():
+                if data.get("enabled", True):
+                    action_id = data.get("action")
+                    # Obtenemos la función pura (ej: turn_on)
+                    func_base = get_action_func(action_id)
                     
-                    def run_action_wrapper(func=action_func, p=entry, aid=action_id):
-                        if aid == "set_color_custom" and "color" in p:
-                            func(self.light_manager, p["color"])
-                        else:
-                            func(self.light_manager)
+                    # Verificamos si tiene color guardado
+                    color_arg = data.get("color")
+                    
+                    # Creamos el ejecutor final
+                    if action_id == "set_color_custom" and color_arg:
+                         # Lambda que pasa el manager y el color
+                        def executor(c=color_arg):
+                            try:
+                                func_base(self.light_manager, c)
+                            except: pass
+                    else:
+                        # Lambda que pasa solo el manager
+                        def executor():
+                            try:
+                                func_base(self.light_manager)
+                            except: pass
 
-                    keyboard.add_hotkey(combo, run_action_wrapper, suppress=False)
-                except Exception:
-                    pass
-        
-        update_hotkeys()
-        self.update_hotkeys_func = update_hotkeys
+                    # Registrar en libreria keyboard
+                    keyboard.add_hotkey(combo, executor)
+                    
+            print(f"Hotkeys globales recargados: {len(hotkeys)} activos")
+        except Exception as e:
+            print(f"Error cargando hotkeys: {e}")
 
-    def _bind_hotkeys(self):
-        self.bind_all('<Control-e>', lambda e: self.light_manager.turn_on())
-        self.bind_all('<Control-a>', lambda e: self.light_manager.turn_off())
-
+    # --- LÓGICA DE CONTROL ---
+    
     def _turn_on(self):
         self.light_manager.turn_on()
-        self.lbl_status.configure(text="Estado: Encendido", text_color="#2ecc71")
+        self._update_status(True)
 
     def _turn_off(self):
         self.light_manager.turn_off()
-        self.lbl_status.configure(text="Estado: Apagado", text_color="#e74c3c")
+        self._update_status(False)
 
-    def _search_bulb(self):
-        threading.Thread(target=self._discover_bulbs_thread, daemon=True).start()
+    def _on_brightness_change(self, val):
+        self.light_manager.set_brightness(val)
 
-    def _discover_bulbs_thread(self):
-        try:
-            bulbs = self.light_manager.discover_bulbs()
-        except Exception as e:
-            logging.error(f"Error: {e}")
-            bulbs = []
-        self.after(0, lambda: self._show_bulb_list(bulbs))
+    def _on_temp_change(self, val):
+        self.light_manager.set_temperature(val)
 
-    def _show_bulb_list(self, bulbs):
-        popup = ctk.CTkToplevel(self)
-        popup.title("Ampolletas")
-        popup.geometry("300x400")
-        
-        ctk.CTkLabel(popup, text="Dispositivos encontrados:", font=("Arial", 14, "bold")).pack(pady=10)
-        
-        if not bulbs:
-            ctk.CTkLabel(popup, text="No se encontraron dispositivos.").pack(pady=10)
-            
-        for bulb in bulbs:
-            ctk.CTkButton(
-                popup, 
-                text=f"{bulb.get('ip')} \n {bulb.get('mac')}", 
-                command=lambda b=bulb: self._select_bulb(b, popup)
-            ).pack(pady=5, padx=20, fill="x")
+    def _on_color_changed(self, rgb_tuple):
+        self.light_manager.set_color(rgb_tuple)
 
-    def _select_bulb(self, bulb, popup):
-        self.selected_bulb = bulb
-        self.light_manager.set_selected_bulb(bulb)
-        if bulb.get("ip"):
-            self.light_manager.register_bulb(bulb.get("ip"), bulb.get("ip"))
-            from config.bulbs_manager import BulbsManager
-            BulbsManager().add_bulb(bulb)
-            
-        popup.destroy()
-        self._show_selected_bulb()
-
-    def _show_selected_bulb(self):
-        if self.selected_bulb:
-            self.bulb_label.configure(text=f"IP: {self.selected_bulb.get('ip')}\nMAC: {self.selected_bulb.get('mac')}", text_color="white")
-            self.lbl_status.configure(text="Estado: Conectado")
+    def _update_status(self, is_on):
+        if is_on:
+            self.lbl_status.setText("Estado: ENCENDIDO")
+            self.lbl_status.setStyleSheet("font-size: 14px; font-weight: bold; color: #2ecc71;") 
         else:
-            self.bulb_label.configure(text="No hay ampolleta seleccionada", text_color="gray")
+            self.lbl_status.setText("Estado: APAGADO")
+            self.lbl_status.setStyleSheet("font-size: 14px; font-weight: bold; color: #e74c3c;")
 
-    def _on_color_change(self, rgb):
-        self.light_manager.set_color(rgb)
+    def _check_connection_status(self):
+        if hasattr(self.light_manager, 'selected_bulb') and self.light_manager.selected_bulb:
+            ip = self.light_manager.selected_bulb.get('ip', 'Desconocida')
+            self.lbl_ip.setText(f"IP Conectada: {ip}")
+        else:
+            self.lbl_ip.setText("IP: No seleccionada")
+        
+        QTimer.singleShot(2000, self._check_connection_status)
 
-    def _on_brightness_change(self, value):
-        self.light_manager.set_brightness(int(value))
-
-    def _on_temperature_change(self, value):
-        self.light_manager.set_temperature(int(value))
-
-    def open_hotkeys_settings(self):
-        if self.update_hotkeys_func:
-            HotkeysSettings(self, HotkeysManager(), self.update_hotkeys_func)
-
-    def _build_menu(self):
-        menubar = tk.Menu(self)
-        settings_menu = tk.Menu(menubar, tearoff=0)
-        settings_menu.add_command(label="Galería de Luz", command=self.open_scenes_ui)
-        settings_menu.add_command(label="Hotkeys", command=self.open_hotkeys_settings)
-        settings_menu.add_command(label="Voz", command=self.open_voice_commands_ui)
-        menubar.add_cascade(label="Menú", menu=settings_menu)
-        self.config(menu=menubar)
-
-    def open_voice_commands_ui(self):
-        from ui.voice_commands_ui import VoiceCommandsUI
-        manager = getattr(self, '_voice_manager', None)
-        VoiceCommandsUI(self, manager)
-
-    def open_scenes_ui(self):
-        from ui.scenes_ui import ScenesUI
-        ScenesUI(self, self.light_manager)
+    def _search_bulbs(self):
+        bulbs = self.light_manager.discover_bulbs()
+        if bulbs:
+            bulb = bulbs[0]
+            self.light_manager.set_selected_bulb(bulb)
+            if bulb.get("ip"):
+                self.light_manager.register_bulb(bulb.get("ip"), bulb.get("ip"))
+                # Guardar para la próxima
+                self.light_manager.bulbs_manager.add_bulb(bulb)
+            QMessageBox.information(self, "Éxito", f"Ampolleta encontrada: {bulb.get('ip')}")
+            self._check_connection_status()
+        else:
+            QMessageBox.warning(self, "Error", "No se encontraron ampolletas WiZ en la red.")

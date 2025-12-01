@@ -4,7 +4,29 @@ import logging
 from typing import Dict, Any
 from .config_manager import ensure_json_file
 
+# Definimos la ruta de logs
 LOGS_PATH = os.path.join(os.path.dirname(__file__), 'json', 'logs.json')
+
+def setup_logging(level=logging.INFO):
+    """
+    Configura el sistema de logging global de la aplicación.
+    Se llama desde main.py al inicio.
+    """
+    # Crear carpeta log si no existe
+    log_dir = os.path.dirname(LOGS_PATH)
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
+    logging.basicConfig(
+        level=level,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(),  # Mostrar en consola
+            # Guardar en archivo wizz.log en la raíz o logs.json según prefieras. 
+            # Usaremos un log de texto estándar para depuración:
+            logging.FileHandler("wizz_debug.log", mode='a', encoding='utf-8')
+        ]
+    )
 
 class LogsManager:
     """

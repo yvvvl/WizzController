@@ -1,7 +1,7 @@
-customtkinter
+PyQt6
 pywizlight
 keyboard
 vosk
 sounddevice
 Pillow
-
+watchdog
