@@ -16,9 +16,14 @@ class BulbDiscovery:
         logging.info("Buscando bombillas WiZ en la red...")
         try:
             devices = await discovery.discover_lights(broadcast_space="192.168.1.255", wait_time=timeout)
-            return [
-                {"ip": d.ip, "mac": d.mac} for d in devices
-            ]
+            bulbs = []
+            for d in devices:
+                try:
+                    port = getattr(d, "port", 38899)
+                except Exception:
+                    port = 38899
+                bulbs.append({"ip": d.ip, "mac": d.mac, "port": port})
+            return bulbs
         except Exception as e:
             logging.error(f"Error descubriendo bombillas: {e}")
             return []

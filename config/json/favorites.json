@@ -1,0 +1,10 @@
+{
+  "favorites": [
+    { "label": "Encender", "action": "turn_on" },
+    { "label": "50%", "action": "brightness_50" },
+    { "label": "Cálida", "action": "temp_2700" },
+    { "label": "Fiesta", "action": "scene_party" },
+    { "label": "Navidad", "action": "scene_christmas" },
+    { "label": "Apagar", "action": "turn_off" }
+  ]
+}

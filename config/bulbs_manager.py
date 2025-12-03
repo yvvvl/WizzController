@@ -63,6 +63,21 @@ class BulbsManager:
         """
         return self.bulbs
 
+    def set_bulb_name(self, ip: str, name: str) -> None:
+        """Define un nombre amigable para una bombilla y guarda."""
+        if not ip:
+            return
+        bulb = self.bulbs.get(ip, {"ip": ip})
+        bulb["name"] = name
+        self.bulbs[ip] = bulb
+        self.save()
+
+    def get_bulb_name(self, ip: str) -> str | None:
+        try:
+            return self.bulbs.get(ip, {}).get("name")
+        except Exception:
+            return None
+
 # Test rápido
 if __name__ == "__main__":
     manager = BulbsManager()

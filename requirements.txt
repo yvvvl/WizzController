@@ -1,7 +1,8 @@
-PyQt6
+flet
 pywizlight
 keyboard
 vosk
 sounddevice
 Pillow
 watchdog
+rich

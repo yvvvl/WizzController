@@ -1,41 +1,63 @@
-import sys
-import logging
+import flet as ft
 import threading
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtGui import QFont
-
 from core.light_manager import LightManager
-from config.config_manager import ConfigManager
-from config.logs_manager import setup_logging
-from ui.main_window import MainWindow 
+from ui.app import WizzApp
 
-def main():
-    # 1. Configuración inicial
-    setup_logging()
-    logging.info("Iniciando WizzController (PyQt6 Edition)...")
+def main(page: ft.Page):
+    # 1. Configuración de Ventana
+    page.title = "WizZ Controller Pro"
+    page.theme_mode = ft.ThemeMode.DARK
+    page.padding = 0
+    page.bgcolor = "#0f172a" 
     
-    ConfigManager()
+    # --- TAMAÑO Y LÍMITES ---
+    page.window_width = 1100
+    page.window_height = 750
     
-    # 2. Inicializar Managers
-    light_manager = LightManager()
+    # Restricciones Nativas
+    page.window_min_width = 900  
+    page.window_min_height = 680
     
-    # 3. Preparar Interfaz Gráfica
-    app = QApplication(sys.argv)
-    app.setStyle("Fusion")
-    font = QFont("Segoe UI", 10)
-    app.setFont(font)
-    
-    # Ventana Principal
-    window = MainWindow(light_manager)
-    window.show()
+    # Centrado (Manual para evitar errores de versión)
+    page.window_alignment = ft.MainAxisAlignment.CENTER
 
-    # 4. Servicios en segundo plano
-    # IMPORTANTE: Ahora llamamos a 'startup_sequence'
-    logging.info("Iniciando servicio de conexión...")
-    threading.Thread(target=light_manager.startup_sequence, daemon=True).start()
+    # Fuentes
+    page.fonts = {"Roboto": "https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Regular.ttf"}
 
-    # 5. Ejecutar Loop
-    sys.exit(app.exec())
+    # --- PROTECCIÓN EXTRA: EVENTO DE RESIZE ---
+    # Si el sistema operativo ignora min_width, esto lo fuerza.
+    def on_window_resize(e):
+        corrected = False
+        if page.window_width < 900:
+            page.window_width = 900
+            corrected = True
+        if page.window_height < 680:
+            page.window_height = 680
+            corrected = True
+        if corrected:
+            page.update()
+            
+    page.on_resize = on_window_resize
+
+    # ¡IMPORTANTE! Aplicar configuración a la ventana AHORA
+    page.update()
+
+    # 2. Instanciar Lógica
+    wiz = LightManager()
+    threading.Thread(target=wiz.startup_sequence, daemon=True).start()
+
+    # 3. Iniciar UI
+    app = WizzApp(page, wiz)
+
+    # 4. Conectar Sincronización
+    def on_bulb_update(state):
+        try:
+            # Sincronizar UI desde la bombilla
+            app._raw_controls.sync_state(state)
+        except Exception:
+            pass
+
+    wiz.set_callback(on_bulb_update)
 
 if __name__ == "__main__":
-    main()
+    ft.app(target=main)
