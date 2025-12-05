@@ -1,141 +1,196 @@
 import asyncio
 import logging
-import socket
-import json
-import time
-from typing import Dict, Optional, Any
 import threading
-from concurrent.futures import ThreadPoolExecutor
-from core.discovery import BulbDiscovery
+import sys
+import time
+from typing import List, Callable, Optional, Dict, Any
+from pywizlight import wizlight, PilotBuilder, discovery
+from pywizlight.exceptions import WizLightConnectionError
 from config.bulbs_manager import BulbsManager
 
 class LightManager:
-    def __init__(self) -> None:
+    def __init__(self):
         self.bulbs_manager = BulbsManager()
-        self.selected_bulb: Optional[Dict[str, Any]] = None
+        self.bulbs: List[wizlight] = []
+        self.callback: Optional[Callable] = None
+        self.running = True
         
-        # Callbacks para actualizar la UI
-        self.on_state_update = None 
+        # Control de concurrencia
+        self.last_command_time = 0
+        self.monitor_cooldown = 1.5  # Tiempo de espera tras comando
         
-        # Socket 1: PARA ENVIAR COMANDOS (Rápido, Fire & Forget)
-        self.sock_cmd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock_cmd.setblocking(False)
+        # Cache del estado actual
+        self._current_state = {
+            "state": False,
+            "brightness": 100,
+            "temp": 2700,
+            "rgb": (255, 255, 255),
+            "sceneId": 0
+        }
+        
+        # --- MOTOR ASÍNCRONO ---
+        if sys.platform == 'win32':
+            self.loop = asyncio.SelectorEventLoop()
+        else:
+            self.loop = asyncio.new_event_loop()
 
-        # Loop de envío
-        self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="wizz_bg")
-        self._loop = asyncio.new_event_loop()
-        self._start_background_loop()
-        
-        # Loop de Monitoreo (Sync)
-        self._monitor_running = True
-        threading.Thread(target=self._monitor_loop, daemon=True).start()
+        self.thread = threading.Thread(target=self._start_background_loop, daemon=True)
+        self.thread.start()
 
     def _start_background_loop(self):
-        def run_loop():
-            asyncio.set_event_loop(self._loop)
-            self._loop.run_forever()
-        threading.Thread(target=run_loop, daemon=True).start()
+        asyncio.set_event_loop(self.loop)
+        self.loop.create_task(self._state_monitor())
+        self.loop.run_forever()
 
-    # --- MONITOR DE SINCRONIZACIÓN ---
-    def _monitor_loop(self):
-        """
-        Consulta el estado usando un SOCKET INDEPENDIENTE.
-        Esto evita que las respuestas de 'setPilot' (comandos) se mezclen
-        con las de 'getPilot' (estado).
-        """
-        # Socket 2: EXCLUSIVO PARA ESCUCHAR (Con timeout)
-        monitor_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        monitor_sock.settimeout(1.0) # Esperar máx 1s la respuesta
+    def set_callback(self, callback: Callable):
+        self.callback = callback
 
-        while self._monitor_running:
-            ip = self._get_ip()
-            if ip and self.on_state_update:
+    def get_state(self):
+        return self._current_state
+
+    def _notify_ui(self):
+        """Envía el estado actual a la UI de forma segura"""
+        if self.callback:
+            self.callback(self._current_state)
+
+    async def _state_monitor(self):
+        print("Monitor de estado iniciado")
+        while self.running:
+            # Evitamos leer si acabamos de escribir (evita saltos en UI)
+            if time.time() - self.last_command_time < self.monitor_cooldown:
+                await asyncio.sleep(0.5)
+                continue
+
+            if self.bulbs:
                 try:
-                    # 1. Preguntar estado
-                    msg = json.dumps({"method": "getPilot", "params": {}}).encode()
-                    monitor_sock.sendto(msg, (ip, 38899))
+                    target_bulb = self.bulbs[0]
+                    state = await target_bulb.updateState()
                     
-                    # 2. Esperar respuesta (Bloqueante pero seguro en este hilo)
-                    data, _ = monitor_sock.recvfrom(4096)
-                    resp = json.loads(data.decode())
-                    
-                    if "result" in resp:
-                        state = resp["result"]
-                        # Validar que sea un estado real y no un "success: true"
-                        if "dimming" in state or "temp" in state or "r" in state:
-                            self.on_state_update(state)
-                            
-                except socket.timeout:
-                    pass # La bombilla no respondió a tiempo, normal.
-                except Exception as e:
-                    # Errores puntuales de red se ignoran para mantener el loop vivo
-                    pass
-            
-            # Frecuencia de actualización (1.0s es buen balance fluidez/red)
-            time.sleep(1.0)
+                    if state:
+                        is_on = state.get_state()
+                        
+                        # --- CONVERSIÓN DE LECTURA (255 -> 100%) ---
+                        raw_bri = state.get_brightness()
+                        if raw_bri is None: raw_bri = 0
+                        brightness_pct = int((raw_bri / 255) * 100) if is_on else 0
+                        
+                        temp = state.get_colortemp() or 0
+                        rgb = state.get_rgb() or (0, 0, 0)
+                        scene_id = state.get_scene_id() or 0
 
-    def set_callback(self, func):
-        self.on_state_update = func
+                        self._current_state = {
+                            "state": is_on,
+                            "brightness": brightness_pct,
+                            "temp": temp,
+                            "rgb": rgb,
+                            "sceneId": scene_id
+                        }
+                        self._notify_ui()
+                            
+                except Exception as e:
+                    pass 
+            
+            await asyncio.sleep(2.0)
+
+    # --- COMANDOS ---
+
+    def turn_on(self):
+        # Actualización Optimista
+        self._current_state["state"] = True
+        self._notify_ui()
+        # Envío real
+        self._send_command(PilotBuilder(state=True))
+
+    def turn_off(self):
+        # Actualización Optimista
+        self._current_state["state"] = False
+        self._notify_ui()
+        
+        # Pausa del monitor
+        self.last_command_time = time.time()
+
+        # Envío específico de APAGADO (Corrección: usar turn_off explícito)
+        if not self.bulbs: return
+
+        async def _off():
+            for bulb in self.bulbs:
+                try:
+                    await bulb.turn_off()
+                except Exception as e:
+                    logging.error(f"Error al apagar {bulb.ip}: {e}")
+
+        if self.loop.is_running():
+            asyncio.run_coroutine_threadsafe(_off(), self.loop)
+
+    def set_rgb(self, r: int, g: int, b: int):
+        self._current_state["rgb"] = (r, g, b)
+        self._send_command(PilotBuilder(rgb=(r, g, b)))
+
+    def set_white(self, kelvin: int):
+        kelvin = max(2200, min(6500, kelvin))
+        self._current_state["temp"] = kelvin
+        self._send_command(PilotBuilder(colortemp=kelvin))
+
+    def set_brightness(self, intensity: int):
+        """
+        intensity: Entero de 10 a 100 (Porcentaje desde la UI)
+        """
+        self._current_state["brightness"] = intensity
+        self._notify_ui() 
+        
+        # CALIBRACIÓN: 10-100% -> 25-255 (Valor WiZ)
+        wiz_value = int(intensity * 2.55)
+        wiz_value = max(25, min(255, wiz_value))
+        
+        self._send_command(PilotBuilder(brightness=wiz_value))
+
+    def set_scene(self, scene_id: int):
+        self._current_state["sceneId"] = scene_id
+        self._send_command(PilotBuilder(scene=scene_id))
+
+    def _send_command(self, pilot: PilotBuilder):
+        # Pausar monitor para evitar race conditions
+        self.last_command_time = time.time()
+        
+        if not self.bulbs: return
+
+        async def _send():
+            for bulb in self.bulbs:
+                try:
+                    await bulb.turn_on(pilot)
+                except Exception as e:
+                    logging.error(f"Error comando {bulb.ip}: {e}")
+
+        if self.loop.is_running():
+            asyncio.run_coroutine_threadsafe(_send(), self.loop)
 
     # --- SETUP ---
-    def startup_sequence(self) -> None:
-        saved = self.bulbs_manager.get_bulbs()
-        if saved:
-            ip = next(iter(saved))
-            self.selected_bulb = saved[ip]
-        else:
-            self.scan_and_register()
+    def startup_sequence(self):
+        print("Iniciando LightManager...")
+        known_bulbs = self.bulbs_manager.get_bulbs()
+        for ip in known_bulbs:
+            self._add_bulb_by_ip(ip)
+        if self.loop.is_running():
+            asyncio.run_coroutine_threadsafe(self._discover_bulbs(), self.loop)
 
-    def scan_and_register(self):
-        asyncio.run_coroutine_threadsafe(self._async_scan(), self._loop)
+    def _add_bulb_by_ip(self, ip: str):
+        async def _add():
+            if not any(b.ip == ip for b in self.bulbs):
+                try:
+                    bulb = wizlight(ip)
+                    self.bulbs.append(bulb)
+                except: pass
+        if self.loop.is_running():
+            asyncio.run_coroutine_threadsafe(_add(), self.loop)
 
-    async def _async_scan(self):
+    async def _discover_bulbs(self):
+        print("Escaneando red en busca de bombillas...")
         try:
-            bulbs = await BulbDiscovery.discover_bulbs()
-            if bulbs:
-                self.selected_bulb = bulbs[0]
-                self.bulbs_manager.add_bulb(bulbs[0])
-        except Exception: pass
-
-    def _get_ip(self):
-        if self.selected_bulb: return self.selected_bulb.get("ip")
-        return None
-
-    # --- COMANDOS UDP (Usan sock_cmd) ---
-    def _send_raw_udp(self, params: dict):
-        ip = self._get_ip()
-        if not ip: return
-        payload = {"method": "setPilot", "params": params}
-        try:
-            msg = json.dumps(payload).encode('utf-8')
-            self.sock_cmd.sendto(msg, (ip, 38899))
-        except Exception: pass
-
-    def turn_on(self): self._send_raw_udp({"state": True})
-    def turn_off(self): self._send_raw_udp({"state": False})
-    
-    def set_color(self, rgb: tuple[int, int, int], warm_white: int = 0):
-        r, g, b = rgb
-        params = {"r": r, "g": g, "b": b, "state": True}
-        if warm_white > 0: params["w"] = warm_white
-        self._send_raw_udp(params)
-
-    def set_brightness(self, val: int):
-        self._send_raw_udp({"dimming": max(10, val), "state": True})
-
-    def set_temperature(self, kelvin: int):
-        self._send_raw_udp({"temp": int(kelvin), "state": True})
-
-    # Compatibilidad
-    def get_bulb_details_sync(self, ip=None): return {}
-    def list_bulbs(self): return self.bulbs_manager.get_bulbs()
-    def select_bulb_by_ip(self, ip):
-        if ip in self.bulbs_manager.get_bulbs():
-            self.selected_bulb = self.bulbs_manager.get_bulbs()[ip]
-            return True
-        return False
-    def set_bulb_name(self, ip, name): self.bulbs_manager.set_bulb_name(ip, name)
-    def get_bulb_name(self, ip): return self.bulbs_manager.get_bulb_name(ip)
-    def discover_and_register_all(self, timeout=3): return []
-    def start_state_monitor(self, interval_sec=2.0): pass 
-    def get_cached_state(self): return None
+            found_bulbs = await discovery.discover_lights(broadcast_space="255.255.255.255")
+            for bulb in found_bulbs:
+                if not any(b.ip == bulb.ip for b in self.bulbs):
+                    self.bulbs.append(bulb)
+                    self.bulbs_manager.add_bulb({"ip": bulb.ip, "mac": bulb.mac})
+            print(f"[OK] Total bombillas conectadas: {len(self.bulbs)}")
+        except Exception as e:
+            logging.error(f"Error en descubrimiento: {e}")

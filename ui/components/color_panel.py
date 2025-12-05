@@ -1,312 +1,402 @@
 import flet as ft
-import math
+import colorsys
 import time
-import time as _time
-from config.presets_manager import PresetsManager
-
-class HueRing(ft.Stack):
-    def __init__(self, on_hue_change, size=280, thickness=36):
-        self.on_change = on_hue_change
-        self.size = size
-        self.thickness = thickness
-        self.center_coord = size / 2
-        self._angle = 0.0 
-        
-        # 1. El Anillo de Color (Fondo)
-        self.gradient_ring = ft.Container(
-            width=size, height=size,
-            border_radius=size/2,
-            gradient=ft.SweepGradient(
-                center=ft.alignment.center,
-                colors=[
-                    ft.Colors.RED, ft.Colors.YELLOW, ft.Colors.GREEN,
-                    ft.Colors.CYAN, ft.Colors.BLUE, ft.Colors.PURPLE, ft.Colors.RED
-                ],
-            ),
-            border=ft.border.all(2, "#3a3f47"),
-            shadow=ft.BoxShadow(blur_radius=16, color="#00000066", offset=ft.Offset(0, 4))
-        )
-
-        # 2. Máscara central
-        self.mask = ft.Container(
-            width=size - (thickness * 2), 
-            height=size - (thickness * 2),
-            border_radius=(size - thickness*2)/2,
-            bgcolor="#1e293b", 
-            left=thickness, top=thickness,
-        )
-
-        # 3. El Selector (Bolita)
-        self.thumb = ft.Container(
-            width=28, height=28, border_radius=14, bgcolor="#f2f2f2",
-            border=ft.border.all(2, "#1a1a1a"),
-            shadow=ft.BoxShadow(blur_radius=16, color="#00000066", offset=ft.Offset(0, 4)),
-            left=0, top=0
-        )
-
-        # 4. Detector Invisible (Capa Superior)
-        self.glass_layer = ft.GestureDetector(
-            content=ft.Container(width=size, height=size, bgcolor=ft.Colors.TRANSPARENT),
-            on_pan_update=self._on_pan,
-            on_tap_down=self._on_pan
-        )
-
-        super().__init__(controls=[self.gradient_ring, self.mask, self.thumb, self.glass_layer], width=size, height=size)
-        self._update_thumb_position(0, update_mode=False)
-
-    def _on_pan(self, e):
-        x = e.local_x - self.center_coord; y = e.local_y - self.center_coord
-        angle = math.atan2(y, x)
-        self._update_thumb_position(angle, update_mode=True)
-        deg = math.degrees(angle)
-        if deg < 0: deg += 360
-        self.on_change(deg)
-
-    def _update_thumb_position(self, angle, update_mode=True):
-        self._angle = angle
-        track_radius = (self.size - self.thickness) / 2
-        thumb_offset = 14
-        self.thumb.left = self.center_coord + track_radius * math.cos(angle) - thumb_offset
-        self.thumb.top = self.center_coord + track_radius * math.sin(angle) - thumb_offset
-        if update_mode: self.thumb.update()
-
-    def resize(self, new_size, new_thickness):
-        self.size = new_size; self.thickness = new_thickness; self.center_coord = new_size / 2
-        self.width = new_size; self.height = new_size
-        self.gradient_ring.width = new_size; self.gradient_ring.height = new_size
-        self.gradient_ring.border_radius = new_size/2
-        self.mask.width = new_size - (new_thickness * 2); self.mask.height = new_size - (new_thickness * 2)
-        self.mask.border_radius = (new_size - new_thickness*2)/2
-        self.mask.left = new_thickness; self.mask.top = new_thickness
-        self.glass_layer.content.width = new_size; self.glass_layer.content.height = new_size
-        self._update_thumb_position(self._angle, update_mode=False)
-        self.update()
+import math
+from config.favorites_manager import FavoritesManager
+from ui.wiz_constants import STATIC_SCENES, DYNAMIC_SCENES, ALL_SCENES_MAP, RICH_RAINBOW, UPDATE_INTERVAL_SECONDS
 
 class ColorPanel(ft.Container):
-    def __init__(self, wiz_manager):
+    def __init__(self, wiz_manager, on_bg_change=None, on_resize_request=None):
         super().__init__()
         self.wiz = wiz_manager
-        self.presets_manager = PresetsManager()
+        self.fav_manager = FavoritesManager()
+        self.on_bg_change = on_bg_change 
+        self.on_resize_request = on_resize_request 
         
-        self.expand = True; self.padding = 20; self.bgcolor = ft.Colors.TRANSPARENT 
-        
-        # Inicializa en color pleno para evitar confusión visual hasta la primera sincronización
-        self._hue_deg = 0; self._sat = 1.0; self._val = 1.0
-        self._sat_last_ts = 0.0; self._val_last_ts = 0.0; self._min_interval_sec = 0.02
+        self.current_hue = 0.0
+        self.current_temp_pct = 0.0
+        # Iniciamos alineados al ancho inicial del picker
+        self.current_width = 220 
+        self.last_update_time = 0
 
-        # Preview Box
-        self.preview_hex = ft.Text("#FFFFFF", size=12, color="#bbb")
-        self.preview_rgb = ft.Text("Modo: Blanco", size=12, color="#888")
-        self.preview_box = ft.Container(
-            width=100, height=60, border_radius=12, bgcolor="#ffffff",
-            border=ft.border.all(2, "#3a3f47"),
-            shadow=ft.BoxShadow(blur_radius=12, color="#00000055", offset=ft.Offset(0, 3)),
-            content=ft.Column([
-                self.preview_hex, 
-                self.preview_rgb,
-                ft.Text("GUARDAR", size=8, color="#555", weight="bold")
-            ], spacing=0, alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-            on_click=self._open_save_dialog,
-            tooltip="Click para guardar en Favoritos"
+        self.expand = True
+        self.bgcolor = ft.Colors.TRANSPARENT 
+        
+        self.rgb_indicator = None
+        self.temp_indicator = None
+        self.scene_buttons = [] 
+
+        self.rgb_picker = self._build_rgb_picker()
+        self.white_picker = self._build_white_picker()
+        
+        self.slider_bri = ft.Slider(
+            min=10, max=100, value=100, 
+            active_color="white", thumb_color="white",
+            inactive_color=ft.Colors.with_opacity(0.3, "white"),
+            on_change=lambda e: self.wiz.set_brightness(int(e.control.value))
         )
 
-        # Sliders
-        self.lbl_sat = ft.Text("100%", size=12, color="#bbb")
-        self.lbl_val = ft.Text("100%", size=12, color="#bbb")
+        self.fav_grid_rgb = ft.Row(wrap=True, spacing=10, alignment=ft.MainAxisAlignment.START)
+        self.fav_grid_white = ft.Row(wrap=True, spacing=10, alignment=ft.MainAxisAlignment.START)
         
-        self.slider_sat = ft.Slider(min=0, max=100, value=100, label=None, height=10,
-                         active_color="#86b6ff", inactive_color="#3a3f47", thumb_color="#cfe2ff",
-                         on_change=self._on_sat_change)
-        
-        self.slider_val = ft.Slider(min=0, max=100, value=100, label=None, height=10,
-                         active_color="#86b6ff", inactive_color="#3a3f47", thumb_color="#cfe2ff",
-                         on_change=self._on_val_change)
+        self.scenes_container = ft.Column(scroll=ft.ScrollMode.HIDDEN, spacing=10)
 
-        self.hue_ring = HueRing(on_hue_change=self._on_hue_change, size=280, thickness=36)
-
-        # Grid de Favoritos
-        self.presets_row = ft.Row(wrap=True, spacing=10, alignment=ft.MainAxisAlignment.CENTER)
-        self._load_presets_ui()
-
-        # Layout
-        self.content = ft.Column([
-            ft.Row([
-                ft.Column([
-                    ft.Text("COLOR PICKER", color="white", size=14, weight="bold"),
-                    ft.Text("Mezcla RGB + W", color="grey", size=10),
-                ]),
-                ft.Container(expand=True),
-                self.preview_box
-            ]),
-            ft.Container(height=10),
-            ft.Container(content=self.hue_ring, alignment=ft.alignment.center, expand=False),
-            ft.Container(height=20),
-            ft.Text("SATURACIÓN", color="#94a3b8", size=10, weight="bold"),
-            ft.Row([ft.Icon(ft.Icons.COLOR_LENS, size=16, color="#94a3b8"), ft.Container(expand=True), self.lbl_sat]),
-            self.slider_sat,
-            ft.Text("BRILLO", color="#94a3b8", size=10, weight="bold"),
-            ft.Row([ft.Icon(ft.Icons.TONALITY, size=16, color="#94a3b8"), ft.Container(expand=True), self.lbl_val]),
-            self.slider_val,
-            ft.Divider(color="#334155", height=30),
-            ft.Row([
-                ft.Text("MIS COLORES", color="white", size=12, weight="bold"),
-                ft.Container(expand=True),
-                ft.IconButton(icon=ft.Icons.ADD_CIRCLE_OUTLINE, icon_color="#38bdf8", tooltip="Guardar actual", on_click=self._open_save_dialog)
-            ]),
-            # Contenedor de presets (sin constraints para compatibilidad)
-            ft.Container(
-                content=self.presets_row,
-                padding=10,
-                bgcolor="#0f172a",
-                border_radius=10,
-            )
-        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.HIDDEN)
-
-    # --- LÓGICA DE PRESETS (CRUD) ---
-    def _load_presets_ui(self):
-        self.presets_row.controls.clear()
-        presets = self.presets_manager.get_presets()
-        
-        if not presets:
-            self.presets_row.controls.append(ft.Text("Sin favoritos guardados", color="grey", size=12))
-        else:
-            for name, rgb in presets.items():
-                self.presets_row.controls.append(self._crear_preset_chip(name, rgb))
-        
-        if self.presets_row.page:
-            self.presets_row.update()
-
-    def _crear_preset_chip(self, name, rgb):
-        r, g, b = rgb
-        color_hex = f"#{r:02X}{g:02X}{b:02X}"
-        return ft.Container(
-            width=36, height=36, border_radius=18, bgcolor=color_hex,
-            border=ft.border.all(2, "#333"),
-            tooltip=f"{name}\nClick para aplicar\nClick derecho para borrar",
-            on_click=lambda e: self._aplicar_preset(rgb),
-            on_long_press=lambda e: self._borrar_preset(name),
-            ink=True
+        self.tabs = ft.Tabs(
+            selected_index=0,
+            animation_duration=300,
+            indicator_color="white",
+            indicator_tab_size=True,
+            label_color="white",
+            unselected_label_color=ft.Colors.with_opacity(0.5, "white"),
+            divider_color="transparent",
+            on_change=self._on_tab_change,
+            tabs=[
+                ft.Tab(icon=ft.Icons.COLOR_LENS, text="Color",
+                    content=self._build_picker_tab("Color", self.rgb_picker, self.fav_grid_rgb, "rgb")),
+                ft.Tab(icon=ft.Icons.WB_SUNNY, text="Blancos",
+                    content=self._build_picker_tab("Temperatura", self.white_picker, self.fav_grid_white, "white")),
+                ft.Tab(icon=ft.Icons.AUTO_AWESOME, text="Escenas",
+                    content=self._build_scenes_tab()),
+            ],
+            expand=True
         )
 
-    def _open_save_dialog(self, e):
-        txt_name = ft.TextField(label="Nombre del color", autofocus=True)
-        def close_dlg(e): self.page.close_dialog()
-        def save_preset(e):
-            name = txt_name.value.strip() or "Color sin nombre"
-            rgb = self._hsv_to_rgb(self._hue_deg, self._sat, self._val)
-            self.presets_manager.add_preset(name, list(rgb))
-            self._load_presets_ui()
-            self.page.close_dialog()
-            self.page.open(ft.SnackBar(ft.Text(f"Guardado: {name}"), bgcolor="green"))
-
-        dlg = ft.AlertDialog(
-            title=ft.Text("Guardar Color"), content=txt_name,
-            actions=[ft.TextButton("Cancelar", on_click=close_dlg), ft.TextButton("Guardar", on_click=save_preset)],
+        self.content = ft.Column(
+            spacing=0,
+            controls=[
+                self.tabs,
+                ft.Container(
+                    bgcolor=ft.Colors.with_opacity(0.2, "black"),
+                    padding=ft.padding.symmetric(vertical=10, horizontal=20),
+                    blur=ft.Blur(10, 10, ft.BlurTileMode.MIRROR),
+                    content=ft.Column([
+                        ft.Text("INTENSIDAD", size=10, weight="bold", color=ft.Colors.with_opacity(0.7, "white")),
+                        self.slider_bri
+                    ], spacing=0)
+                )
+            ]
         )
-        self.page.show_dialog(dlg)
+        
+        self._load_favorites_ui(initial=True)
+        self._load_scenes_ui()
 
-    def _borrar_preset(self, name):
-        def confirm_delete(e):
-            self.presets_manager.delete_preset(name)
-            self._load_presets_ui()
-            self.page.close_dialog()
-            self.page.open(ft.SnackBar(ft.Text(f"Eliminado: {name}"), bgcolor="red"))
+    def did_mount(self):
+        self.page.on_resize = self._on_page_resize
+        # Forzamos ajuste inicial
+        self._on_page_resize(None)
+        self._request_smart_resize()
 
-        dlg = ft.AlertDialog(
-            title=ft.Text("¿Eliminar color?"),
-            content=ft.Text(f"Vas a borrar '{name}' de tus favoritos."),
-            actions=[ft.TextButton("Cancelar", on_click=lambda e: self.page.close_dialog()), ft.TextButton("Eliminar", on_click=confirm_delete, style=ft.ButtonStyle(color="red"))],
-        )
-        self.page.show_dialog(dlg)
-
-    def _aplicar_preset(self, rgb):
-        r, g, b = rgb
-        self._hue_deg = self._rgb_to_hue_deg((r, g, b))
-        self._sat = 1.0; self._val = 1.0
-        self.slider_sat.value = 100; self.slider_val.value = 100
-        self.lbl_sat.value = "100%"; self.lbl_val.value = "100%"
-        self.slider_sat.update(); self.slider_val.update(); self.lbl_sat.update(); self.lbl_val.update()
-        self._update_logic()
-
-    # --- LÓGICA DE COLOR ---
-    def set_mode(self, compact: bool = False, wide: bool = False):
-        if compact: self.padding = 10; self.hue_ring.resize(200, 25)
-        elif wide: self.padding = 40; self.hue_ring.resize(320, 45)
-        else: self.padding = 30; self.hue_ring.resize(280, 36)
-        self.update()
-
-    def _cambiar_color(self, hex_code):
-        h = hex_code.lstrip('#'); rgb = tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
-        self._hue_deg = self._rgb_to_hue_deg(rgb)
-        self._sat = 1.0; self._val = 1.0
-        self.slider_sat.value = 100; self.slider_val.value = 100
-        self.lbl_sat.value = "100%"; self.lbl_val.value = "100%"
-        self.slider_sat.update(); self.slider_val.update(); self.lbl_sat.update(); self.lbl_val.update()
-        self._update_logic()
-
-    def _on_hue_change(self, deg):
-        self._hue_deg = deg
-        self._update_logic()
-
-    def _on_sat_change(self, e):
-        val = int(e.control.value)
-        self._sat = val / 100.0
-        self.lbl_sat.value = f"{val}%"
-        self.lbl_sat.update()
-        self._update_logic()
-
-    def _on_val_change(self, e):
-        val = int(e.control.value)
-        self._val = val / 100.0
-        self.lbl_val.value = f"{val}%"
-        self.lbl_val.update()
-        if val == 0:
-            self.wiz.turn_off()
-            self.preview_box.bgcolor = "#000000"
-            self.preview_hex.value = "OFF"
-            self.preview_rgb.value = "Apagado"
-            self.preview_box.update(); self.preview_hex.update(); self.preview_rgb.update()
+    def _on_page_resize(self, e):
+        if not self.page:
             return
-        self._update_logic()
 
-    def _update_logic(self):
-        if self._val == 0: return
-        rgb_pure = self._hsv_to_rgb(self._hue_deg, 1.0, self._val) 
-        warm_white = int((1.0 - self._sat) * 255 * self._val)
-        
-        visual_sat_rgb = self._hsv_to_rgb(self._hue_deg, self._sat, 1.0)
-        visual_r = int(visual_sat_rgb[0] * self._val)
-        visual_g = int(visual_sat_rgb[1] * self._val)
-        visual_b = int(visual_sat_rgb[2] * self._val)
-        hex_code = f"#{visual_r:02X}{visual_g:02X}{visual_b:02X}"
-        self.preview_box.bgcolor = hex_code
-        self.preview_hex.value = hex_code
-        
-        if self._sat < 0.05:
-            self.preview_rgb.value = "Modo: Blanco"
-            self.wiz.set_temperature(2700) 
+        # Calculamos el ancho disponible usando el ancho cliente si existe,
+        # de lo contrario usamos el ancho de ventana. Restamos un margen fijo
+        # que aproxima los paddings internos.
+        available = None
+        if getattr(self.page, "width", None):
+            available = self.page.width
         else:
-            self.preview_rgb.value = f"RGB: {visual_r},{visual_g},{visual_b}"
-            self.wiz.set_color(rgb_pure, warm_white)
+            available = self.page.window_width
 
-        self.preview_box.update(); self.preview_hex.update(); self.preview_rgb.update()
+        margin = 60  # resta moderada que considera paddings internos
+        new_width = max(180, available - margin)
 
-    def _hsv_to_rgb(self, h_deg, s, v):
-        h = (h_deg % 360) / 60.0; c = v * s; x = c * (1 - abs((h % 2) - 1)); m = v - c
-        r, g, b = 0, 0, 0
-        if 0<=h<1: r,g,b = c,x,0
-        elif 1<=h<2: r,g,b = x,c,0
-        elif 2<=h<3: r,g,b = 0,c,x
-        elif 3<=h<4: r,g,b = 0,x,c
-        elif 4<=h<5: r,g,b = x,0,c
-        elif 5<=h<6: r,g,b = c,0,x
-        return (int((r+m)*255), int((g+m)*255), int((b+m)*255))
+        # Actualizamos el ancho de los gradientes y Stacks
+        if hasattr(self, "rgb_gradient"):
+            self.rgb_gradient.width = new_width
+            self.rgb_stack.width = new_width
+            self.rgb_picker.width = new_width
+            self.rgb_stack.update()
+            self.rgb_picker.update()
 
-    def _rgb_to_hue_deg(self, rgb):
-        r, g, b = [x/255.0 for x in rgb]
-        mx, mn = max(r,g,b), min(r,g,b); d = mx - mn
-        if d == 0: return 0
-        if mx == r: h = (g-b)/d % 6
-        elif mx == g: h = (b-r)/d + 2
-        else: h = (r-g)/d + 4
-        return h * 60
+        if hasattr(self, "white_gradient"):
+            self.white_gradient.width = new_width
+            self.white_stack.width = new_width
+            self.white_picker.width = new_width
+            self.white_stack.update()
+            self.white_picker.update()
+
+        # Medimos el ancho real tras el layout para usarlo en la lógica
+        measured_w = None
+        if hasattr(self, "rgb_stack") and getattr(self.rgb_stack, "width", None):
+            measured_w = self.rgb_stack.width
+        if measured_w is None:
+            measured_w = new_width
+
+        self.current_width = measured_w
+
+        # Reposicionar indicadores con el ancho real
+        if self.rgb_indicator:
+            self.rgb_indicator.left = max(0, min(self.current_hue * measured_w - 2, measured_w - 4))
+            self.rgb_indicator.update()
+        if self.temp_indicator:
+            self.temp_indicator.left = max(0, min(self.current_temp_pct * measured_w - 2, measured_w - 4))
+            self.temp_indicator.update()
+
+        scene_btn_width = max(60, (new_width / 3) - 10)
+        for btn in self.scene_buttons:
+            btn.width = scene_btn_width
+            btn.update()
+
+        self.sync_state(self.wiz.get_state())
+
+    # --- LÓGICA DE MOVIMIENTO CORREGIDA ---
+
+    def _on_rgb_pan(self, e):
+        # Usamos el ancho real del Stack/gradiente para evitar desfase tras redimensionar
+        width = getattr(self.rgb_stack, "width", None) or getattr(self.rgb_gradient, "width", None) or self.current_width
+        # Aseguramos que x esté dentro de los límites
+        x = max(0, min(e.local_x, width))
+        self.current_hue = x / width
+        
+        if self.rgb_indicator:
+            # Movemos el indicador
+            self.rgb_indicator.left = max(0, min(x - 2, width - 4))
+            # IMPORTANTE: Actualizamos el indicador Y el stack padre para evitar congelamientos
+            self.rgb_indicator.update()
+            self.rgb_stack.update()
+            
+        now = time.time()
+        # Limitamos el envío de comandos WiZ para no saturar, pero la UI se mueve fluida siempre
+        if now - self.last_update_time > UPDATE_INTERVAL_SECONDS:
+            self.last_update_time = now
+            self._send_rgb_command()
+
+    def _on_temp_pan(self, e):
+        width = getattr(self.white_stack, "width", None) or getattr(self.white_gradient, "width", None) or self.current_width
+        x = max(0, min(e.local_x, width))
+        self.current_temp_pct = x / width
+        
+        if self.temp_indicator:
+            self.temp_indicator.left = max(0, min(x - 2, width - 4))
+            self.temp_indicator.update()
+            self.white_stack.update()
+            
+        now = time.time()
+        if now - self.last_update_time > UPDATE_INTERVAL_SECONDS:
+            self.last_update_time = now
+            self._send_white_command()
+
+    # --- COMANDOS Y LÓGICA DE COLOR ---
+
+    def _send_rgb_command(self):
+        r, g, b = colorsys.hsv_to_rgb(self.current_hue, 1.0, 1.0)
+        r, g, b = int(r*255), int(g*255), int(b*255)
+        self._update_ambient_bg(r, g, b)
+        self.wiz.set_rgb(r, g, b)
+
+    def _send_white_command(self):
+        kelvin = int(2200 + (self.current_temp_pct * (6500 - 2200)))
+        self.wiz.set_white(kelvin)
+        if kelvin < 4000: self._update_ambient_bg(255, 140, 0)
+        else: self._update_ambient_bg(200, 230, 255)
+
+    def _update_ambient_bg(self, r, g, b):
+        bg_r = int(r * 0.15); bg_g = int(g * 0.15); bg_b = int(b * 0.15)
+        final_color = "#111827" 
+        if not (bg_r < 17 and bg_g < 24 and bg_b < 39):
+            final_color = f"#{bg_r:02x}{bg_g:02x}{bg_b:02x}"
+        if self.on_bg_change: self.on_bg_change(final_color)
+
+    def _update_ambient_bg_from_hex(self, hex_color):
+        h = hex_color.lstrip('#')
+        rgb = tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+        self._update_ambient_bg(*rgb)
+
+    # --- INTERFAZ / BUILDERS ---
+
+    def _build_rgb_picker(self):
+        initial_w = 220 
+        self.rgb_indicator = ft.Container(
+            width=4, height=120, bgcolor="white", border_radius=2, 
+            shadow=ft.BoxShadow(blur_radius=5, color="black"), 
+            top=0, left=0, border=ft.border.all(1, ft.Colors.with_opacity(0.5, "black"))
+        )
+        self.rgb_gradient = ft.Container(
+            width=initial_w, height=120, border_radius=15, 
+            gradient=ft.LinearGradient(colors=RICH_RAINBOW)
+        )
+        self.rgb_stack = ft.Stack([self.rgb_gradient, self.rgb_indicator], width=initial_w, height=120)
+        
+        return ft.GestureDetector(
+            content=self.rgb_stack, 
+            on_pan_update=self._on_rgb_pan, 
+            on_tap_down=self._on_rgb_pan, 
+            on_pan_end=lambda e: self._send_rgb_command()
+        )
+
+    def _build_white_picker(self):
+        initial_w = 220
+        self.temp_indicator = ft.Container(
+            width=4, height=120, bgcolor="white", border_radius=2, 
+            shadow=ft.BoxShadow(blur_radius=5, color="black"), 
+            top=0, left=0, border=ft.border.all(1, ft.Colors.with_opacity(0.5, "black"))
+        )
+        self.white_gradient = ft.Container(
+            width=initial_w, height=120, border_radius=15, 
+            gradient=ft.LinearGradient(colors=[ft.Colors.ORANGE_700, ft.Colors.ORANGE_300, ft.Colors.WHITE, ft.Colors.BLUE_100, ft.Colors.BLUE_300])
+        )
+        self.white_stack = ft.Stack([self.white_gradient, self.temp_indicator], width=initial_w, height=120)
+        
+        return ft.GestureDetector(
+            content=self.white_stack, 
+            on_pan_update=self._on_temp_pan, 
+            on_tap_down=self._on_temp_pan, 
+            on_pan_end=lambda e: self._send_white_command()
+        )
+
+    def _build_picker_tab(self, title, picker, fav_container, mode):
+        save_btn = ft.IconButton(
+            ft.Icons.ADD, 
+            style=ft.ButtonStyle(bgcolor=ft.Colors.with_opacity(0.2, "white"), shape=ft.CircleBorder()),
+            icon_color="white", tooltip="Guardar Favorito", 
+            on_click=self._save_current_rgb if mode == "rgb" else self._save_current_white
+        )
+        return ft.Container(
+            padding=ft.padding.all(16),
+            content=ft.Column([
+                ft.Container(height=8),
+                ft.Container(
+                    content=picker, height=120, border_radius=15, 
+                    shadow=ft.BoxShadow(blur_radius=15, color=ft.Colors.with_opacity(0.3, "black")),
+                    clip_behavior=ft.ClipBehavior.HARD_EDGE
+                ),
+                ft.Divider(height=30, color=ft.Colors.with_opacity(0.1, "white")),
+                ft.Row([ft.Text("FAVORITOS", size=12, weight="bold", color=ft.Colors.with_opacity(0.7, "white")), save_btn], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                ft.Text("Clic derecho para eliminar", size=10, color=ft.Colors.with_opacity(0.4, "white")),
+                ft.Container(content=fav_container, padding=ft.padding.only(top=10), expand=True)
+            ], scroll=ft.ScrollMode.HIDDEN)
+        )
+
+    def _build_scenes_tab(self):
+        return ft.Container(padding=ft.padding.all(20), content=self.scenes_container)
+
+    def _load_scenes_ui(self):
+        self.scenes_container.controls.clear(); self.scene_buttons.clear()
+        self.scenes_container.controls.append(ft.Text("ILUMINACIÓN ESTÁTICA", size=12, weight="bold", color=ft.Colors.with_opacity(0.5, "white")))
+        self.scenes_container.controls.append(self._create_scene_row(STATIC_SCENES))
+        self.scenes_container.controls.append(ft.Text("EFECTOS DINÁMICOS", size=12, weight="bold", color=ft.Colors.with_opacity(0.5, "white")))
+        self.scenes_container.controls.append(self._create_scene_row(DYNAMIC_SCENES))
+
+    def _create_scene_row(self, scenes_list):
+        row = ft.Row(wrap=True, spacing=10, run_spacing=10, alignment=ft.MainAxisAlignment.START)
+        initial_width = 80 
+        if self.current_width > 10: initial_width = (self.current_width / 3) - 10
+        for scene in scenes_list:
+            btn = ft.Container(
+                width=initial_width, height=initial_width * 0.75, 
+                bgcolor=ft.Colors.with_opacity(0.15, "white"), border=ft.border.all(1, ft.Colors.with_opacity(0.2, "white")), border_radius=15, padding=10,
+                content=ft.Column([ft.Icon(scene["icon"], color=scene["color"], size=24), ft.Text(scene["name"], color="white", size=11, weight="bold", text_align="center", no_wrap=True)], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                on_click=lambda _, s_id=scene["id"], c=scene["color"]: self._activate_scene(s_id, c), ink=True,
+            )
+            row.controls.append(btn); self.scene_buttons.append(btn)
+        return row
+
+    def _activate_scene(self, scene_id, hex_color):
+        self.wiz.set_scene(scene_id); self._update_ambient_bg_from_hex(hex_color)
+
+    def _load_favorites_ui(self, initial=False):
+        self.fav_grid_rgb.controls.clear()
+        for name, data in self.fav_manager.get_rgb_favorites().items():
+            color_hex = f"#{data['r']:02x}{data['g']:02x}{data['b']:02x}"
+            btn = self._create_fav_btn(name, color_hex, lambda _, d=data: (self.wiz.set_rgb(d['r'], d['g'], d['b']), self._update_ambient_bg(d['r'], d['g'], d['b'])), lambda _, n=name: self._delete_rgb(n))
+            self.fav_grid_rgb.controls.append(btn)
+        self.fav_grid_white.controls.clear()
+        for name, data in self.fav_manager.get_white_favorites().items():
+            visual_color = self._kelvin_to_hex_approx(data['temp'])
+            btn = self._create_fav_btn(name, visual_color, lambda _, k=data['temp']: self.wiz.set_white(k), lambda _, n=name: self._delete_white(n))
+            self.fav_grid_white.controls.append(btn)
+        if not initial:
+            self.update()
+            self._request_smart_resize() 
+
+    def _create_fav_btn(self, name, color, on_click, on_delete):
+        return ft.GestureDetector(content=ft.Container(width=50, height=50, border_radius=25, bgcolor=color, border=ft.border.all(2, ft.Colors.with_opacity(0.5, "white")), shadow=ft.BoxShadow(blur_radius=10, color=ft.Colors.with_opacity(0.5, color)), tooltip=f"{name}"), on_tap=on_click, on_secondary_tap=on_delete, mouse_cursor=ft.MouseCursor.CLICK)
+
+    def _refresh_favorites(self, e): self._load_favorites_ui(initial=False)
+    def _delete_rgb(self, name): self.fav_manager.remove_rgb_favorite(name); self._load_favorites_ui(False)
+    def _delete_white(self, name): self.fav_manager.remove_white_favorite(name); self._load_favorites_ui(False)
+    def _save_current_rgb(self, e):
+        r, g, b = colorsys.hsv_to_rgb(self.current_hue, 1.0, 1.0); name = f"Color {len(self.fav_manager.get_rgb_favorites()) + 1}"
+        self.fav_manager.add_rgb_favorite(name, int(r*255), int(g*255), int(b*255)); self._load_favorites_ui(False)
+    def _save_current_white(self, e):
+        kelvin = int(2200 + (self.current_temp_pct * (6500 - 2200))); name = f"Blanco {len(self.fav_manager.get_white_favorites()) + 1}"
+        self.fav_manager.add_white_favorite(name, kelvin); self._load_favorites_ui(False)
+    def _kelvin_to_hex_approx(self, k):
+        if k < 3000: return "#fb923c" 
+        if k < 4500: return "#ffedd5" 
+        if k < 6000: return "#ffffff" 
+        return "#bfdbfe" 
+
+    # --- AUTO RESIZE ---
+    def _on_tab_change(self, e):
+        self._refresh_favorites(e)
+        self._request_smart_resize()
+
+    def _request_smart_resize(self):
+        if not self.on_resize_request: return
+        
+        base_height = 240 
+        content_height = 0
+        idx = self.tabs.selected_index
+        safe_width = self.current_width if self.current_width > 200 else 280
+        
+        if idx == 0: # RGB
+            content_height = 200
+            count = len(self.fav_manager.get_rgb_favorites())
+            btn_w = 60 
+            cols = max(1, int(safe_width / btn_w))
+            rows = math.ceil(count / cols)
+            content_height += rows * 65 
+        elif idx == 1: # White
+            content_height = 200
+            count = len(self.fav_manager.get_white_favorites())
+            btn_w = 60
+            cols = max(1, int(safe_width / btn_w))
+            rows = math.ceil(count / cols)
+            content_height += rows * 65
+        elif idx == 2: # Escenas
+            content_height = 40
+            count_static = len(STATIC_SCENES)
+            cols = 3 
+            rows_static = math.ceil(count_static / cols)
+            content_height += rows_static * 90 
+            content_height += 30 
+            count_dynamic = len(DYNAMIC_SCENES)
+            rows_dyn = math.ceil(count_dynamic / cols)
+            content_height += rows_dyn * 90
+
+        total_needed = base_height + content_height + 50
+        total_needed = max(500, min(950, total_needed))
+        
+        self.on_resize_request(int(total_needed))
+
+    def sync_state(self, state):
+        if not state: return
+        bri = state.get("brightness")
+        if bri is not None:
+            try:
+                val = float(bri); val = max(self.slider_bri.min, min(self.slider_bri.max, val))
+                self.slider_bri.value = val; self.slider_bri.update()
+            except: pass
+        scene_id = state.get("sceneId", 0)
+        if scene_id != 0 and scene_id in ALL_SCENES_MAP:
+            self._update_ambient_bg_from_hex(ALL_SCENES_MAP[scene_id]["color"]); return 
+        if "rgb" in state and isinstance(state["rgb"], (list, tuple)):
+            r, g, b = state["rgb"]
+            try:
+                h, _, _ = colorsys.rgb_to_hsv(r/255, g/255, b/255); self.current_hue = h
+                if self.rgb_indicator:
+                    pos = (h * self.current_width) - 2; self.rgb_indicator.left = max(0, min(pos, self.current_width - 4))
+                    self.rgb_indicator.update(); self.rgb_stack.update()
+                self._update_ambient_bg(r, g, b)
+            except: pass
+        temp = state.get("temp")
+        if temp is not None and isinstance(temp, (int, float)) and temp > 0:
+            try:
+                temp_clamped = max(2200, min(6500, temp)); self.current_temp_pct = (temp_clamped - 2200) / (6500 - 2200)
+                if self.temp_indicator:
+                    pos = (self.current_temp_pct * self.current_width) - 2; self.temp_indicator.left = max(0, min(pos, self.current_width - 4))
+                    self.temp_indicator.update(); self.white_stack.update()
+            except: pass

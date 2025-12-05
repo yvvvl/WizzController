@@ -15,7 +15,8 @@ class BulbDiscovery:
         """
         logging.info("Buscando bombillas WiZ en la red...")
         try:
-            devices = await discovery.discover_lights(broadcast_space="192.168.1.255", wait_time=timeout)
+            # Eliminar broadcast_space fijo para permitir detección automática en cualquier subred
+            devices = await discovery.discover_lights(wait_time=timeout)
             bulbs = []
             for d in devices:
                 try:
