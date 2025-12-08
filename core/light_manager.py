@@ -3,9 +3,8 @@ import logging
 import threading
 import sys
 import time
-from typing import List, Callable, Optional, Dict, Any
+from typing import List, Callable, Optional
 from pywizlight import wizlight, PilotBuilder, discovery
-from pywizlight.exceptions import WizLightConnectionError
 from config.bulbs_manager import BulbsManager
 
 class LightManager:
@@ -15,20 +14,20 @@ class LightManager:
         self.callback: Optional[Callable] = None
         self.running = True
         
-        # Control de concurrencia
         self.last_command_time = 0
-        self.monitor_cooldown = 1.5  # Tiempo de espera tras comando
+        self.monitor_cooldown = 1.5
         
-        # Cache del estado actual
+        # Cache de estado
         self._current_state = {
             "state": False,
             "brightness": 100,
             "temp": 2700,
-            "rgb": (255, 255, 255),
-            "sceneId": 0
+            "rgb": (0, 0, 0),
+            "sceneId": 0,
+            "speed": 100
         }
         
-        # --- MOTOR ASÍNCRONO ---
+        # Loop de eventos
         if sys.platform == 'win32':
             self.loop = asyncio.SelectorEventLoop()
         else:
@@ -49,14 +48,12 @@ class LightManager:
         return self._current_state
 
     def _notify_ui(self):
-        """Envía el estado actual a la UI de forma segura"""
         if self.callback:
             self.callback(self._current_state)
 
     async def _state_monitor(self):
         print("Monitor de estado iniciado")
         while self.running:
-            # Evitamos leer si acabamos de escribir (evita saltos en UI)
             if time.time() - self.last_command_time < self.monitor_cooldown:
                 await asyncio.sleep(0.5)
                 continue
@@ -69,21 +66,29 @@ class LightManager:
                     if state:
                         is_on = state.get_state()
                         
-                        # --- CONVERSIÓN DE LECTURA (255 -> 100%) ---
                         raw_bri = state.get_brightness()
                         if raw_bri is None: raw_bri = 0
                         brightness_pct = int((raw_bri / 255) * 100) if is_on else 0
                         
                         temp = state.get_colortemp() or 0
-                        rgb = state.get_rgb() or (0, 0, 0)
+                        
+                        # Corrección RGB: Convertir None a 0
+                        rgb = state.get_rgb()
+                        if rgb is None or any(c is None for c in rgb):
+                            rgb = (0, 0, 0)
+                            
                         scene_id = state.get_scene_id() or 0
+                        
+                        # Recuperar velocidad
+                        speed = state.get_speed() or 100
 
                         self._current_state = {
                             "state": is_on,
                             "brightness": brightness_pct,
                             "temp": temp,
                             "rgb": rgb,
-                            "sceneId": scene_id
+                            "sceneId": scene_id,
+                            "speed": speed
                         }
                         self._notify_ui()
                             
@@ -95,21 +100,15 @@ class LightManager:
     # --- COMANDOS ---
 
     def turn_on(self):
-        # Actualización Optimista
         self._current_state["state"] = True
         self._notify_ui()
-        # Envío real
         self._send_command(PilotBuilder(state=True))
 
     def turn_off(self):
-        # Actualización Optimista
         self._current_state["state"] = False
         self._notify_ui()
-        
-        # Pausa del monitor
         self.last_command_time = time.time()
-
-        # Envío específico de APAGADO (Corrección: usar turn_off explícito)
+        
         if not self.bulbs: return
 
         async def _off():
@@ -132,26 +131,31 @@ class LightManager:
         self._send_command(PilotBuilder(colortemp=kelvin))
 
     def set_brightness(self, intensity: int):
-        """
-        intensity: Entero de 10 a 100 (Porcentaje desde la UI)
-        """
         self._current_state["brightness"] = intensity
         self._notify_ui() 
-        
-        # CALIBRACIÓN: 10-100% -> 25-255 (Valor WiZ)
         wiz_value = int(intensity * 2.55)
         wiz_value = max(25, min(255, wiz_value))
-        
         self._send_command(PilotBuilder(brightness=wiz_value))
 
     def set_scene(self, scene_id: int):
         self._current_state["sceneId"] = scene_id
+        # Reset de velocidad al cambiar escena
+        self._current_state["speed"] = 100
         self._send_command(PilotBuilder(scene=scene_id))
+        
+    def set_speed(self, speed: int):
+        """Ajusta velocidad (10-200) enviando también la escena actual"""
+        speed = max(10, min(200, speed))
+        self._current_state["speed"] = speed
+        current_scene = self._current_state.get("sceneId", 0)
+        
+        # Solo aplicar velocidad si hay una escena dinámica activa
+        if current_scene > 0:
+            print(f"Set Speed: {speed}% for Scene {current_scene}")
+            self._send_command(PilotBuilder(scene=current_scene, speed=speed))
 
     def _send_command(self, pilot: PilotBuilder):
-        # Pausar monitor para evitar race conditions
         self.last_command_time = time.time()
-        
         if not self.bulbs: return
 
         async def _send():
@@ -184,13 +188,10 @@ class LightManager:
             asyncio.run_coroutine_threadsafe(_add(), self.loop)
 
     async def _discover_bulbs(self):
-        print("Escaneando red en busca de bombillas...")
         try:
             found_bulbs = await discovery.discover_lights(broadcast_space="255.255.255.255")
             for bulb in found_bulbs:
                 if not any(b.ip == bulb.ip for b in self.bulbs):
                     self.bulbs.append(bulb)
                     self.bulbs_manager.add_bulb({"ip": bulb.ip, "mac": bulb.mac})
-            print(f"[OK] Total bombillas conectadas: {len(self.bulbs)}")
-        except Exception as e:
-            logging.error(f"Error en descubrimiento: {e}")
+        except Exception: pass

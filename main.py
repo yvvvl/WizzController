@@ -1,35 +1,36 @@
 import flet as ft
-from core.light_manager import LightManager
+from core.light_manager import LightManager  # Importación corregida
 from ui.app import WizzApp
 import sys
 
 def main(page: ft.Page):
     page.title = "WizZ Desktop"
     
-    # 1. Configuración de Ventana (Estricta)
-    page.window_width = 400
-    page.window_height = 700
-    page.window_min_width = 300
-    page.window_min_height = 500
-    page.window_max_width = 600
-    page.window_max_height = 900
+    # --- RESPONSIVIDAD INTELIGENTE ---
+    # La app se adapta y permite comprimir hasta límites seguros
+    page.window_min_width = 340  
+    page.window_min_height = 520
+    
+    # Tamaño inicial óptimo
+    page.window_width = 450
+    page.window_height = 780
     page.window_resizable = True
-    page.window_always_on_top = False
     
     page.bgcolor = "#111827"
     page.padding = 0
+    page.theme_mode = ft.ThemeMode.DARK
     
-    # 2. ¡ACTUALIZAR YA! (Antes de conectar nada)
     page.update()
 
-    # Iniciar Backend
     print("Iniciando conexión WiZ...")
     wiz = LightManager()
 
-    # Iniciar UI
+    # --- INICIAR UI ---
+    # IMPORTANTE: WizzApp ya se encarga de pintarse a sí misma.
+    # No usamos 'page.add(app)' porque causaría el error que viste antes.
     app = WizzApp(page, wiz)
     
-    # Callback Backend -> UI
+    # Callback para mantener la UI sincronizada con las luces reales
     def on_bulb_update(state):
         try:
             app.update_ui(state)
@@ -38,11 +39,8 @@ def main(page: ft.Page):
 
     wiz.set_callback(on_bulb_update)
     
-    # Iniciar secuencia de conexión
+    # Arrancar descubrimiento de luces en segundo plano
     wiz.startup_sequence()
-    
-    # Refresco final
-    page.update()
 
 if __name__ == "__main__":
     try:
