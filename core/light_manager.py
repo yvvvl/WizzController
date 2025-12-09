@@ -171,6 +171,12 @@ class LightManager:
     # --- SETUP ---
     def startup_sequence(self):
         print("Iniciando LightManager...")
+        
+        # --- MODO DESARROLLADOR: Forzar simulador local ---
+        # Esto conecta con mock_bulb.py inmediatamente
+        self._add_bulb_by_ip("127.0.0.1") 
+        # --------------------------------------------------
+
         known_bulbs = self.bulbs_manager.get_bulbs()
         for ip in known_bulbs:
             self._add_bulb_by_ip(ip)
