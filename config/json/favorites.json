@@ -1,57 +1,9 @@
-{
-    "favorites": [
-        {
-            "label": "Encender",
-            "action": "turn_on"
-        },
-        {
-            "label": "50%",
-            "action": "brightness_50"
-        },
-        {
-            "label": "Cálida",
-            "action": "temp_2700"
-        },
-        {
-            "label": "Fiesta",
-            "action": "scene_party"
-        },
-        {
-            "label": "Navidad",
-            "action": "scene_christmas"
-        },
-        {
-            "label": "Apagar",
-            "action": "turn_off"
-        }
-    ],
-    "rgb": {
-        "Color 1": {
-            "r": 255,
-            "g": 0,
-            "b": 0
-        },
-        "Color 2": {
-            "r": 10,
-            "g": 255,
-            "b": 0
-        },
-        "Color 3": {
-            "r": 212,
-            "g": 255,
-            "b": 0
-        }
-    },
-    "white": {
-        "Blanco 1": {
-            "temp": 6500
-        },
-        "Blanco 2": {
-            "temp": 4823
-        },
-        "Blanco 3": {
-            "temp": 2243
-        }
-    },
-    "scenes": {}
-}
+[
+    {
+        "id": "8c28313e-afb4-47dd-860c-af21b8b6a0ee",
+        "name": "Color Personal",
+        "type": "rgb",
+        "value": "#ff0000",
+        "icon": "COLOR_LENS"
+    }
+]

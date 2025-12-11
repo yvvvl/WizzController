@@ -1,0 +1,58 @@
+{
+    "apagar": {
+        "type": "power",
+        "value": "off"
+    },
+    "encender": {
+        "type": "power",
+        "value": "on"
+    },
+    "enciende la luz": {
+        "type": "power",
+        "value": "on"
+    },
+    "blanco": {
+        "type": "white",
+        "value": 6500
+    },
+    "wake_word": "",
+    "commands": [
+        {
+            "id": "57087b84-f96f-4616-bfee-378b8b451fe8",
+            "phrases": "apaga, apagar, desactivar, desactiva",
+            "action": "turn_off",
+            "desc": "Usuario"
+        },
+        {
+            "id": "29d471bb-f443-4af8-933d-f8b8dc5380d2",
+            "phrases": "enciende, prende, activa, encender",
+            "action": "turn_on",
+            "desc": "Usuario"
+        },
+        {
+            "id": "17274dc8-1750-4ac0-85a4-c73797d9bead",
+            "phrases": "morado",
+            "action": "set_color_72_0_196",
+            "desc": "Usuario"
+        },
+        {
+            "id": "fce4039d-3496-4bcc-89e5-6c0a1a0761cf",
+            "phrases": "subir brillo",
+            "action": "brightness_up",
+            "desc": "Usuario"
+        },
+        {
+            "id": "a5dd903f-29fd-4d76-a7fa-c4ba0e1f2ee6",
+            "phrases": "bajar brillo",
+            "action": "brightness_down",
+            "desc": "Usuario"
+        }
+    ],
+    "wake_words": [
+        "wizz",
+        "pc",
+        "hey",
+        "ei",
+        "pese"
+    ]
+}

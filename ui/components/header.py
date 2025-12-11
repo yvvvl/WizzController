@@ -1,51 +1,54 @@
 import flet as ft
 
 class Header(ft.Container):
-    def __init__(self, wiz_manager, on_open_hotkeys):
+    # Añadimos on_toggle_voice al init
+    def __init__(self, wiz_manager, on_open_hotkeys, on_toggle_sidebar, on_toggle_voice):
         super().__init__()
         self.wiz = wiz_manager
         self.on_open_hotkeys = on_open_hotkeys
+        self.on_toggle_sidebar = on_toggle_sidebar
+        self.on_toggle_voice = on_toggle_voice # Nuevo callback
         
-        # Estilos del contenedor Header
         self.padding = ft.padding.symmetric(horizontal=20, vertical=15)
-        self.bgcolor = "#1f2937" # Un gris un poco más claro que el fondo
+        self.bgcolor = "#1f2937" 
         self.border_radius = 12
         
-        # --- Elementos ---
-        self.title = ft.Text(
-            "WizZ Desktop", 
-            size=20, 
-            weight=ft.FontWeight.BOLD, 
-            color="white"
-        )
-        
-        # El Interruptor (Switch)
-        self.power_switch = ft.Switch(
-            label="OFF",
-            label_position=ft.LabelPosition.LEFT,
-            active_color=ft.colors.GREEN_400,
-            active_track_color=ft.colors.GREEN_900,
-            inactive_thumb_color=ft.colors.GREY_400,
-            inactive_track_color=ft.colors.GREY_800,
-            on_change=self._on_switch_change,
-            scale=0.9
+        # Botón Menú
+        self.btn_menu = ft.IconButton(
+            icon=ft.Icons.MENU,
+            icon_color="white",
+            tooltip="Alternar menú",
+            on_click=lambda _: self.on_toggle_sidebar()
         )
 
+        self.title = ft.Text("WizZ Desktop", size=20, weight="bold", color="white")
+        
+        # Botón de Voz (NUEVO)
+        self.btn_voice = ft.IconButton(
+            icon=ft.Icons.MIC_OFF, # Empieza apagado o cargando
+            icon_color="grey",
+            tooltip="Control por Voz",
+            on_click=lambda _: self.on_toggle_voice()
+        )
+
+        # Botón de Hotkeys
         self.btn_hotkeys = ft.IconButton(
-            icon=ft.Icons.KEYBOARD,
+            ft.Icons.KEYBOARD,
             tooltip="Configurar Hotkeys",
-            icon_color=ft.colors.BLUE_200,
+            icon_color="blue200",
             on_click=lambda _: self.on_open_hotkeys()
         )
 
-        # --- Layout ---
         self.content = ft.Row(
             controls=[
-                self.title,
+                # Izquierda
+                ft.Row([self.btn_menu, self.title], vertical_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+                
+                # Derecha
                 ft.Row(
                     controls=[
-                        self.power_switch,
-                        ft.Container(width=10), # Separador
+                        self.btn_voice,  # <-- Aquí está el micro
+                        ft.Container(width=5),
                         self.btn_hotkeys
                     ],
                     spacing=0,
@@ -56,24 +59,35 @@ class Header(ft.Container):
             vertical_alignment=ft.CrossAxisAlignment.CENTER
         )
 
-    def _on_switch_change(self, e):
-        """Maneja el click manual en el interruptor"""
-        if self.power_switch.value:
-            self.power_switch.label = "ON"
-            self.wiz.turn_on()
-        else:
-            self.power_switch.label = "OFF"
-            self.wiz.turn_off()
-        self.power_switch.update()
+    def update_voice_status(self, status: str):
+        """Actualiza el icono según el estado del VoiceController."""
+        if status == "listening":
+            self.btn_voice.icon = ft.Icons.MIC
+            self.btn_voice.icon_color = "green400"
+            self.btn_voice.tooltip = "Escuchando... (Click para pausar)"
+        
+        elif status == "paused":
+            self.btn_voice.icon = ft.Icons.MIC_OFF
+            self.btn_voice.icon_color = "red400"
+            self.btn_voice.tooltip = "Voz Pausada (Click para activar)"
+            
+        elif status == "downloading":
+            self.btn_voice.icon = ft.Icons.cloud_download
+            self.btn_voice.icon_color = "yellow"
+            self.btn_voice.tooltip = "Descargando modelo de voz..."
+            
+        elif status == "recognized":
+            self.btn_voice.icon = ft.Icons.RECORD_VOICE_OVER
+            self.btn_voice.icon_color = "cyan"
+        
+        elif status == "error":
+            self.btn_voice.icon = ft.Icons.ERROR_OUTLINE
+            self.btn_voice.icon_color = "red"
+            self.btn_voice.tooltip = "Error en sistema de voz"
+
+        self.btn_voice.update()
 
     def update_state(self, state):
-        """Sincroniza el interruptor cuando el estado cambia externamente (ej. Hotkeys)"""
-        if not state: return
-        
-        is_on = state.get("state", False)
-        
-        # Solo actualizamos si hay diferencia para evitar loops visuales
-        if self.power_switch.value != is_on:
-            self.power_switch.value = is_on
-            self.power_switch.label = "ON" if is_on else "OFF"
-            self.power_switch.update()
+        # El switch de power lo borramos en pasos anteriores para limpiar, 
+        # así que este método ya no necesita actualizar el switch si no existe.
+        pass

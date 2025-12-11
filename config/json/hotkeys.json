@@ -1,6 +1,12 @@
 {
-  "ctrl + p": {
-    "action": "toggle_power",
-    "enabled": true
-  }
+    "ctrl + p": {
+        "action": "toggle_power",
+        "enabled": true
+    },
+    "hotkeys": {
+        "toggle": "ctrl+p",
+        "on": "ctrl+o",
+        "bri_up": "ctrl+plus",
+        "bri_down": "ctrl+-"
+    }
 }
