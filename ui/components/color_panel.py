@@ -2,7 +2,6 @@ import flet as ft
 import time
 import threading
 import colorsys
-import json
 from ui.styles import Theme
 from config.favorites_manager import FavoritesManager
 from ui.wiz_constants import STATIC_SCENES, DYNAMIC_SCENES
@@ -12,67 +11,129 @@ class ColorPanel(ft.Container):
         super().__init__()
         self.wiz = wiz_manager
         self.fav_manager = FavoritesManager()
-        self.on_bg_change = on_bg_change
         self.expand = True
         
+        # --- MOTOR DE ALTA VELOCIDAD ---
         self._target_color = None 
         self._last_sent_color = None
         self._running = True
+        
+        # Iniciamos el hilo de transmisión
         threading.Thread(target=self._transmission_loop, daemon=True).start()
 
         self._build_ui()
 
     def _transmission_loop(self):
+        """
+        Bucle de transmisión de alta frecuencia (Turbo Mode).
+        Envía comandos lo más rápido posible sin congelar la UI.
+        """
         while self._running:
             if self._target_color and self._target_color != self._last_sent_color:
                 try:
                     mode, v1, v2, v3 = self._target_color
-                    if mode == "rgb": self.wiz.set_rgb(v1, v2, v3)
-                    elif mode == "white": self.wiz.set_white(v1)
+                    if mode == "rgb": 
+                        self.wiz.set_rgb(v1, v2, v3)
+                    elif mode == "white": 
+                        self.wiz.set_white(v1)
+                    
                     self._last_sent_color = self._target_color
-                except: pass
-            time.sleep(0.05)
+                except: 
+                    pass
+            
+            # 0.01s = 100 FPS (Sensación instantánea)
+            time.sleep(0.01)
 
     def did_unmount(self):
         self._running = False
 
     def _build_ui(self):
+        # 1. Sliders
         self.slider_hue = self._make_gradient_slider(0, 360, 0, Theme.GRADIENT_HUE, self._on_color_change)
-        
+
         self.grad_sat = ft.LinearGradient(colors=["white", "red"]) 
-        self.container_sat = ft.Container(height=25, border_radius=12, gradient=self.grad_sat,
+        self.container_sat = ft.Container(
+            height=28, border_radius=14, gradient=self.grad_sat,
             content=ft.Slider(min=0, max=100, value=100, on_change=self._on_color_change, 
-                            active_color="transparent", inactive_color="transparent", thumb_color="white"))
+                            active_color="transparent", inactive_color="transparent", thumb_color="white")
+        )
         
         self.slider_temp = self._make_gradient_slider(2200, 6500, 2700, Theme.GRADIENT_KELVIN, self._on_white_change)
         
-        self.preview_box = ft.Container(width=60, height=60, border_radius=30, bgcolor="red", 
-                                      border=ft.border.all(2, "white"), shadow=ft.BoxShadow(blur_radius=15, color="red"))
+        # 2. Preview (Esfera)
+        self.preview_box = ft.Container(
+            width=130, height=130, 
+            border_radius=65,      
+            bgcolor="red", 
+            border=ft.border.all(4, Theme.BG_CARD), 
+            shadow=ft.BoxShadow(blur_radius=40, color="red", spread_radius=2, offset=ft.Offset(0,0)),
+            alignment=ft.alignment.center,
+            content=ft.Icon(ft.Icons.LIGHTBULB, color=ft.Colors.with_opacity(0.5, "white"), size=40)
+        )
 
-        self.favs_grid = ft.Row(wrap=True, spacing=10)
+        # 3. Panel Principal
+        colors_section = ft.Column([
+            self._build_slider_row(ft.Icons.COLOR_LENS, "Matiz", self.slider_hue),
+            ft.Container(height=10),
+            self._build_slider_row(ft.Icons.WATER_DROP, "Saturación", self.container_sat),
+        ], spacing=0)
+
+        whites_section = self._build_slider_row(ft.Icons.THERMOSTAT, "Temp K", self.slider_temp)
+
+        mixing_card = ft.Container(
+            padding=30, bgcolor=Theme.CARD_BG, border_radius=24,
+            border=ft.border.all(1, ft.Colors.with_opacity(0.05, "white")),
+            content=ft.Column([
+                ft.Row([self.preview_box], alignment=ft.MainAxisAlignment.CENTER),
+                ft.Divider(height=30, color="transparent"),
+                ft.Text("COLOR CROMÁTICO", style=Theme.LABEL),
+                ft.Container(height=10),
+                colors_section,
+                ft.Divider(height=30, color=ft.Colors.with_opacity(0.2, "grey")),
+                ft.Text("BLANCOS Y TONOS", style=Theme.LABEL),
+                ft.Container(height=10),
+                whites_section
+            ])
+        )
+
+        # 4. Grids
+        self.favs_grid = ft.Row(wrap=True, spacing=15, run_spacing=15)
         self.scenes_grid = self._build_scenes_grid()
 
-        self.content = ft.ListView(padding=20, spacing=20, controls=[
-            ft.Text("ESTUDIO CREATIVO", style=Theme.H1),
-            ft.Container(bgcolor=Theme.CARD_BG, padding=25, border_radius=16, content=ft.Column([
-                ft.Row([ft.Text("MEZCLADOR", style=Theme.LABEL), self.preview_box], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                ft.Text("Matiz (Hue)", size=10), self.slider_hue,
-                ft.Text("Saturación", size=10), self.container_sat,
-                ft.Divider(height=30, color="#33ffffff"),
-                ft.Text("Blancos (K)", size=10), self.slider_temp
-            ])),
-            ft.Row([ft.Text("FAVORITOS", style=Theme.H2), 
-                   ft.IconButton(ft.Icons.SAVE, icon_color=Theme.ACCENT, on_click=self._save_favorite)], 
-                   alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            self.favs_grid,
-            ft.Text("ESCENAS", style=Theme.H2),
-            self.scenes_grid
-        ])
+        self.content = ft.ListView(
+            padding=ft.padding.symmetric(horizontal=20, vertical=30), 
+            spacing=25,
+            controls=[
+                ft.Text("Estudio Creativo", style=Theme.H1, size=28),
+                mixing_card,
+                ft.Column([
+                     ft.Row([
+                        ft.Text("MIS FAVORITOS", style=Theme.H2), 
+                        ft.IconButton(ft.Icons.SAVE_ALT, icon_color=Theme.PRIMARY, tooltip="Guardar actual", on_click=self._save_favorite)
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    self.favs_grid,
+                ], spacing=15),
+                ft.Column([
+                    ft.Text("ESCENAS RÁPIDAS", style=Theme.H2),
+                    self.scenes_grid
+                ], spacing=15)
+            ]
+        )
 
     def _make_gradient_slider(self, min_v, max_v, val, grad, change_fn):
-        return ft.Container(height=25, border_radius=12, gradient=grad,
+        return ft.Container(
+            height=28, border_radius=14, gradient=grad,
             content=ft.Slider(min=min_v, max=max_v, value=val, on_change=change_fn, 
-                            active_color="transparent", inactive_color="transparent", thumb_color="white"))
+                            active_color="transparent", inactive_color="transparent", thumb_color="white")
+        )
+
+    def _build_slider_row(self, icon_name, label_text, slider_control):
+        return ft.Row([
+            ft.Icon(icon_name, color=Theme.TEXT_MUTED, size=20),
+            ft.Container(width=10),
+            ft.Text(label_text, color=Theme.TEXT_MAIN, size=14, weight=ft.FontWeight.W_500, width=90),
+            ft.Container(content=slider_control, expand=True)
+        ], alignment=ft.MainAxisAlignment.START, vertical_alignment=ft.CrossAxisAlignment.CENTER)
 
     def _on_color_change(self, e):
         h = self.slider_hue.content.value
@@ -93,11 +154,11 @@ class ColorPanel(ft.Container):
             self._target_color = ("white", k, 0, 0)
         else:
             self._target_color = ("rgb", int(r*255), int(g*255), int(b*255))
-            if self.on_bg_change: self.on_bg_change(hex_c)
 
     def _on_white_change(self, e):
         k = int(e.control.value)
         self.preview_box.bgcolor = "#ffffff"
+        self.preview_box.shadow.color = "#ffffff"
         self.preview_box.update()
         self._target_color = ("white", k, 0, 0)
 
@@ -114,7 +175,7 @@ class ColorPanel(ft.Container):
             hex_v = f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
             self.fav_manager.add_favorite("Color Personal", "rgb", hex_v, "COLOR_LENS")
         self._refresh_favorites()
-        self.page.open(ft.SnackBar(ft.Text("Guardado"), bgcolor=Theme.SUCCESS))
+        self.page.open(ft.SnackBar(ft.Text("¡Color guardado en favoritos!"), bgcolor=Theme.SUCCESS))
 
     def _delete_fav(self, fid):
         self.fav_manager.remove_favorite(fid)
@@ -124,14 +185,22 @@ class ColorPanel(ft.Container):
         self.favs_grid.controls.clear()
         for f in self.fav_manager.get_favorites():
             c = f["value"] if f["type"] == "rgb" else "#ffffff"
+            
+            # --- AQUÍ ESTABA EL ERROR ---
+            # Corregido: Opacidad aplicada al COLOR, no como propiedad del Shadow
+            shadow_color = ft.Colors.with_opacity(0.4, c)
+            
             self.favs_grid.controls.append(ft.Container(
-                width=60, height=60, bgcolor=c, border_radius=12, border=ft.border.all(1, "white"),
+                width=65, height=65, bgcolor=c, border_radius=18, 
+                border=ft.border.all(2, ft.Colors.with_opacity(0.3, "white")),
+                shadow=ft.BoxShadow(blur_radius=10, color=shadow_color),
                 content=ft.Stack([
-                    # CORRECCIÓN AQUÍ: size -> icon_size
-                    ft.IconButton(ft.Icons.CLOSE, icon_size=14, icon_color="black", right=0, top=0, 
+                    ft.IconButton(ft.Icons.CLOSE, icon_size=14, icon_color=ft.Colors.with_opacity(0.7, "black"), 
+                                right=-5, top=-5, 
                                 on_click=lambda _, x=f["id"]: self._delete_fav(x))
                 ]),
-                on_click=lambda _, x=f: self._apply_fav(x)
+                on_click=lambda _, x=f: self._apply_fav(x),
+                ink=True, tooltip=f["name"]
             ))
         self.favs_grid.update()
 
@@ -143,10 +212,16 @@ class ColorPanel(ft.Container):
         else: self.wiz.set_white(int(f["value"]))
 
     def _build_scenes_grid(self):
-        return ft.Row(wrap=True, spacing=10, controls=[
-            ft.Container(width=80, height=60, bgcolor=Theme.CARD_BG, border_radius=10,
-                content=ft.Column([ft.Icon(s["icon"], color=s["color"], size=20), 
-                                 ft.Text(s["name"], size=10, no_wrap=True)], alignment="center"),
-                on_click=lambda _, x=s["id"]: self.wiz.set_scene(x)
+        return ft.Row(wrap=True, spacing=15, run_spacing=15, controls=[
+            ft.Container(
+                width=85, height=70, bgcolor=Theme.BG_CARD, border_radius=16,
+                border=ft.border.all(1, ft.Colors.with_opacity(0.1, s["color"])),
+                content=ft.Column([
+                    ft.Icon(s["icon"], color=s["color"], size=24), 
+                    ft.Text(s["name"], size=11, weight=ft.FontWeight.W_500, no_wrap=True)
+                ], alignment="center", spacing=5),
+                on_click=lambda _, x=s["id"]: self.wiz.set_scene(x),
+                # Corrección también aquí para seguridad
+                ink=True, shadow=ft.BoxShadow(blur_radius=5, color=ft.Colors.with_opacity(0.1, s["color"]))
             ) for s in STATIC_SCENES + DYNAMIC_SCENES
         ])

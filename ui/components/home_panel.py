@@ -10,12 +10,12 @@ class HomePanel(ft.Container):
         self.wiz = wiz_manager
         self.expand = True
         
-        # --- HILO DE TRANSMISIÓN DE FONDO ---
+        # Estado transmisión
         self._target_bri = -1
         self._last_sent_bri = -1
         self._running = True
         
-        # Inicia el hilo que habla con la ampolleta para no trabar la UI
+        # Hilo de fondo
         threading.Thread(target=self._transmission_loop, daemon=True).start()
         
         self._build_ui()
@@ -27,7 +27,9 @@ class HomePanel(ft.Container):
                     self.wiz.set_brightness(self._target_bri)
                     self._last_sent_bri = self._target_bri
                 except: pass
-            time.sleep(0.05) # ~20 updates por segundo
+            
+            # MODO TURBO: 0.01s (100 actualizaciones por segundo)
+            time.sleep(0.01) 
 
     def did_unmount(self):
         self._running = False
@@ -45,7 +47,7 @@ class HomePanel(ft.Container):
             active_color=Theme.PRIMARY,
             thumb_color="white",
             expand=True,
-            # Cambio puramente visual e instantáneo
+            # Update visual inmediato mientras deslizas
             on_change=self._on_slider_visual
         )
 
@@ -67,7 +69,8 @@ class HomePanel(ft.Container):
                 ),
                 ft.Container(height=20),
                 FavoritesPanel(self.wiz)
-            ]
+            ],
+            padding=ft.padding.only(bottom=50)
         )
 
     def _make_power_btn(self, text, icon, color, func):
@@ -76,16 +79,17 @@ class HomePanel(ft.Container):
             bgcolor=ft.Colors.with_opacity(0.1, color),
             border=ft.border.all(1, ft.Colors.with_opacity(0.5, color)),
             border_radius=12,
-            content=ft.Row([ft.Icon(icon, color=color), ft.Text(text, color="white")], alignment=ft.MainAxisAlignment.CENTER),
+            content=ft.Row([ft.Icon(icon, color=color), ft.Text(text, weight="bold", color="white")], alignment=ft.MainAxisAlignment.CENTER),
             on_click=lambda _: threading.Thread(target=func).start(),
             ink=True
         )
 
     def _on_slider_visual(self, e):
+        # Esta función corre a 60 FPS en el hilo de UI
         val = int(e.control.value)
         self.lbl_bri.value = f"{val}%"
         self.lbl_bri.update()
-        self._target_bri = val # Pasamos el trabajo al hilo de fondo
+        self._target_bri = val # Pasa el dato al hilo turbo
 
     def sync_state(self, state):
         if self._target_bri != -1 and abs(self._target_bri - self._last_sent_bri) > 2:
