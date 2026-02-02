@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from .base_manager import JsonManager
 
 class UsersManager(JsonManager):

@@ -1,14 +1,14 @@
-import asyncio
+﻿import asyncio
 import json
 import flet as ft
 
-# Configuración
+# ConfiguraciÃ³n
 MOCK_IP = "127.0.0.1"
 MOCK_PORT = 38899
 MOCK_MAC = "aa:bb:cc:dd:ee:ff"
 
 def interpolate_color(k, k_min, k_max, c_min, c_max):
-    """Mezcla dos colores basándose en la temperatura K"""
+    """Mezcla dos colores basÃ¡ndose en la temperatura K"""
     factor = (k - k_min) / (k_max - k_min)
     factor = max(0.0, min(1.0, factor))
     
@@ -26,11 +26,11 @@ def kelvin_to_rgb(kelvin):
     # Definimos los puntos clave de color
     # 2200K: Naranja profundo
     c_2200 = (255, 147, 41)
-    # 2700K: Blanco Cálido estándar
+    # 2700K: Blanco CÃ¡lido estÃ¡ndar
     c_2700 = (255, 197, 143)
     # 4000K: Blanco Neutro (casi puro)
     c_4000 = (255, 255, 255)
-    # 6500K: Blanco Frío (Azulado Hielo) - Aumenté el azul aquí para ti
+    # 6500K: Blanco FrÃ­o (Azulado Hielo) - AumentÃ© el azul aquÃ­ para ti
     c_6500 = (200, 230, 255) 
 
     if kelvin <= 2700:
@@ -43,7 +43,7 @@ def kelvin_to_rgb(kelvin):
 def get_scene_color(scene_id):
     """Colores visuales para representar escenas"""
     scenes = {
-        1: (0, 100, 255),    # Océano
+        1: (0, 100, 255),    # OcÃ©ano
         2: (255, 100, 100),  # Romance
         3: (255, 140, 0),    # Atardecer
         4: (255, 0, 255),    # Fiesta
@@ -122,7 +122,7 @@ class WizUDPServer(asyncio.DatagramProtocol):
 
     def connection_made(self, transport):
         self.transport = transport
-        print(f"📡 Mock Bulb escuchando en {MOCK_IP}:{MOCK_PORT}")
+        print(f" Mock Bulb escuchando en {MOCK_IP}:{MOCK_PORT}")
 
     def datagram_received(self, data, addr):
         try:
@@ -141,7 +141,7 @@ class WizUDPServer(asyncio.DatagramProtocol):
 
 async def main(page: ft.Page):
     page.title = "Simulador WiZ - vColor"
-    page.window_width = 320
+    page.width = 320
     page.window_height = 550
     page.bgcolor = "#1a1a1a"
     page.vertical_alignment = ft.MainAxisAlignment.CENTER

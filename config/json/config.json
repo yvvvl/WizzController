@@ -1,9 +1,29 @@
 {
     "window": {
-        "width": 900,
+        "width": 1100,
         "height": 800,
-        "top": -1,
-        "left": -1,
+        "top": 10,
+        "left": 10,
         "maximized": false
+    },
+    "performance": {
+        "eco_mode": true,
+        "profile": "balanced",
+        "state_poll_interval_s": 2.5,
+        "poll_backoff_base_s": 2.0,
+        "poll_backoff_max_s": 30.0,
+        "command_active_sleep_s": 0.1,
+        "command_idle_sleep_s": 0.35,
+        "monitor_no_bulbs_sleep_s": 3.0,
+        "discovery_min_interval_s": 60.0,
+        "discovery_backoff_max_s": 600.0,
+        "adaptive_polling_enabled": true,
+        "state_poll_min_interval_s": 2.5,
+        "state_poll_max_interval_s": 8.0,
+        "state_poll_idle_after_s": 8.0,
+        "state_poll_growth_factor": 1.4
+    },
+    "tray": {
+        "enabled": true
     }
 }

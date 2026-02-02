@@ -1,20 +1,22 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 from collections import defaultdict
 from threading import Lock
 from typing import Callable, Dict, List, Any
+import logging
 
 EventCallback = Callable[[str, Any], None]
 
 
 class EventBus:
     """
-    Pub/Sub súper simple y thread-safe.
+    Pub/Sub sÃºper simple y thread-safe.
 
     - UI, hotkeys y voz publican y escuchan eventos.
-    - Nada se conoce directamente, sólo se comunican por event_type + payload.
+    - Nada se conoce directamente, sÃ³lo se comunican por event_type + payload.
     """
 
     def __init__(self) -> None:
+        self._logger = logging.getLogger(__name__)
         self._subs: Dict[str, List[EventCallback]] = defaultdict(list)
         self._lock = Lock()
 
@@ -40,5 +42,5 @@ class EventBus:
         for cb in callbacks:
             try:
                 cb(event_type, payload)
-            except Exception as e:
-                print(f"[EventBus] Error en '{event_type}': {e}")
+            except Exception:
+                self._logger.exception(f"[EventBus] Error en '{event_type}'")

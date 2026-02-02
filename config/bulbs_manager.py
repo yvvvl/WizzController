@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from typing import Dict
 from .base_manager import JsonManager
 
@@ -10,8 +10,8 @@ class BulbsManager(JsonManager):
     def __init__(self) -> None:
         super().__init__("bulbs.json")
         
-        # --- Lógica de Migración ---
-        # Si por alguna razón los datos cargados son una lista (formato antiguo),
+        # --- LÃ³gica de MigraciÃ³n ---
+        # Si por alguna razÃ³n los datos cargados son una lista (formato antiguo),
         # los convertimos a diccionario y guardamos.
         if isinstance(self.data, list):
             logging.warning("Formato lista detectado en bulbs.json. Migrando a diccionario...")
@@ -39,7 +39,7 @@ class BulbsManager(JsonManager):
         existing_data = {}
 
         # Buscar si esta MAC ya existe registrada bajo OTRA IP
-        # Usamos .copy() o list() porque self.data puede cambiar durante la iteración
+        # Usamos .copy() o list() porque self.data puede cambiar durante la iteraciÃ³n
         for stored_ip, stored_data in list(self.data.items()):
             if isinstance(stored_data, dict) and stored_data.get('mac') == new_mac:
                 existing_data = stored_data

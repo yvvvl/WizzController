@@ -1,7 +1,8 @@
-import flet as ft
+﻿import flet as ft
 import keyboard
 import threading
 import time
+import logging
 from ui.styles import Theme
 from ui.wiz_constants import ALL_SCENES_MAP
 from config.favorites_manager import FavoritesManager
@@ -9,102 +10,203 @@ from config.favorites_manager import FavoritesManager
 class HotkeysPanel(ft.Container):
     def __init__(self, page: ft.Page, hotkeys_manager):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.page_ref = page
         self.manager = hotkeys_manager
         self.fav_manager = FavoritesManager()
         self.expand = True
         self.padding = 30
         self.recording_id = None
+        self._current_tab_index = 0
         
-        self.header = ft.Column([
-            ft.Text("CONFIGURACIÓN DE ATAJOS", style=Theme.H1),
-            ft.Text("Haz clic para asignar. ESC para cancelar.", style=Theme.LABEL),
-            ft.Divider(height=10, color="transparent"),
-        ])
+        # --- HEADER ---
+        header = ft.Row([
+            ft.Icon(ft.icons.KEYBOARD_ROUNDED, color=Theme.PRIMARY, size=32),
+            ft.Column([
+                ft.Text("Atajos de Teclado", style=Theme.H1),
+                ft.Text("Automatiza acciones con una sola tecla", style=Theme.BODY, size=12),
+            ], spacing=2)
+        ], alignment=ft.MainAxisAlignment.START)
 
-        self.tabs = ft.Tabs(
-            selected_index=0, 
-            indicator_color=Theme.ACCENT, 
-            divider_color="transparent", 
-            expand=True,
-            label_color="white",
-            unselected_label_color="grey"
+        # --- Selector de pestañas (Flet 0.80.x compatible) ---
+        self._tab_selector = ft.SegmentedButton(
+            segments=[
+                ft.Segment("0", icon=ft.icons.SETTINGS_ETHERNET_ROUNDED, label="General"),
+                ft.Segment("1", icon=ft.icons.PALETTE_OUTLINED, label="Colores"),
+                ft.Segment("2", icon=ft.icons.AUTO_AWESOME_OUTLINED, label="Escenas"),
+                ft.Segment("3", icon=ft.icons.STAR_BORDER_ROUNDED, label="Favoritos"),
+            ],
+            selected=["0"],
+            allow_multiple_selection=False,
+            allow_empty_selection=False,
+            style=getattr(Theme, "BUTTON_STYLE_SECONDARY", None),
+            on_change=self._on_tab_change,
         )
-        self.content = ft.Column([self.header, self.tabs], expand=True)
-        self._refresh_tabs(initial=True)
+        
+        self.tabs_content = ft.Column(expand=True, scroll="hidden") # Content area dynamic
+        
+        self.content = ft.Column([
+            header,
+            ft.Container(height=20),
+            self._tab_selector,
+            ft.Divider(color=ft.Colors.with_opacity(0.1, "white"), height=1),
+            ft.Container(height=10),
+            self.tabs_content
+        ], expand=True)
 
-    def _refresh_tabs(self, initial=False):
-        gen_acts = [("Encender", "on"), ("Apagar", "off"), ("Alternar", "toggle"), ("Brillo +", "bri_up"), ("Brillo -", "bri_down")]
-        col_acts = [("🔴 Rojo", "color_red"), ("🟢 Verde", "color_green"), ("🔵 Azul", "color_blue")]
-        scene_acts = [(f"✨ {d['name']}", f"scene_{i}") for i, d in ALL_SCENES_MAP.items()]
+        self._refresh_tab_content(0)
 
-        fav_rgb, fav_white = [], []
-        for fav in self.fav_manager.get_favorites():
-            name, uid, ftype, val = fav["name"], fav["id"], fav["type"], fav["value"]
-            aid = f"fav_{uid}"
-            if ftype == "rgb": fav_rgb.append((name, aid, val if str(val).startswith("#") else "#ffffff"))
-            elif ftype == "white": fav_white.append((name, aid, "#ffffff"))
+    def _on_tab_change(self, e):
+        try:
+            selected = list(getattr(e.control, "selected", []) or [])
+            idx = int(selected[0]) if selected else 0
+        except Exception:
+            idx = 0
 
-        self.tabs.tabs = [
-            ft.Tab(text="GENERAL", content=self._list(self._rows(gen_acts))),
-            ft.Tab(text="COLORES", content=self._list(self._rows(col_acts))),
-            ft.Tab(text="ESCENAS", content=self._list(self._rows(scene_acts))),
-            ft.Tab(text="FAVORITOS", content=self._list(self._fav_rows(fav_rgb, fav_white))),
-        ]
-        if not initial and self.page_ref: self.update()
+        self._current_tab_index = idx
+        self._refresh_tab_content(idx)
 
-    def _list(self, controls): return ft.ListView(controls=controls, spacing=5, padding=10, expand=True)
-    def _rows(self, acts): return [self._row(l, i) for l, i in acts]
+    def _refresh_tab_content(self, index):
+        self.tabs_content.controls.clear()
+        
+        controls = []
+        if index == 0: # General
+            acts = [("Encender", "on", ft.icons.POWER_SETTINGS_NEW), 
+                    ("Apagar", "off", ft.icons.POWER_OFF), 
+                    ("Alternar", "toggle", ft.icons.SWAP_HORIZ),
+                    ("Brillo +", "bri_up", ft.icons.BRIGHTNESS_HIGH), 
+                    ("Brillo -", "bri_down", ft.icons.BRIGHTNESS_LOW)]
+            controls = self._build_rows(acts)
+            
+        elif index == 1: # Colores
+            acts = [("Rojo", "color_red", ft.icons.CIRCLE, "red"), 
+                    ("Verde", "color_green", ft.icons.CIRCLE, "green"), 
+                    ("Azul", "color_blue", ft.icons.CIRCLE, "blue")]
+            controls = self._build_rows(acts)
+            
+        elif index == 2: # Escenas
+            acts = [(f"{d['name']}", f"scene_{i}", ft.icons.AUTO_AWESOME) for i, d in ALL_SCENES_MAP.items()]
+            controls = self._build_rows(acts)
+            
+        elif index == 3: # Favoritos
+            favs = self.fav_manager.get_favorites()
+            acts = []
+            for fav in favs:
+                icon = ft.icons.STAR_ROUNDED
+                acts.append((fav["name"], f"fav_{fav['id']}", icon))
+            controls = self._build_rows(acts)
 
-    def _fav_rows(self, rgb, white):
-        rows = []
-        if rgb:
-            rows.append(ft.Text("COLORES", color=Theme.ACCENT, weight="bold"))
-            rows.extend([self._row(n, i, c) for n, i, c in rgb])
-        if white:
-            rows.append(ft.Text("BLANCOS", color="orange", weight="bold"))
-            rows.extend([self._row(n, i, c) for n, i, c in white])
-        return rows
+        self.tabs_content.controls = controls
+        try:
+            # En Flet 0.80, llamar update() antes de montar el control rompe.
+            if self.page_ref:
+                self.tabs_content.update()
+        except Exception:
+            pass
 
-    def _row(self, label, aid, color_preview=None):
-        key = self.manager.get("hotkeys", {}).get(aid)
+    def _build_rows(self, acts):
+        return [self._row(item) for item in acts]
+
+    def _row(self, item):
+        # Unpack
+        label = item[0]
+        aid = item[1]
+        icon = item[2]
+        icon_color = item[3] if len(item) > 3 else Theme.TEXT_MUTED
+        
+        current_key = self.manager.get("hotkeys", {}).get(aid)
         is_rec = (self.recording_id == aid)
         
-        btn_txt = "GRABANDO..." if is_rec else (key.upper() if key else "ASIGNAR")
-        btn_col = Theme.ERROR if is_rec else (Theme.ACCENT if key else "grey")
-        btn_bg = ft.Colors.with_opacity(0.1, Theme.ERROR) if is_rec else (ft.Colors.with_opacity(0.1, Theme.ACCENT) if key else ft.Colors.with_opacity(0.1, "grey"))
-
-        left = [ft.Text(label, size=14, color="white")]
-        if color_preview: left.insert(0, ft.Container(width=16, height=16, bgcolor=color_preview, border_radius=4))
+        # Determine status visuals
+        if is_rec:
+            status_text = "Presiona una tecla..."
+            status_color = Theme.ACCENT
+            bg_color = ft.Colors.with_opacity(0.1, Theme.ACCENT)
+            border_color = Theme.ACCENT
+        elif current_key:
+            status_text = current_key.upper()
+            status_color = Theme.TEXT_MAIN
+            bg_color = Theme.CARD_BG
+            border_color = Theme.CARD_BORDER
+        else:
+            status_text = "Sin asignar"
+            status_color = Theme.TEXT_MUTED
+            bg_color = Theme.CARD_BG
+            border_color = "transparent"
 
         return ft.Container(
-            bgcolor=Theme.BG_CARD, padding=10, border_radius=8,
+            padding=ft.padding.symmetric(horizontal=20, vertical=15),
+            bgcolor=bg_color,
+            border=ft.border.all(1, border_color) if is_rec else Theme.CARD_BORDER,
+            border_radius=Theme.CARD_RADIUS,
             content=ft.Row([
-                ft.Row(left, spacing=10),
+                ft.Row([
+                    ft.Icon(icon, color=icon_color),
+                    ft.Text(label, style=Theme.H3),
+                ]),
+                
+                ft.Container(expand=True),
+                
+                # Keycap visualization
                 ft.Container(
-                    content=ft.Row([ft.Icon(ft.Icons.KEYBOARD, size=14, color=btn_col), ft.Text(btn_txt, weight="bold", color=btn_col, size=12)], spacing=5),
-                    bgcolor=btn_bg, padding=ft.padding.symmetric(horizontal=12, vertical=8), border_radius=6,
-                    on_click=lambda e, x=aid: self._start_rec(x)
+                    content=ft.Row([
+                        ft.Icon(ft.icons.KEYBOARD_ALT_OUTLINED if not is_rec else ft.icons.RADIO_BUTTON_CHECKED, 
+                               size=16, color=status_color),
+                        ft.Text(status_text, color=status_color, weight="bold", size=12)
+                    ], spacing=5),
+                    padding=ft.padding.symmetric(horizontal=12, vertical=6),
+                    bgcolor=ft.Colors.with_opacity(0.1, status_color) if current_key or is_rec else "transparent",
+                    border_radius=8,
+                    border=ft.border.all(1, ft.Colors.with_opacity(0.2, status_color)) if current_key else None
                 )
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+            ]),
+            on_click=lambda _: self._on_item_click(aid),
+            animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
+            ink=True
         )
 
-    def _start_rec(self, aid):
+    def _on_item_click(self, aid):
+        if self.recording_id == aid:
+            # Cancel
+            self.recording_id = None
+            self._refresh_current_view()
+            return
+            
         self.recording_id = aid
-        self._refresh_tabs()
-        threading.Thread(target=self._rec_thread, args=(aid,), daemon=True).start()
+        self._refresh_current_view()
+        
+        # Start listener thread
+        threading.Thread(target=self._record_key, args=(aid,), daemon=True).start()
 
-    def _rec_thread(self, aid):
+    def _refresh_current_view(self):
+        # Refresh current tab blindly
+        self._refresh_tab_content(int(self._current_tab_index))
+
+    def _record_key(self, aid):
+        time.sleep(0.2)
         try:
-            time.sleep(0.2)
-            k = keyboard.read_hotkey(suppress=False)
-            if k != "esc": self.manager.set_hotkey(aid, k)
-        except: pass
+            key_event = keyboard.read_event(suppress=True)
+            if key_event.event_type == keyboard.KEY_DOWN:
+                key_name = key_event.name
+                if key_name == 'esc':
+                    # Cancel
+                    pass
+                elif key_name == 'backspace':
+                    # Delete
+                    self.manager.set_hotkey(aid, None)
+                else:
+                    # Set
+                    self.manager.set_hotkey(aid, key_name)
+                    
+        except Exception as e:
+            self.logger.error(f"Error recording key: {e}")
         finally:
             self.recording_id = None
-            try: self.page_ref.run_task(self._finish_rec)
-            except: pass
+            if self.page_ref:
+                self.page_ref.run_task(self._update_ui_safe)
 
-    async def _finish_rec(self, *args):
-        self._refresh_tabs()
-        self.page_ref.update()
+    async def _update_ui_safe(self, *args):
+        try:
+            self._refresh_current_view()
+        except:
+            pass

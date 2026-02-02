@@ -1,6 +1,6 @@
-"""
+﻿"""
 Sistema de desarrollo con hot reload avanzado usando watchdog
-Detecta cambios en archivos Python y recarga la aplicación automáticamente
+Detecta cambios en archivos Python y recarga la aplicaciÃ³n automÃ¡ticamente
 """
 import sys
 import time
@@ -24,7 +24,7 @@ class CodeChangeHandler(FileSystemEventHandler):
         self.last_restart = time.time()
         
     def on_modified(self, event):
-        # Ignorar cambios en __pycache__, archivos .pyc, y archivos JSON de configuración
+        # Ignorar cambios en __pycache__, archivos .pyc, y archivos JSON de configuraciÃ³n
         if event.src_path.endswith('.pyc') or '__pycache__' in event.src_path:
             return
         
@@ -32,12 +32,12 @@ class CodeChangeHandler(FileSystemEventHandler):
         if not event.src_path.endswith('.py'):
             return
             
-        # Evitar múltiples recargas rápidas
+        # Evitar mÃºltiples recargas rÃ¡pidas
         current_time = time.time()
         if current_time - self.last_restart < 1.0:  # Cooldown de 1 segundo
             return
             
-        console.print(f"\n[yellow]🔄 Cambio detectado en: {event.src_path}[/yellow]")
+        console.print(f"\n[yellow] Cambio detectado en: {event.src_path}[/yellow]")
         self.restart_app()
         self.last_restart = current_time
     
@@ -60,7 +60,7 @@ class CodeChangeHandler(FileSystemEventHandler):
             # Esperar a que terminen
             gone, alive = psutil.wait_procs(children + [parent], timeout=3)
             
-            # Forzar kill si aún están vivos
+            # Forzar kill si aÃºn estÃ¡n vivos
             for p in alive:
                 try:
                     p.kill()
@@ -73,9 +73,9 @@ class CodeChangeHandler(FileSystemEventHandler):
     
     def restart_app(self):
         if self.process:
-            console.print("[red]⏹️  Deteniendo aplicación y todos sus procesos...[/red]")
+            console.print("[red]â¹ï¸  Deteniendo aplicaciÃ³n y todos sus procesos...[/red]")
             self.kill_process_tree(self.process.pid)
-            time.sleep(0.5)  # Pequeña pausa para asegurar que todo se limpió
+            time.sleep(0.5)  # PequeÃ±a pausa para asegurar que todo se limpiÃ³
         
         # Reiniciar lector de salida
         if self.output_thread and self.output_thread.is_alive():
@@ -86,7 +86,7 @@ class CodeChangeHandler(FileSystemEventHandler):
                 pass
         self._stop_output.clear()
 
-        console.print("[green]▶️  Iniciando aplicación...[/green]")
+        console.print("[green]ï¸  Iniciando aplicaciÃ³n...[/green]")
         # Ejecutar Python en modo no bufferizado para que los logs salgan en tiempo real
         self.process = subprocess.Popen(
             [sys.executable, "-u", str(self.script_path)],
@@ -106,16 +106,16 @@ class CodeChangeHandler(FileSystemEventHandler):
                         # Imprimir tal cual, como si se ejecutara normalmente
                         console.print(line.rstrip())
             except Exception as e:
-                console.print(f"[red]⚠️ Error leyendo salida: {e}[/red]")
+                console.print(f"[red]ï¸ Error leyendo salida: {e}[/red]")
         self.output_thread = threading.Thread(target=_stream_output, args=(self.process, self._stop_output), daemon=True)
         self.output_thread.start()
 
 def main():
-    console.print("[bold cyan]═══════════════════════════════════════════════[/bold cyan]")
-    console.print("[bold cyan]   🔥 WizZ Hot Reload Development Mode 🔥[/bold cyan]")
-    console.print("[bold cyan]═══════════════════════════════════════════════[/bold cyan]\n")
+    console.print("[bold cyan][/bold cyan]")
+    console.print("[bold cyan]    WizZ Hot Reload Development Mode [/bold cyan]")
+    console.print("[bold cyan][/bold cyan]\n")
     
-    # Obtener el directorio raíz del proyecto (padre de dev/)
+    # Obtener el directorio raÃ­z del proyecto (padre de dev/)
     root_dir = Path(__file__).parent.parent if "dev" in Path(__file__).parts else Path(__file__).parent
     script_path = root_dir / "main.py"
     watch_paths = [
@@ -124,10 +124,10 @@ def main():
         root_dir / "config",
     ]
     
-    console.print(f"[cyan]📝 Script principal: {script_path}[/cyan]")
-    console.print(f"[cyan]👀 Monitoreando cambios en:[/cyan]")
+    console.print(f"[cyan] Script principal: {script_path}[/cyan]")
+    console.print(f"[cyan] Monitoreando cambios en:[/cyan]")
     for path in watch_paths:
-        console.print(f"   • {path}")
+        console.print(f"    {path}")
     console.print("\n[yellow]Presiona Ctrl+C para detener[/yellow]\n")
     
     handler = CodeChangeHandler(str(script_path))
@@ -143,10 +143,10 @@ def main():
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        console.print("\n[red]🛑 Deteniendo hot reload...[/red]")
+        console.print("\n[red] Deteniendo hot reload...[/red]")
         observer.stop()
         if handler.process:
-            console.print("[red]⏹️  Cerrando aplicación...[/red]")
+            console.print("[red]â¹ï¸  Cerrando aplicaciÃ³n...[/red]")
             handler.kill_process_tree(handler.process.pid)
         if handler.output_thread and handler.output_thread.is_alive():
             handler._stop_output.set()
@@ -156,7 +156,7 @@ def main():
                 pass
     
     observer.join()
-    console.print("[green]✅ Hot reload detenido[/green]")
+    console.print("[green] Hot reload detenido[/green]")
 
 if __name__ == "__main__":
     main()

@@ -1,16 +1,9 @@
 [
     {
-        "id": "d08df320-96b6-4c13-aef3-9c066cbef9c1",
-        "name": "Color Personal",
+        "id": "c5a157e8-ec2b-40cb-83ed-1e5a9ffa7599",
+        "name": "Acción rgb",
         "type": "rgb",
-        "value": "#00ff09",
-        "icon": "COLOR_LENS"
-    },
-    {
-        "id": "763a54b5-1dbc-4404-b55f-7b593a6da4e5",
-        "name": "Color Personal",
-        "type": "rgb",
-        "value": "#ff267a",
+        "value": "#ff3e9d",
         "icon": "COLOR_LENS"
     }
 ]

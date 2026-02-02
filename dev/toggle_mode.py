@@ -1,8 +1,8 @@
-import json
+﻿import json
 import os
 import sys
 
-# Rutas relativas asumiendo que el script está en WizzController/dev/
+# Rutas relativas asumiendo que el script estÃ¡ en WizzController/dev/
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_DIR = os.path.join(BASE_DIR, "config", "json")
 SETTINGS_FILE = os.path.join(CONFIG_DIR, "settings.json")
@@ -33,13 +33,13 @@ def main():
     
     print("\n" + "="*40)
     if new_mode:
-        print("🟢 MODO DESARROLLADOR ACTIVADO")
-        print("   - La app buscará el simulador (127.0.0.1)")
+        print(" MODO DESARROLLADOR ACTIVADO")
+        print("   - La app buscarÃ¡ el simulador (127.0.0.1)")
         print("   - No olvides ejecutar: python dev/mock_bulb.py")
     else:
-        print("🔴 MODO PRODUCCIÓN ACTIVADO")
-        print("   - La app ignorará el simulador")
-        print("   - Solo buscará bombillas reales en la red")
+        print(" MODO PRODUCCIN ACTIVADO")
+        print("   - La app ignorarÃ¡ el simulador")
+        print("   - Solo buscarÃ¡ bombillas reales en la red")
     print("="*40 + "\n")
 
 if __name__ == "__main__":

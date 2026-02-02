@@ -1,6 +1,7 @@
-import json
+﻿import json
 import os
 import threading
+import logging
 
 class JsonManager:
     """
@@ -8,6 +9,7 @@ class JsonManager:
     Maneja la carga, guardado y acceso seguro a los datos.
     """
     def __init__(self, filename, default_data=None):
+        self.logger = logging.getLogger(__name__)
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self.json_dir = os.path.join(self.base_dir, "json")
         self.filepath = os.path.join(self.json_dir, filename)
@@ -32,11 +34,11 @@ class JsonManager:
         with self.lock:
             try:
                 with open(self.filepath, 'w', encoding='utf-8') as f:
-                    json.dump(self.data, f, indent=4)
+                    json.dump(self.data, f, indent=4, ensure_ascii=False)
             except Exception as e:
-                print(f"Error guardando {self.filepath}: {e}")
+                self.logger.error(f"Error guardando {self.filepath}: {e}")
 
-    # Método clave para que no falle .get() en los paneles
+    # MÃ©todo clave para que no falle .get() en los paneles
     def get(self, key, default=None):
         if isinstance(self.data, dict):
             return self.data.get(key, default)

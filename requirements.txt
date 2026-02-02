@@ -1,10 +1,7 @@
 flet
 pywizlight
 keyboard
-faster-whisper
-webrtcvad-wheels
-sounddevice
-numpy
 Pillow
+pystray
 watchdog
 rich
