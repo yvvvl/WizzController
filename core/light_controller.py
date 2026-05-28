@@ -1,148 +1,111 @@
 import asyncio
 import logging
 import threading
-import sys
 import time
-from typing import List, Callable, Optional, Dict, Any
-
+from typing import Optional, Callable
 from pywizlight import wizlight, PilotBuilder, discovery
-from config.bulbs_manager import BulbsManager
-
-try:
-    from core.event_bus import EventBus
-except ImportError:
-    EventBus = None
 
 class LightController:
     def __init__(self, event_bus=None):
-        self.bulbs_manager = BulbsManager()
-        self.bulbs: List[wizlight] = []
-        self.callback: Optional[Callable] = None
+        self.SEND_INTERVAL = 0.15  # Freno para no saturar la red
+        self.bulbs = []
+        self.running = True
+        self.loop = asyncio.new_event_loop()
         self.event_bus = event_bus
         
-        self.running = True
-        self.last_command_time = 0
-        self.monitor_cooldown = 2.0
+        self._target_state = {} 
+        self._last_sent_time = 0
+        self._pending_update = False
+        self._callback = None
         
-        self._current_state = {
-            "state": False,
-            "brightness": 100,
-            "temp": 2700,
-            "rgb": (0, 0, 0),
-            "sceneId": 0,
-            "speed": 100
-        }
-        
-        if sys.platform == 'win32':
-            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-            self.loop = asyncio.new_event_loop()
-        else:
-            self.loop = asyncio.new_event_loop()
+        self.thread = threading.Thread(target=self._background_worker, daemon=True)
+        # No iniciamos el thread aquí, esperamos a start()
 
-        self.thread = threading.Thread(target=self._start_background_loop, daemon=True)
-        self.thread.start()
+    def set_callback(self, callback):
+        self._callback = callback
 
     def start(self):
-        print("[LightController] Iniciando servicios...")
-        known = self.bulbs_manager.get_bulbs()
-        for ip in known: self._add_bulb_by_ip(ip)
+        if not self.thread.is_alive():
+            self.thread.start()
         if self.loop.is_running():
             asyncio.run_coroutine_threadsafe(self._discover_bulbs(), self.loop)
 
-    def set_callback(self, callback: Callable):
-        self.callback = callback
+    def _background_worker(self):
+        asyncio.set_event_loop(self.loop)
+        self.loop.create_task(self._process_command_queue())
+        self.loop.run_forever()
 
-    def turn_on(self):
-        self._update_local(state=True)
-        # Al encender sin params, restauramos el último estado
-        self._send_command(PilotBuilder(state=True))
+    async def _process_command_queue(self):
+        while self.running:
+            now = time.time()
+            if self._pending_update and (now - self._last_sent_time >= self.SEND_INTERVAL):
+                await self._sync_bulbs()
+                self._pending_update = False
+                self._last_sent_time = time.time()
+            await asyncio.sleep(0.05)
 
-    def turn_off(self):
-        """Método de apagado reforzado"""
-        self._update_local(state=False)
-        self.last_command_time = time.time()
-        
+    async def _sync_bulbs(self):
         if not self.bulbs: return
-
-        async def _off():
-            for bulb in self.bulbs:
-                try: 
-                    # Usamos el método nativo turn_off de la librería para mayor seguridad
-                    await bulb.turn_off()
-                except Exception as e: 
-                    logging.error(f"Error apagando {bulb.ip}: {e}")
         
-        if self.loop.is_running():
-            asyncio.run_coroutine_threadsafe(_off(), self.loop)
+        pilot_args = {}
+        t = self._target_state
+        
+        if "state" in t: pilot_args["state"] = t["state"]
+        if "brightness" in t: pilot_args["brightness"] = int((t["brightness"] / 100) * 255)
+        if "rgb" in t: pilot_args["rgb"] = t["rgb"]
+        if "temp" in t: pilot_args["colortemp"] = t["temp"]
+        if "sceneId" in t: pilot_args["scene"] = t["sceneId"]
 
-    def toggle(self):
-        if self._current_state["state"]: self.turn_off()
-        else: self.turn_on()
+        if not pilot_args: return
 
+        pilot = PilotBuilder(**pilot_args)
+        for bulb in self.bulbs:
+            try:
+                await bulb.turn_on(pilot)
+            except Exception as e:
+                logging.error(f"Error enviando a {bulb.ip}: {e}")
+
+    # --- MÉTODOS PÚBLICOS ---
     def set_rgb(self, r, g, b):
-        self._update_local(state=True, rgb=(r,g,b))
-        self._send_command(PilotBuilder(rgb=(r, g, b)))
-
-    def set_white(self, kelvin):
-        k = max(2200, min(6500, kelvin))
-        self._update_local(state=True, temp=k)
-        self._send_command(PilotBuilder(colortemp=k))
+        self._target_state["state"] = True
+        self._target_state["rgb"] = (r, g, b)
+        self._target_state.pop("temp", None)
+        self._target_state.pop("sceneId", None)
+        self._pending_update = True
 
     def set_brightness(self, intensity):
-        val = max(10, min(100, intensity))
-        self._update_local(brightness=val)
-        wiz_val = int((val / 100) * 255)
-        self._send_command(PilotBuilder(brightness=wiz_val))
+        self._target_state["brightness"] = max(10, min(100, intensity))
+        self._pending_update = True
 
+    def set_white(self, kelvin):
+        self._target_state["state"] = True
+        self._target_state["temp"] = kelvin
+        self._target_state.pop("rgb", None)
+        self._target_state.pop("sceneId", None)
+        self._pending_update = True
+        
     def set_scene(self, scene_id):
-        self._update_local(state=True, sceneId=scene_id)
-        self._send_command(PilotBuilder(scene=scene_id))
+        self._target_state["state"] = True
+        self._target_state["sceneId"] = scene_id
+        self._target_state.pop("rgb", None)
+        self._target_state.pop("temp", None)
+        self._pending_update = True
 
-    def get_state(self):
-        return self._current_state
+    def turn_off(self):
+        self._target_state["state"] = False
+        self._pending_update = True
 
-    def _update_local(self, **kwargs):
-        self._current_state.update(kwargs)
-        if self.callback: 
-            try: self.callback(self._current_state)
-            except: pass
-        if self.event_bus:
-            self.event_bus.emit("light_state_changed", self._current_state)
-
-    def _send_command(self, pilot):
-        self.last_command_time = time.time()
-        if not self.bulbs: return
-        async def _send():
-            for bulb in self.bulbs:
-                try: await bulb.turn_on(pilot)
-                except: pass
-        if self.loop.is_running():
-            asyncio.run_coroutine_threadsafe(_send(), self.loop)
-
-    def _add_bulb_by_ip(self, ip):
-        async def _f():
-            if not any(b.ip == ip for b in self.bulbs):
-                try: self.bulbs.append(wizlight(ip))
-                except: pass
-        if self.loop.is_running(): asyncio.run_coroutine_threadsafe(_f(), self.loop)
+    def turn_on(self):
+        self._target_state["state"] = True
+        self._pending_update = True
 
     async def _discover_bulbs(self):
         try:
+            print("🔍 Buscando bombillas WiZ...")
             found = await discovery.discover_lights(broadcast_space="255.255.255.255")
             for b in found:
                 if not any(x.ip == b.ip for x in self.bulbs):
+                    print(f"💡 Bombilla encontrada: {b.ip}")
                     self.bulbs.append(b)
-                    self.bulbs_manager.add_bulb({"ip": b.ip, "mac": b.mac})
-        except: pass
-
-    def _start_background_loop(self):
-        asyncio.set_event_loop(self.loop)
-        self.loop.create_task(self._monitor())
-        self.loop.run_forever()
-
-    async def _monitor(self):
-        while self.running:
-            if time.time() - self.last_command_time > self.monitor_cooldown:
-                # Lógica de polling (opcional)
-                pass 
-            await asyncio.sleep(2.0)
+        except Exception as e:
+            print(f"Error discovery: {e}")

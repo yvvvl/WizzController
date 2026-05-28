@@ -10,7 +10,7 @@ class VoiceDashboard(ft.Container):
         self.custom_color_rgb = [255, 255, 255]
         
         # Estado para Edición
-        self.editing_cmd_id = None  # ID del comando que se está editando
+        self.editing_cmd_id = None
         
         self.voice.set_callbacks(
             on_status=self._update_status_indicator,
@@ -56,6 +56,7 @@ class VoiceDashboard(ft.Container):
             expand=True, bgcolor=Theme.BG_DARK, border_color="transparent", text_size=13
         )
         
+        # CORRECCIÓN: Creamos el Dropdown sin on_change y lo asignamos después
         self.cmd_action = ft.Dropdown(
             label="Acción",
             options=[
@@ -66,9 +67,9 @@ class VoiceDashboard(ft.Container):
                 ft.dropdown.Option("brightness_down", "Bajar Brillo"),
                 ft.dropdown.Option("custom_color", "🎨 Color Personalizado..."),
             ],
-            width=200, bgcolor=Theme.BG_DARK, border_color="transparent", text_size=13,
-            on_change=self._on_action_change
+            width=200, bgcolor=Theme.BG_DARK, border_color="transparent", text_size=13
         )
+        self.cmd_action.on_change = self._on_action_change # Asignación segura
 
         # Selector de Color
         self.color_preview = ft.Container(width=40, height=40, bgcolor="white", border_radius=20, border=ft.border.all(2, "white"))
@@ -87,10 +88,10 @@ class VoiceDashboard(ft.Container):
             padding=15, bgcolor=Theme.BG_DARK, border_radius=10
         )
         
-        # Botones de Acción (Guardar / Cancelar)
+        # Botones
         self.btn_save_cmd = ft.ElevatedButton(
             "Guardar Comando", icon=ft.Icons.SAVE, 
-            style=Theme.BUTTON_STYLE_PRIMARY, 
+            bgcolor=Theme.PRIMARY, color="white",
             on_click=self._save_command_logic
         )
         
@@ -110,7 +111,7 @@ class VoiceDashboard(ft.Container):
                 self.color_picker_container,
                 ft.Row([self.btn_save_cmd], alignment=ft.MainAxisAlignment.END)
             ]),
-            padding=20, bgcolor=Theme.CARD_BG, border_radius=Theme.CARD_RADIUS, border=Theme.CARD_BORDER
+            padding=20, bgcolor=Theme.BG_CARD, border_radius=15, shadow=Theme.CARD_SHADOW
         )
 
         self.commands_list_view = ft.Column(spacing=10, scroll="auto")
@@ -126,9 +127,7 @@ class VoiceDashboard(ft.Container):
         )
 
     # --- LÓGICA CRUD ---
-
     def _save_command_logic(self, e):
-        """Maneja tanto Creación como Actualización"""
         phrase = self.cmd_phrase.value
         action = self.cmd_action.value
         
@@ -136,49 +135,38 @@ class VoiceDashboard(ft.Container):
             self.page.open(ft.SnackBar(ft.Text("Por favor completa los campos"), bgcolor=Theme.ERROR))
             return
 
-        # Procesar acción de color
         final_action = action
         if action == "custom_color":
             r, g, b = self.custom_color_rgb
             final_action = f"set_color_{int(r)}_{int(g)}_{int(b)}"
 
         if self.editing_cmd_id:
-            # MODO ACTUALIZAR
             self.voice.manager.update_command(self.editing_cmd_id, phrase, final_action, "Usuario")
             self.page.open(ft.SnackBar(ft.Text("Comando actualizado"), bgcolor=Theme.SUCCESS))
-            self._cancel_edit_mode(None) # Salir modo edición
+            self._cancel_edit_mode(None)
         else:
-            # MODO CREAR
             self.voice.manager.add_command(phrase, final_action, "Usuario")
             self.page.open(ft.SnackBar(ft.Text("Comando creado"), bgcolor=Theme.SUCCESS))
-            self.cmd_phrase.value = "" # Limpiar solo si es nuevo
+            self.cmd_phrase.value = ""
         
         self._refresh_commands_list()
         self.update()
 
     def _load_command_for_edit(self, cmd):
-        """Carga los datos de un comando en el formulario"""
         self.editing_cmd_id = cmd['id']
-        
-        # 1. Interfaz Visual
         self.form_title.value = "EDITANDO COMANDO"
         self.form_title.color = Theme.ACCENT
         self.btn_save_cmd.text = "Actualizar Comando"
         self.btn_save_cmd.icon = ft.Icons.UPDATE
         self.btn_cancel_edit.visible = True
-        
-        # 2. Datos
         self.cmd_phrase.value = cmd['phrases']
         
-        # 3. Restaurar Acción (Manejo especial para colores)
         action_code = cmd['action']
         if action_code.startswith("set_color_"):
             self.cmd_action.value = "custom_color"
             self.color_picker_container.visible = True
-            
-            # Parsear RGB
             try:
-                parts = action_code.split("_") # set, color, r, g, b
+                parts = action_code.split("_")
                 r, g, b = int(parts[2]), int(parts[3]), int(parts[4])
                 self.slider_r.value = r
                 self.slider_g.value = g
@@ -192,13 +180,10 @@ class VoiceDashboard(ft.Container):
         self.update()
 
     def _cancel_edit_mode(self, e):
-        """Limpia el formulario y vuelve a modo Crear"""
         self.editing_cmd_id = None
         self.cmd_phrase.value = ""
         self.cmd_action.value = None
         self.color_picker_container.visible = False
-        
-        # Restaurar UI
         self.form_title.value = "NUEVO COMANDO"
         self.form_title.color = None
         self.btn_save_cmd.text = "Guardar Comando"
@@ -234,13 +219,10 @@ class VoiceDashboard(ft.Container):
                         ft.Text(cmd['phrases'], weight="bold"), 
                         ft.Text(f"→ {action_display}", size=12, color=Theme.TEXT_MUTED)
                     ], expand=True),
-                    
-                    # Botón EDITAR (NUEVO)
                     ft.IconButton(
                         ft.Icons.EDIT, icon_color=Theme.PRIMARY, tooltip="Editar",
                         on_click=lambda e, c=cmd: self._load_command_for_edit(c)
                     ),
-                    # Botón ELIMINAR
                     ft.IconButton(
                         ft.Icons.DELETE_OUTLINE, icon_color=Theme.ERROR, tooltip="Eliminar",
                         on_click=lambda e, uid=cmd['id']: self._delete_command(uid)
@@ -252,9 +234,7 @@ class VoiceDashboard(ft.Container):
         
         if self.page: self.commands_list_view.update()
 
-    # --- RESTO DE MÉTODOS (Sin cambios) ---
     def _delete_command(self, uid):
-        # Si borras el que estás editando, cancelamos la edición
         if self.editing_cmd_id == uid:
             self._cancel_edit_mode(None)
         self.voice.manager.remove_command(uid)
@@ -270,16 +250,51 @@ class VoiceDashboard(ft.Container):
         self.color_preview.bgcolor = "#{:02x}{:02x}{:02x}".format(r, g, b)
         self.update()
 
-    # (Métodos de Sugerencias y Monitor se mantienen igual que en la versión anterior)
+    # --- PESTAÑAS SUGERENCIAS Y MONITOR ---
+
     def _build_suggestions_tab(self):
         self.suggestions_list = ft.ListView(expand=True, spacing=10, padding=10)
-        return ft.Container(content=ft.Column([ft.Container(bgcolor=ft.Colors.with_opacity(0.1, Theme.ACCENT), padding=15, border_radius=10, content=ft.Row([ft.Icon(ft.Icons.INFO_OUTLINE, color=Theme.ACCENT), ft.Text("Si repites una palabra y Wizz no la entiende, aparecerá aquí para que la asignes.", size=12, color="white", expand=True)])), ft.Text("PALABRAS FRECUENTES NO RECONOCIDAS", style=Theme.LABEL), self.suggestions_list]), padding=20)
+        return ft.Container(
+            content=ft.Column([
+                ft.Container(
+                    bgcolor=ft.Colors.with_opacity(0.1, Theme.ACCENT), padding=15, border_radius=10, 
+                    content=ft.Row([
+                        ft.Icon(ft.Icons.INFO_OUTLINE, color=Theme.ACCENT), 
+                        ft.Text("Si repites una palabra y Wizz no la entiende, aparecerá aquí.", size=12, color="white", expand=True)
+                    ])
+                ), 
+                ft.Text("PALABRAS DESCONOCIDAS FRECUENTES", style=Theme.LABEL), 
+                self.suggestions_list
+            ]), 
+            padding=20
+        )
 
     def _update_suggestions(self, unknown_words):
         self.suggestions_list.controls.clear()
-        if not unknown_words: self.suggestions_list.controls.append(ft.Text("Todo en orden.", color="grey"))
+        if not unknown_words: 
+            self.suggestions_list.controls.append(ft.Text("Todo en orden.", color="grey"))
+        
         for word in unknown_words:
-            self.suggestions_list.controls.append(ft.Container(bgcolor=Theme.CARD_BG, padding=15, border_radius=12, border=Theme.CARD_BORDER, content=ft.Row([ft.Column([ft.Text(f"'{word}'", weight="bold", size=16, color="white"), ft.Text("Detectado varias veces", size=10, color=Theme.ACCENT)], expand=True), ft.ElevatedButton("Es Activador", icon=ft.Icons.MIC, style=ft.ButtonStyle(color="white", bgcolor="#334155"), on_click=lambda e, w=word: self._add_as_wake_word(w)), ft.ElevatedButton("Es Comando", icon=ft.Icons.ADD_LINK, style=Theme.BUTTON_STYLE_PRIMARY, on_click=lambda e, w=word: self._prefill_command(w))])))
+            card = ft.Container(
+                bgcolor=Theme.BG_CARD, padding=15, border_radius=12, border=ft.border.all(1, "#334155"),
+                content=ft.Row([
+                    ft.Column([
+                        ft.Text(f"'{word}'", weight="bold", size=16, color="white"), 
+                        ft.Text("Detectado varias veces", size=10, color=Theme.ACCENT)
+                    ], expand=True),
+                    ft.ElevatedButton(
+                        "Es Activador", icon=ft.Icons.MIC, 
+                        style=ft.ButtonStyle(color="white", bgcolor="#334155"), 
+                        on_click=lambda e, w=word: self._add_as_wake_word(w)
+                    ), 
+                    ft.ElevatedButton(
+                        "Es Comando", icon=ft.Icons.ADD_LINK, 
+                        bgcolor=Theme.PRIMARY, color="white",
+                        on_click=lambda e, w=word: self._prefill_command(w)
+                    )
+                ])
+            )
+            self.suggestions_list.controls.append(card)
         if self.suggestions_list.page: self.suggestions_list.update()
 
     def _add_as_wake_word(self, word):
@@ -300,16 +315,59 @@ class VoiceDashboard(ft.Container):
     def _build_monitor_tab(self):
         self.status_icon = ft.Icon(ft.Icons.MIC_OFF, color="grey", size=24)
         self.status_text = ft.Text("Pausado", style=Theme.H2, size=16)
-        self.dd_mics = ft.Dropdown(width=200, text_size=12, content_padding=10, bgcolor=Theme.BG_DARK, border_color="transparent", hint_text="Micrófono...", on_change=self._on_mic_change, border_radius=8)
-        self.btn_toggle = ft.IconButton(icon=ft.Icons.PLAY_ARROW_ROUNDED, icon_color=Theme.SUCCESS, bgcolor=Theme.BG_DARK, tooltip="Iniciar/Pausar", on_click=lambda e: self.voice.toggle_listening())
-        header = ft.Container(content=ft.Row([ft.Row([ft.Container(content=self.status_icon, padding=8, bgcolor=Theme.BG_CARD, border_radius=50), ft.Column([ft.Text("Estado", size=10, color="grey"), self.status_text], spacing=0)], spacing=10), ft.Row([self.dd_mics, self.btn_toggle], spacing=5)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), padding=15, bgcolor=Theme.CARD_BG, border_radius=Theme.CARD_RADIUS, border=Theme.CARD_BORDER)
+        
+        # CORRECCIÓN: Dropdown sin on_change en constructor
+        self.dd_mics = ft.Dropdown(
+            width=200, text_size=12, bgcolor=Theme.BG_DARK, 
+            border_color="transparent", hint_text="Micrófono...", border_radius=8
+        )
+        self.dd_mics.on_change = self._on_mic_change # Asignación segura
+
+        self.btn_toggle = ft.IconButton(
+            icon=ft.Icons.PLAY_ARROW_ROUNDED, icon_color=Theme.SUCCESS, 
+            bgcolor=Theme.BG_DARK, tooltip="Iniciar/Pausar", 
+            on_click=lambda e: self.voice.toggle_listening()
+        )
+        
+        header = ft.Container(
+            content=ft.Row([
+                ft.Row([
+                    ft.Container(content=self.status_icon, padding=8, bgcolor=Theme.BG_CARD, border_radius=50), 
+                    ft.Column([ft.Text("Estado", size=10, color="grey"), self.status_text], spacing=0)
+                ], spacing=10), 
+                ft.Row([self.dd_mics, self.btn_toggle], spacing=5)
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), 
+            padding=15, bgcolor=Theme.BG_CARD, border_radius=15, shadow=Theme.CARD_SHADOW
+        )
+
         self.switch_wake_word = ft.Switch(label="Wake Word", value=True, active_color=Theme.ACCENT, scale=0.8, on_change=self._on_wake_word_toggle)
-        self.input_wake_word = ft.TextField(hint_text="Ej: wizz, jarvis", bgcolor=Theme.BG_DARK, border_color="transparent", height=30, text_size=12, content_padding=5, expand=True, on_submit=self._save_wake_word, on_blur=self._save_wake_word)
-        config_bar = ft.Container(content=ft.Row([self.switch_wake_word, self.input_wake_word]), padding=10, bgcolor=Theme.BG_CARD, border_radius=10)
+        self.input_wake_word = ft.TextField(
+            hint_text="Ej: wizz, jarvis", bgcolor=Theme.BG_DARK, border_color="transparent", 
+            height=30, text_size=12, content_padding=5, expand=True, 
+            on_submit=self._save_wake_word, on_blur=self._save_wake_word
+        )
+        
+        config_bar = ft.Container(
+            content=ft.Row([self.switch_wake_word, self.input_wake_word]), 
+            padding=10, bgcolor=Theme.BG_CARD, border_radius=10
+        )
+
         self.log_list = ft.ListView(expand=True, spacing=8, padding=10, auto_scroll=True)
         btn_clear = ft.IconButton(ft.Icons.CLEANING_SERVICES, icon_size=16, icon_color="grey", tooltip="Limpiar", on_click=self._clear_log)
-        log_panel = ft.Container(content=ft.Column([ft.Row([ft.Text("HISTORIAL EN VIVO", style=Theme.LABEL), btn_clear], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), ft.Divider(color="grey", opacity=0.1), self.log_list]), expand=True, bgcolor=Theme.CARD_BG, border_radius=Theme.CARD_RADIUS, padding=15, border=Theme.CARD_BORDER)
-        return ft.Container(content=ft.Column([header, config_bar, log_panel], expand=True, spacing=15), padding=10, expand=True)
+        
+        log_panel = ft.Container(
+            content=ft.Column([
+                ft.Row([ft.Text("HISTORIAL EN VIVO", style=Theme.LABEL), btn_clear], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), 
+                ft.Divider(color="grey", opacity=0.1), 
+                self.log_list
+            ]), 
+            expand=True, bgcolor=Theme.BG_CARD, border_radius=15, padding=15
+        )
+        
+        return ft.Container(
+            content=ft.Column([header, config_bar, log_panel], expand=True, spacing=15), 
+            padding=10, expand=True
+        )
 
     def _load_microphones(self):
         try:
@@ -318,27 +376,55 @@ class VoiceDashboard(ft.Container):
             if not self.dd_mics.value and devices: self.dd_mics.value = str(devices[0]['id'])
             self.update()
         except: pass
+
     def _on_mic_change(self, e):
         if self.dd_mics.value:
             self.voice.change_device(int(self.dd_mics.value))
             self.page.open(ft.SnackBar(ft.Text("Micrófono cambiado"), bgcolor=Theme.SUCCESS))
-    def _clear_log(self, e): self.log_list.controls.clear(); self.update()
+
+    def _clear_log(self, e): 
+        self.log_list.controls.clear() 
+        self.update()
+
     def _sync_wake_word_ui(self):
         ww = self.voice.manager.get_wake_words()
-        self.switch_wake_word.value = bool(ww); self.input_wake_word.value = ", ".join(ww) if ww else ""; self.input_wake_word.visible = bool(ww); self.update()
+        self.switch_wake_word.value = bool(ww)
+        self.input_wake_word.value = ", ".join(ww) if ww else ""
+        self.input_wake_word.visible = bool(ww)
+        self.update()
+
     def _on_wake_word_toggle(self, e):
-        if not self.switch_wake_word.value: self.voice.manager.set_wake_words("")
-        else: self.input_wake_word.value = "computadora"; self._save_wake_word(None)
-        self.input_wake_word.visible = self.switch_wake_word.value; self.update()
-    def _save_wake_word(self, e): self.voice.manager.set_wake_words(self.input_wake_word.value); self._add_log_entry(f"🔧 Activadores: {self.input_wake_word.value}")
+        if not self.switch_wake_word.value: 
+            self.voice.manager.set_wake_words("")
+        else: 
+            self.input_wake_word.value = "computadora"
+            self._save_wake_word(None)
+        self.input_wake_word.visible = self.switch_wake_word.value
+        self.update()
+
+    def _save_wake_word(self, e): 
+        self.voice.manager.set_wake_words(self.input_wake_word.value)
+        self._add_log_entry(f"🔧 Activadores: {self.input_wake_word.value}")
+
     def _add_log_entry(self, text):
         if not self.page: return
-        self.log_list.controls.append(ft.Container(content=ft.Text(text, color="white", size=13), padding=10, bgcolor=Theme.BG_DARK, border_radius=10)); self.update()
+        self.log_list.controls.append(ft.Container(content=ft.Text(text, color="white", size=13), padding=10, bgcolor=Theme.BG_DARK, border_radius=10))
+        self.update()
+
     def _show_command_feedback(self, command, action):
         if not self.page: return
-        self.log_list.controls.append(ft.Container(content=ft.Column([ft.Text(f"✅ {command}", color=Theme.SUCCESS, weight="bold"), ft.Text(action, size=11, color=Theme.TEXT_MUTED)]), padding=10, bgcolor=ft.Colors.with_opacity(0.1, Theme.SUCCESS), border=ft.border.all(1, Theme.SUCCESS), border_radius=10)); self.update()
+        self.log_list.controls.append(ft.Container(
+            content=ft.Column([
+                ft.Text(f"✅ {command}", color=Theme.SUCCESS, weight="bold"), 
+                ft.Text(action, size=11, color=Theme.TEXT_MUTED)
+            ]), 
+            padding=10, bgcolor=ft.Colors.with_opacity(0.1, Theme.SUCCESS), 
+            border=ft.border.all(1, Theme.SUCCESS), border_radius=10
+        ))
+        self.update()
+
     def _update_status_indicator(self, status):
         if not self.page: return
-        if status == "listening": self.status_icon.color = Theme.SUCCESS; self.status_text.value = "Escuchando"; self.btn_toggle.icon = ft.Icons.PAUSE
-        else: self.status_icon.color = "grey"; self.status_text.value = "Pausado"; self.btn_toggle.icon = ft.Icons.PLAY_ARROW_ROUNDED
-        self.update()
+        if status == "listening": 
+            self.status_icon.color = Theme.SUCCESS
+            self

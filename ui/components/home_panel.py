@@ -1,102 +1,94 @@
 import flet as ft
-import time
-import threading
 from ui.styles import Theme
-from .favorites_panel import FavoritesPanel
 
 class HomePanel(ft.Container):
-    def __init__(self, wiz_manager):
+    def __init__(self, wiz_controller):
         super().__init__()
-        self.wiz = wiz_manager
+        self.wiz = wiz_controller
         self.expand = True
+        self.padding = 30
         
-        # Estado transmisión
-        self._target_bri = -1
-        self._last_sent_bri = -1
-        self._running = True
-        
-        # Hilo de fondo
-        threading.Thread(target=self._transmission_loop, daemon=True).start()
+        # Estado visual
+        self.is_on = True 
         
         self._build_ui()
 
-    def _transmission_loop(self):
-        while self._running:
-            if self._target_bri != -1 and self._target_bri != self._last_sent_bri:
-                try:
-                    self.wiz.set_brightness(self._target_bri)
-                    self._last_sent_bri = self._target_bri
-                except: pass
-            
-            # MODO TURBO: 0.01s (100 actualizaciones por segundo)
-            time.sleep(0.01) 
-
-    def did_unmount(self):
-        self._running = False
-
     def _build_ui(self):
-        header = ft.Row([
-            ft.Icon(ft.Icons.HOME_FILLED, color=Theme.PRIMARY, size=28),
-            ft.Text("Panel de Control", style=Theme.H1),
-        ])
+        # 1. ENCABEZADO
+        header = ft.Column([
+            ft.Text("Bienvenido", style=Theme.H1),
+            ft.Text("Panel de Control Principal", style=Theme.LABEL)
+        ], spacing=5)
 
-        self.lbl_bri = ft.Text("100%", size=16, weight="bold", color="white")
+        # 2. BOTÓN MAESTRO (ENCENDER/APAGAR TODO)
+        self.master_icon = ft.Icon(ft.Icons.POWER_SETTINGS_NEW, size=40, color="white")
+        self.master_status = ft.Text("ENCENDIDO", size=16, weight="bold", color="white")
         
-        self.slider_bri = ft.Slider(
-            min=10, max=100, value=100,
-            active_color=Theme.PRIMARY,
-            thumb_color="white",
-            expand=True,
-            # Update visual inmediato mientras deslizas
-            on_change=self._on_slider_visual
-        )
-
-        btn_on = self._make_power_btn("ON", ft.Icons.POWER_SETTINGS_NEW, Theme.SUCCESS, self.wiz.turn_on)
-        btn_off = self._make_power_btn("OFF", ft.Icons.POWER_OFF, Theme.ERROR, self.wiz.turn_off)
-
-        self.content = ft.ListView(
-            controls=[
-                header,
-                ft.Container(height=20),
+        master_card = ft.Container(
+            bgcolor=Theme.PRIMARY,
+            border_radius=20,
+            padding=20,
+            shadow=Theme.CARD_SHADOW,
+            content=ft.Row([
                 ft.Container(
-                    padding=25, bgcolor=Theme.CARD_BG, border_radius=16,
-                    content=ft.Column([
-                        ft.Row([ft.Text("INTENSIDAD", style=Theme.LABEL), self.lbl_bri], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                        self.slider_bri,
-                        ft.Container(height=15),
-                        ft.Row([btn_on, ft.Container(width=10), btn_off])
-                    ])
+                    content=self.master_icon,
+                    bgcolor=ft.Colors.with_opacity(0.2, "white"),
+                    padding=15,
+                    border_radius=50
                 ),
-                ft.Container(height=20),
-                FavoritesPanel(self.wiz)
-            ],
-            padding=ft.padding.only(bottom=50)
-        )
-
-    def _make_power_btn(self, text, icon, color, func):
-        return ft.Container(
-            expand=True, height=60,
-            bgcolor=ft.Colors.with_opacity(0.1, color),
-            border=ft.border.all(1, ft.Colors.with_opacity(0.5, color)),
-            border_radius=12,
-            content=ft.Row([ft.Icon(icon, color=color), ft.Text(text, weight="bold", color="white")], alignment=ft.MainAxisAlignment.CENTER),
-            on_click=lambda _: threading.Thread(target=func).start(),
+                ft.Column([
+                    ft.Text("Control Maestro", color="white", size=12, opacity=0.8),
+                    self.master_status
+                ], spacing=2)
+            ], alignment="start", vertical_alignment="center"),
+            on_click=self._toggle_master,
             ink=True
         )
 
-    def _on_slider_visual(self, e):
-        # Esta función corre a 60 FPS en el hilo de UI
-        val = int(e.control.value)
-        self.lbl_bri.value = f"{val}%"
-        self.lbl_bri.update()
-        self._target_bri = val # Pasa el dato al hilo turbo
+        # 3. ACCESOS RÁPIDOS
+        quick_actions = ft.Row([
+            self._build_action_card("Cine", ft.Icons.MOVIE, "#8b5cf6", lambda e: self.wiz.set_scene(12)),
+            self._build_action_card("Lectura", ft.Icons.BOOK, "#f59e0b", lambda e: self.wiz.set_white(4000)),
+            self._build_action_card("Relax", ft.Icons.SPA, "#10b981", lambda e: self.wiz.set_white(2700)),
+        ], spacing=15, wrap=True)
 
-    def sync_state(self, state):
-        if self._target_bri != -1 and abs(self._target_bri - self._last_sent_bri) > 2:
-            return 
-        if "brightness" in state:
-            b = int(state["brightness"])
-            self.slider_bri.value = b
-            self.lbl_bri.value = f"{b}%"
-            self.slider_bri.update()
-            self.lbl_bri.update()
+        # LAYOUT
+        self.content = ft.Column([
+            header,
+            ft.Divider(height=30, color="transparent"),
+            ft.Text("ESTADO DEL SISTEMA", style=Theme.LABEL),
+            master_card,
+            ft.Divider(height=20, color="transparent"),
+            ft.Text("ACCESOS RÁPIDOS", style=Theme.LABEL),
+            quick_actions
+        ], scroll="auto")
+
+    def _build_action_card(self, title, icon, color, action):
+        return ft.Container(
+            expand=True,
+            height=100,
+            bgcolor=Theme.BG_CARD,
+            border_radius=15,
+            padding=15,
+            content=ft.Column([
+                ft.Icon(icon, color=color, size=24),
+                ft.Text(title, color=Theme.TEXT_MAIN, weight="bold", size=14)
+            ], alignment="space_between"),
+            on_click=action,
+            ink=True
+        )
+
+    def _toggle_master(self, e):
+        self.is_on = not self.is_on
+        if self.is_on:
+            self.wiz.turn_on()
+            self.master_status.value = "ENCENDIDO"
+            self.master_icon.icon = ft.Icons.POWER_SETTINGS_NEW
+            e.control.bgcolor = Theme.PRIMARY
+        else:
+            self.wiz.turn_off()
+            self.master_status.value = "APAGADO"
+            self.master_icon.icon = ft.Icons.POWER_OFF
+            e.control.bgcolor = Theme.BG_CARD
+            
+        e.control.update()
