@@ -3,69 +3,56 @@ import logging
 import traceback
 import flet as ft
 
-# Importamos los módulos
 from core.light_controller import LightController
 from ui.app import WizzApp
+from ui.theme import Theme
 
-# Configuración de logs
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%H:%M:%S"
+    datefmt="%H:%M:%S",
 )
 
+
 def main(page: ft.Page):
-    print("DEBUG: Entrando en main()...")
     try:
-        # --- 1. CONFIGURACIÓN DE VENTANA ---
-        page.title = "WizZ Desktop (Lite)"
-        page.bgcolor = "#0f172a"
+        page.title = "WizZ Desktop"
+        page.bgcolor = Theme.BG
         page.padding = 0
         page.theme_mode = ft.ThemeMode.DARK
+        page.theme = ft.Theme(color_scheme_seed=Theme.PRIMARY)
 
-        page.window.width = 1100
-        page.window.height = 700
-        page.window.min_width = 800
+        page.window.width = 1080
+        page.window.height = 720
+        page.window.min_width = 820
         page.window.min_height = 600
-        
-        print("DEBUG: Configuración de ventana lista.")
 
-        # --- 2. INICIALIZAR BACKEND ---
+        # Backend
         wiz = LightController()
-        print("DEBUG: LightController inicializado.")
-        
-        # --- 3. INICIALIZAR FRONTEND ---
-        # Pasamos page y wiz
+
+        # Frontend
         app = WizzApp(page, wiz)
-        print("DEBUG: Interfaz (WizzApp) creada.")
+        wiz.set_callback(lambda state: _safe(app.update_ui, state))
 
-        # Callback para actualizaciones
-        def on_bulb_update(state):
-            try: app.update_ui(state)
-            except: pass
-
-        wiz.set_callback(on_bulb_update)
-
-        # --- 4. MONTAR LA UI ---
         page.add(app)
         page.update()
-        
-        print("DEBUG: Interfaz montada. Arrancando búsqueda de luces...")
-        wiz.start() 
-        print("DEBUG: Todo listo.")
 
-    except Exception as e:
-        print("!!! ERROR FATAL EN MAIN !!!")
+        wiz.start()
+        logging.info("WizZ listo.")
+
+    except Exception:
         traceback.print_exc()
 
-if __name__ == "__main__":
-    print("DEBUG: Iniciando script...")
+
+def _safe(fn, *args):
     try:
-        # Usamos ft.app target=main
+        fn(*args)
+    except Exception:
+        pass
+
+
+if __name__ == "__main__":
+    try:
         ft.app(target=main)
     except KeyboardInterrupt:
-        print("Cierre por usuario.")
         sys.exit()
-    except Exception as e:
-        print(f"Error al lanzar la app: {e}")
-        input("Presiona Enter para salir...") # Pausa para leer error
