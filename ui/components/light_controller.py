@@ -130,8 +130,9 @@ class LightController:
         module = (sysc or {}).get("moduleName")
         mac = (sysc or {}).get("mac") or self.proto.discovered.get(ip, {}).get("mac")
         caps = from_module_name(module)
+        name = self.bulbs_manager.get_bulb_name(ip)
 
-        self.bulbs[ip] = {"mac": mac, "caps": caps, "state": pilot or {}}
+        self.bulbs[ip] = {"mac": mac, "caps": caps, "state": pilot or {}, "name": name}
         self.bulb_ips.add(ip)
         self.bulbs_manager.add_bulb({"ip": ip, "mac": mac, "port": WIZ_PORT})
 
@@ -146,6 +147,61 @@ class LightController:
         """Relee el estado real de las bombillas (on-demand, no bloquea la UI)."""
         if self.proto:
             asyncio.run_coroutine_threadsafe(self._refresh_async(), self.loop)
+
+    # ------------------------------------------------------------------ #
+    #  Gestión de ampolletas (panel Ajustes)
+    # ------------------------------------------------------------------ #
+    def rescan(self) -> None:
+        """Relanza el descubrimiento por broadcast."""
+        if self.proto:
+            self.proto.discovered.clear()
+            asyncio.run_coroutine_threadsafe(self._discover(), self.loop)
+
+    def add_bulb_manual(self, ip: str) -> None:
+        """Agrega una bombilla por IP escrita a mano y la sondea."""
+        ip = (ip or "").strip()
+        if not ip:
+            return
+        self.bulb_ips.add(ip)
+        self.bulbs_manager.add_bulb({"ip": ip, "mac": None, "port": WIZ_PORT})
+        if self.proto:
+            asyncio.run_coroutine_threadsafe(self._probe_then_notify(ip), self.loop)
+        else:
+            self._fire_callback()
+
+    async def _probe_then_notify(self, ip: str) -> None:
+        await self._probe(ip)
+        self._fire_callback()
+
+    def rename_bulb(self, ip: str, name: str) -> None:
+        self.bulbs_manager.set_bulb_name(ip, name)
+        if ip in self.bulbs:
+            self.bulbs[ip]["name"] = name
+        self._fire_callback()
+
+    def remove_bulb(self, ip: str) -> None:
+        self.bulb_ips.discard(ip)
+        self.bulbs.pop(ip, None)
+        self.bulbs_manager.remove_bulb(ip)
+        self._fire_callback()
+
+    def get_bulbs_detailed(self) -> list[dict]:
+        """Lista para la UI: ip, nombre, mac, capacidad y si responde."""
+        saved = self.bulbs_manager.get_bulbs()
+        out = []
+        for ip in sorted(self.bulb_ips):
+            info = self.bulbs.get(ip, {})
+            caps = info.get("caps")
+            saved_entry = saved.get(ip, {}) if isinstance(saved, dict) else {}
+            name = info.get("name") or saved_entry.get("name") or ip
+            out.append({
+                "ip": ip,
+                "name": name,
+                "mac": info.get("mac") or saved_entry.get("mac"),
+                "label": caps.label if caps else "—",
+                "online": ip in self.bulbs,
+            })
+        return out
 
     # ------------------------------------------------------------------ #
     #  API pública (control)

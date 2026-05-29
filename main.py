@@ -27,10 +27,7 @@ def main(page: ft.Page):
         page.window.min_width = 820
         page.window.min_height = 600
 
-        # Backend
         wiz = LightController()
-
-        # Frontend
         app = WizzApp(page, wiz)
         wiz.set_callback(lambda state: _safe(app.update_ui, state))
 
@@ -53,6 +50,6 @@ def _safe(fn, *args):
 
 if __name__ == "__main__":
     try:
-        ft.app(target=main)
+        ft.run(main)
     except KeyboardInterrupt:
         sys.exit()

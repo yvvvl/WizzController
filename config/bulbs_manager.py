@@ -4,12 +4,12 @@ from .base_manager import JsonManager
 
 class BulbsManager(JsonManager):
     """
-    Gestor de bombillas WiZ. 
+    Gestor de bombillas WiZ.
     Deduplica por MAC Address y maneja la persistencia.
     """
     def __init__(self) -> None:
         super().__init__("bulbs.json")
-        
+
         # --- Lógica de Migración ---
         # Si por alguna razón los datos cargados son una lista (formato antiguo),
         # los convertimos a diccionario y guardamos.
@@ -32,21 +32,21 @@ class BulbsManager(JsonManager):
         """
         new_ip = bulb.get('ip')
         new_mac = bulb.get('mac')
-        
-        if not new_ip: return
+
+        if not new_ip:
+            return
 
         old_ip_entry = None
         existing_data = {}
 
         # Buscar si esta MAC ya existe registrada bajo OTRA IP
-        # Usamos .copy() o list() porque self.data puede cambiar durante la iteración
         for stored_ip, stored_data in list(self.data.items()):
-            if isinstance(stored_data, dict) and stored_data.get('mac') == new_mac:
+            if isinstance(stored_data, dict) and stored_data.get('mac') and stored_data.get('mac') == new_mac:
                 existing_data = stored_data
                 if stored_ip != new_ip:
                     old_ip_entry = stored_ip
                 break
-        
+
         # Si detectamos mudanza de IP, borramos la vieja
         if old_ip_entry:
             logging.info(f"Actualizando IP de {new_mac}: {old_ip_entry} -> {new_ip}")
@@ -54,10 +54,16 @@ class BulbsManager(JsonManager):
 
         # Merge de datos (mantenemos nombre antiguo si existe)
         existing_data.update(bulb)
-        
+
         # Guardamos en la nueva IP
         self.data[new_ip] = existing_data
         self.save()
+
+    def remove_bulb(self, ip: str) -> None:
+        """Elimina una bombilla por IP."""
+        if ip in self.data:
+            del self.data[ip]
+            self.save()
 
     def set_bulb_name(self, ip: str, name: str) -> None:
         if ip in self.data:
@@ -65,4 +71,5 @@ class BulbsManager(JsonManager):
             self.save()
 
     def get_bulb_name(self, ip: str) -> str | None:
-        return self.data.get(ip, {}).get("name")
+        entry = self.data.get(ip, {})
+        return entry.get("name") if isinstance(entry, dict) else None

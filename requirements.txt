@@ -1,18 +1,17 @@
 # --- Núcleo ---
-# IMPORTANTE: Flet 0.80+ es la API NUEVA (flet.controls.*) e incompatible
-# con este código. Quédate en la última de la API vieja: 0.28.3
-flet==0.28.3
- 
+# Flet 1.0 (línea 0.85+, API nueva flet.controls.*)
+flet==0.85.2
+
 # --- Solo si retomas voz / hotkeys más adelante ---
 # keyboard          # hotkeys globales
 # faster-whisper    # reconocimiento de voz
 # sounddevice       # captura de micrófono
 # numpy
 # webrtcvad
- 
-# --- Solo desarrollo (hot reload) ---
+
+# --- Solo desarrollo ---
 # watchdog
 # rich
 # psutil
- 
-# Nota: pywizlight YA NO es necesario. Control y lectura son UDP nativo.
+
+# Nota: pywizlight NO es necesario. Control y lectura son UDP nativo.

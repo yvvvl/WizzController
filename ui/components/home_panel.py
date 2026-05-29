@@ -1,5 +1,7 @@
 import flet as ft
-from ui.theme import Theme
+from ui.theme import Theme, mounted, supdate
+
+EO = ft.AnimationCurve.EASE_OUT
 
 
 class HomePanel(ft.Column):
@@ -11,13 +13,12 @@ class HomePanel(ft.Column):
 
     # ------------------------------------------------------------------ #
     def _build(self):
-        # chip de estado (actualizable)
         self.status_dot = ft.Container(width=8, height=8, border_radius=4, bgcolor=Theme.MUTED)
         self.status_text = ft.Text("Buscando…", size=12, color=Theme.MUTED)
         self.status_chip = ft.Container(
             content=ft.Row([self.status_dot, self.status_text], spacing=8),
-            padding=ft.padding.symmetric(horizontal=14, vertical=8),
-            bgcolor=Theme.CARD, border_radius=20, border=ft.border.all(1, Theme.STROKE),
+            padding=ft.Padding.symmetric(horizontal=14, vertical=8),
+            bgcolor=Theme.CARD, border_radius=20, border=ft.Border.all(1, Theme.STROKE),
         )
         self.btn_refresh = ft.IconButton(
             ft.Icons.REFRESH_ROUNDED, icon_color=Theme.MUTED, icon_size=20,
@@ -37,13 +38,13 @@ class HomePanel(ft.Column):
 
         # --- Control maestro ---
         self.master_icon = ft.Icon(ft.Icons.POWER_SETTINGS_NEW_ROUNDED, size=34, color="white")
-        self.master_label = ft.Text("ENCENDIDO", size=18, weight="bold", color="white")
+        self.master_label = ft.Text("ENCENDIDO", size=18, weight=ft.FontWeight.BOLD, color="white")
         self.master_card = ft.Container(
             content=ft.Row(
                 [
                     ft.Container(content=self.master_icon, width=64, height=64, border_radius=20,
                                  bgcolor=ft.Colors.with_opacity(0.22, "white"),
-                                 alignment=ft.alignment.center),
+                                 alignment=ft.Alignment.CENTER),
                     ft.Column([ft.Text("Control maestro", color="white", size=12, opacity=0.85),
                                self.master_label,
                                ft.Text("Toca para alternar todas las luces", color="white", size=11, opacity=0.7)],
@@ -57,11 +58,11 @@ class HomePanel(ft.Column):
             gradient=ft.LinearGradient(begin=ft.Alignment(-1, -1), end=ft.Alignment(1, 1),
                                        colors=[Theme.PRIMARY, Theme.PRIMARY_D]),
             shadow=Theme.GLOW(Theme.PRIMARY),
-            on_click=self._toggle_master, ink=True, animate=ft.Animation(220, "easeOut"),
+            on_click=self._toggle_master, ink=True, animate=ft.Animation(220, EO),
         )
 
         # --- Brillo ---
-        self.bri_value = ft.Text("100%", size=14, weight="bold", color=Theme.TEXT)
+        self.bri_value = ft.Text("100%", size=14, weight=ft.FontWeight.BOLD, color=Theme.TEXT)
         self.bri_slider = ft.Slider(min=10, max=100, value=100, divisions=18,
                                     active_color=Theme.ACCENT, thumb_color="white",
                                     on_change=self._on_brightness, expand=True)
@@ -72,7 +73,7 @@ class HomePanel(ft.Column):
             self.bri_slider,
         ], spacing=4))
 
-        # --- Accesos rápidos (IDs de escena oficiales) ---
+        # --- Accesos rápidos ---
         quick = ft.Row(wrap=True, spacing=12, run_spacing=12, controls=[
             self._quick("TV / Cine", ft.Icons.MOVIE_ROUNDED, "#8b5cf6", lambda e: self.wiz.set_scene(18)),
             self._quick("Lectura",   ft.Icons.MENU_BOOK_ROUNDED, "#f59e0b", lambda e: self.wiz.set_white(4000)),
@@ -88,20 +89,20 @@ class HomePanel(ft.Column):
     # ------------------------------------------------------------------ #
     def _card(self, content):
         return ft.Container(content=content, padding=20, border_radius=Theme.R_MD,
-                            bgcolor=Theme.CARD, border=ft.border.all(1, Theme.STROKE),
+                            bgcolor=Theme.CARD, border=ft.Border.all(1, Theme.STROKE),
                             shadow=Theme.SHADOW)
 
     def _quick(self, title, icon, color, action):
         return ft.Container(
             width=150, height=92, padding=16, border_radius=Theme.R_MD,
-            bgcolor=Theme.CARD, border=ft.border.all(1, Theme.STROKE),
+            bgcolor=Theme.CARD, border=ft.Border.all(1, Theme.STROKE),
             content=ft.Column([
                 ft.Container(content=ft.Icon(icon, color=color, size=20), width=36, height=36,
                              border_radius=10, bgcolor=ft.Colors.with_opacity(0.15, color),
-                             alignment=ft.alignment.center),
-                ft.Text(title, color=Theme.TEXT, weight="w600", size=14),
+                             alignment=ft.Alignment.CENTER),
+                ft.Text(title, color=Theme.TEXT, weight=ft.FontWeight.W_600, size=14),
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            on_click=action, ink=True, animate=ft.Animation(150, "easeOut"),
+            on_click=action, ink=True, animate=ft.Animation(150, EO),
         )
 
     # ------------------------------------------------------------------ #
@@ -110,14 +111,14 @@ class HomePanel(ft.Column):
         if self.is_on:
             self.wiz.turn_on()
             self.master_label.value = "ENCENDIDO"
-            self.master_icon.name = ft.Icons.POWER_SETTINGS_NEW_ROUNDED
+            self.master_icon.icon = ft.Icons.POWER_SETTINGS_NEW_ROUNDED
             self.master_card.gradient = ft.LinearGradient(begin=ft.Alignment(-1, -1), end=ft.Alignment(1, 1),
                                                           colors=[Theme.PRIMARY, Theme.PRIMARY_D])
             self.master_card.shadow = Theme.GLOW(Theme.PRIMARY)
         else:
             self.wiz.turn_off()
             self.master_label.value = "APAGADO"
-            self.master_icon.name = ft.Icons.POWER_OFF_ROUNDED
+            self.master_icon.icon = ft.Icons.POWER_OFF_ROUNDED
             self.master_card.gradient = ft.LinearGradient(begin=ft.Alignment(-1, -1), end=ft.Alignment(1, 1),
                                                           colors=[Theme.CARD_HI, Theme.CARD])
             self.master_card.shadow = None
@@ -131,8 +132,7 @@ class HomePanel(ft.Column):
 
     # ------------------------------------------------------------------ #
     def sync_state(self, state: dict):
-        """Refresco desde el controlador. Actualiza brillo, on/off y chip de estado."""
-        if not self.page:
+        if not mounted(self):
             return
         if "dimming" in state:
             self.bri_slider.value = state["dimming"]
@@ -148,8 +148,7 @@ class HomePanel(ft.Column):
         extra = f" · {s['label']}" if s["label"] else ""
         self.status_text.value = (f"{n} bombilla{'s' if n != 1 else ''}{extra}"
                                   if online else "Sin bombillas")
-        self.update()
+        supdate(self)
 
     def _safe(self, control):
-        if control.page:
-            control.update()
+        supdate(control)

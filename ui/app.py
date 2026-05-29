@@ -3,13 +3,11 @@ from ui.theme import Theme
 from ui.components.home_panel import HomePanel
 from ui.components.color_panel import ColorPanel
 from ui.components.scenes_panel import ScenesPanel
+from ui.components.settings_panel import SettingsPanel
 
 
 class WizzApp(ft.Container):
-    """
-    Layout principal: barra lateral de navegación + área de contenido.
-    Los paneles se crean UNA vez y se conmutan (mantiene estado, cero rebuild).
-    """
+    """Navegación lateral + área de contenido (Flet v1)."""
 
     def __init__(self, page: ft.Page, wiz_controller):
         super().__init__()
@@ -18,17 +16,17 @@ class WizzApp(ft.Container):
         self.expand = True
         self.gradient = Theme.GRADIENT
 
-        # Paneles (instanciados una sola vez)
         self.panels = [
             HomePanel(self.wiz),
             ColorPanel(self.wiz),
             ScenesPanel(self.wiz),
+            SettingsPanel(self.wiz),
         ]
 
         self.content_area = ft.Container(
             content=self.panels[0],
             expand=True,
-            padding=ft.padding.only(left=8, right=18, top=18, bottom=18),
+            padding=ft.Padding.only(left=8, right=18, top=18, bottom=18),
         )
 
         self.rail = ft.NavigationRail(
@@ -44,14 +42,14 @@ class WizzApp(ft.Container):
                         ft.Container(
                             content=ft.Icon(ft.Icons.LIGHTBULB_ROUNDED, color="white", size=22),
                             width=42, height=42, border_radius=12,
-                            bgcolor=Theme.PRIMARY, alignment=ft.alignment.center,
+                            bgcolor=Theme.PRIMARY, alignment=ft.Alignment.CENTER,
                             shadow=Theme.GLOW(Theme.PRIMARY),
                         ),
-                        ft.Text("WizZ", size=12, weight="bold", color=Theme.TEXT),
+                        ft.Text("WizZ", size=12, weight=ft.FontWeight.BOLD, color=Theme.TEXT),
                     ],
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=6,
                 ),
-                padding=ft.padding.only(top=18, bottom=24),
+                padding=ft.Padding.only(top=18, bottom=24),
             ),
             destinations=[
                 ft.NavigationRailDestination(
@@ -60,6 +58,8 @@ class WizzApp(ft.Container):
                     icon=ft.Icons.PALETTE_OUTLINED, selected_icon=ft.Icons.PALETTE, label="Color"),
                 ft.NavigationRailDestination(
                     icon=ft.Icons.AUTO_AWESOME_OUTLINED, selected_icon=ft.Icons.AUTO_AWESOME, label="Escenas"),
+                ft.NavigationRailDestination(
+                    icon=ft.Icons.SETTINGS_OUTLINED, selected_icon=ft.Icons.SETTINGS_ROUNDED, label="Ajustes"),
             ],
             on_change=self._on_nav,
         )
@@ -67,7 +67,7 @@ class WizzApp(ft.Container):
         rail_wrap = ft.Container(
             content=self.rail,
             bgcolor=ft.Colors.with_opacity(0.6, Theme.SURFACE),
-            border_radius=ft.border_radius.only(top_right=Theme.R_LG, bottom_right=Theme.R_LG),
+            border_radius=ft.BorderRadius.only(top_right=Theme.R_LG, bottom_right=Theme.R_LG),
         )
 
         self.content = ft.Row(
@@ -81,9 +81,11 @@ class WizzApp(ft.Container):
         self.content_area.content = self.panels[idx]
         self.content_area.update()
 
-    # Callback desde el controlador tras cada envío (refresco de estado)
     def update_ui(self, state: dict):
-        try:
-            self.panels[0].sync_state(state)
-        except Exception:
-            pass
+        for panel in self.panels:
+            fn = getattr(panel, "sync_state", None)
+            if callable(fn):
+                try:
+                    fn(state)
+                except Exception:
+                    pass
