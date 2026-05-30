@@ -2,65 +2,57 @@ import logging
 from typing import Dict
 from .base_manager import JsonManager
 
+
 class BulbsManager(JsonManager):
-    """
-    Gestor de bombillas WiZ.
-    Deduplica por MAC Address y maneja la persistencia.
-    """
     def __init__(self) -> None:
         super().__init__("bulbs.json")
-
-        # --- Lógica de Migración ---
-        # Si por alguna razón los datos cargados son una lista (formato antiguo),
-        # los convertimos a diccionario y guardamos.
         if isinstance(self.data, list):
             logging.warning("Formato lista detectado en bulbs.json. Migrando a diccionario...")
             recovered = {}
             for item in self.data:
-                if isinstance(item, dict) and item.get('ip'):
-                    recovered[item['ip']] = item
+                if isinstance(item, dict) and item.get("ip"):
+                    recovered[item["ip"]] = item
             self.data = recovered
+            self.save()
+        if not isinstance(self.data, dict):
+            self.data = {}
             self.save()
 
     def get_bulbs(self) -> Dict[str, dict]:
         return self.data
 
     def add_bulb(self, bulb: dict) -> None:
-        """
-        Agrega o actualiza una bombilla.
-        Si la MAC ya existe en otra IP, borra la entrada antigua para evitar duplicados.
-        """
-        new_ip = bulb.get('ip')
-        new_mac = bulb.get('mac')
-
+        new_ip = bulb.get("ip")
+        new_mac = bulb.get("mac")
         if not new_ip:
             return
 
+        existing_data = dict(self.data.get(new_ip, {})) if isinstance(self.data.get(new_ip), dict) else {}
         old_ip_entry = None
-        existing_data = {}
 
-        # Buscar si esta MAC ya existe registrada bajo OTRA IP
-        for stored_ip, stored_data in list(self.data.items()):
-            if isinstance(stored_data, dict) and stored_data.get('mac') and stored_data.get('mac') == new_mac:
-                existing_data = stored_data
-                if stored_ip != new_ip:
+        if new_mac:
+            for stored_ip, stored_data in list(self.data.items()):
+                if not isinstance(stored_data, dict):
+                    continue
+                if stored_data.get("mac") == new_mac and stored_ip != new_ip:
                     old_ip_entry = stored_ip
-                break
+                    existing_data = {**stored_data, **existing_data}
+                    break
 
-        # Si detectamos mudanza de IP, borramos la vieja
         if old_ip_entry:
             logging.info(f"Actualizando IP de {new_mac}: {old_ip_entry} -> {new_ip}")
             del self.data[old_ip_entry]
 
-        # Merge de datos (mantenemos nombre antiguo si existe)
-        existing_data.update(bulb)
+        # Mantiene nombre si ya existía.
+        old_name = existing_data.get("name")
+        existing_data.update({k: v for k, v in bulb.items() if v is not None})
+        if old_name and not bulb.get("name"):
+            existing_data["name"] = old_name
 
-        # Guardamos en la nueva IP
         self.data[new_ip] = existing_data
         self.save()
 
     def remove_bulb(self, ip: str) -> None:
-        """Elimina una bombilla por IP."""
         if ip in self.data:
             del self.data[ip]
             self.save()

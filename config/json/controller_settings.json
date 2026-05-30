@@ -1,0 +1,8 @@
+{
+    "target_mode": "single",
+    "active_ip": "192.168.1.4",
+    "slider_interval_ms": 65,
+    "brightness_default": 100,
+    "white_default_percent": 50,
+    "color_send_interval_ms": 65
+}

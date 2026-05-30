@@ -1,17 +1,18 @@
 # --- Núcleo ---
-# Flet 1.0 (línea 0.85+, API nueva flet.controls.*)
 flet==0.85.2
 
-# --- Solo si retomas voz / hotkeys más adelante ---
-# keyboard          # hotkeys globales
-# faster-whisper    # reconocimiento de voz
-# sounddevice       # captura de micrófono
-# numpy
-# webrtcvad
+# --- Discovery WiZ híbrido ---
+pywizlight==0.6.3
+psutil>=5.9
 
-# --- Solo desarrollo ---
-# watchdog
-# rich
-# psutil
+# --- Hotkeys globales ---
+keyboard>=0.13.5
 
-# Nota: pywizlight NO es necesario. Control y lectura son UDP nativo.
+# --- Voz local/offline fase 11 ---
+faster-whisper
+sounddevice
+numpy
+
+# --- Bandeja pendientes ---
+# pystray
+# Pillow

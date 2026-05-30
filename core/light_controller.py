@@ -1,49 +1,112 @@
 """
-LightController v3 — nativo completo, sin pywizlight, sin bloqueos.
+LightController v8 — sync externo preciso + verificación post-acción.
 
-Escritura  -> raw UDP fire-and-forget, coalescido a 50ms (instantáneo).
-Lectura    -> getPilot / getSystemConfig nativos (estado real + capacidades).
-Discovery  -> registration broadcast.
-
-Mantiene la cobertura "como la app del teléfono" pero el camino de control
-nunca espera ACK. La lectura ocurre fuera del hot path (al arrancar y on-demand).
-
-API pública (compatible con hotkeys/voz):
-  turn_on, turn_off, toggle, set_brightness, set_rgb, set_white, set_scene,
-  set_ratio, get_state, refresh, summary
+- Control: UDP nativo fire-and-forget, coalescido.
+- Discovery: broadcast global + broadcast por interfaz + pywizlight opcional + scan UDP /24 fallback.
+- Targeting: modo single por defecto para evitar enviar a IPs viejas/offline.
+- Lectura: getPilot/getSystemConfig/getModelConfig fuera del hot path.
+- Sync: polling LAN liviano + verificación post-acción para reflejar cambios externos rápido.
 """
+from __future__ import annotations
+
 import asyncio
+import ipaddress
 import logging
 import threading
+import time
+from typing import Any
 
 from config.bulbs_manager import BulbsManager
-from core.wiz_protocol import WizProtocol, create_endpoint, get_local_ip, WIZ_PORT
-from core.wiz_capabilities import Capabilities, from_module_name
+from config.config_manager import ConfigManager
+from core.wiz_capabilities import Capabilities, from_wiz_config
+from core.wiz_protocol import (
+    WIZ_PORT,
+    WizProtocol,
+    create_endpoint,
+    get_broadcast_addresses,
+    get_lan_scan_ips,
+    get_local_ip,
+)
+
+try:
+    from core.pywizlight_adapter import discover_with_pywizlight
+except Exception:  # pragma: no cover
+    async def discover_with_pywizlight(*args, **kwargs):  # type: ignore
+        return []
+
+_LOG = logging.getLogger(__name__)
 
 
 class LightController:
-    MIN_INTERVAL = 0.05   # 50ms entre envíos al arrastrar (suave, sin saturar)
+    """Controlador principal WiZ LAN.
+
+    El hot path no espera ACK. El estado real se refresca aparte.
+    """
+
+    MIN_INTERVAL = 0.05
+    CALLBACK_MIN_INTERVAL = 0.22
+    QUERY_TIMEOUT = 0.45
+    MODEL_TIMEOUT = 0.30
+    STATE_SYNC_TIMEOUT = 0.18
+    POST_ACTION_VERIFY_DELAYS = (0.12, 0.40)
+    SCAN_TIMEOUT = 0.22
+    DISCOVERY_ROUNDS = 4
+    DISCOVERY_INTERVAL = 0.25
+    PROBE_CONCURRENCY = 48
+    SCAN_CONCURRENCY = 64
 
     def __init__(self, event_bus=None) -> None:
         self.event_bus = event_bus
         self.bulbs_manager = BulbsManager()
+        self.config = ConfigManager()
 
         self.bulb_ips: set[str] = set(self.bulbs_manager.get_bulbs().keys())
-        self.bulbs: dict[str, dict] = {}   # ip -> {"mac","caps","state"}
+        self.bulbs: dict[str, dict[str, Any]] = {}
 
         self.running = True
         self.loop = asyncio.new_event_loop()
         self.proto: WizProtocol | None = None
+        self._scan_lock: asyncio.Lock | None = None
 
-        self._target: dict = {}
-        self._mirror: dict = {"state": True, "dimming": 100}
+        control_cfg = self.config.get("control", {}) or {}
+        self._target_mode = self._normalise_mode(control_cfg.get("mode", "single"))
+        self._active_ip = control_cfg.get("active_ip")
+        try:
+            self._slider_interval_ms = int(control_cfg.get("slider_interval_ms", 65))
+        except Exception:
+            self._slider_interval_ms = 65
+        self._slider_interval_ms = max(35, min(200, self._slider_interval_ms))
+        self.MIN_INTERVAL = self._slider_interval_ms / 1000.0
+
+        sync_cfg = self.config.get("state_sync", {}) or {}
+        self._state_sync_enabled = bool(sync_cfg.get("enabled", True))
+        try:
+            self._state_sync_interval_s = float(sync_cfg.get("interval_s", 0.35))
+        except Exception:
+            self._state_sync_interval_s = 0.35
+        self._state_sync_interval_s = max(0.25, min(10.0, self._state_sync_interval_s))
+        try:
+            self._state_sync_max_targets = int(sync_cfg.get("max_targets", 1))
+        except Exception:
+            self._state_sync_max_targets = 1
+        self._state_sync_max_targets = max(1, min(12, self._state_sync_max_targets))
+        self._last_state_signature: dict[str, tuple] = {}
+        self._last_state_sync_log = 0.0
+        self._last_successful_sync_at = 0.0
+        self._last_control_at = 0.0
+        self._sync_boost_until = 0.0
+
+        self._target: dict[str, Any] = {}
+        self._mirror: dict[str, Any] = {"state": True, "dimming": 100}
         self._dirty = False
         self._callback = None
+        self._last_control_log = 0.0
+        self._last_callback_log = 0.0
 
         self.thread = threading.Thread(target=self._run_loop, daemon=True)
 
     # ------------------------------------------------------------------ #
-    #  Ciclo de vida
+    # Ciclo de vida
     # ------------------------------------------------------------------ #
     def set_callback(self, callback) -> None:
         self._callback = callback
@@ -54,6 +117,8 @@ class LightController:
 
     def stop(self) -> None:
         self.running = False
+        if self.loop.is_running():
+            self.loop.call_soon_threadsafe(self.loop.stop)
 
     def _run_loop(self) -> None:
         asyncio.set_event_loop(self.loop)
@@ -61,13 +126,162 @@ class LightController:
         self.loop.run_forever()
 
     async def _setup(self) -> None:
-        _, self.proto = await create_endpoint(self.loop)
+        _transport, self.proto = await create_endpoint(self.loop)
+        self._scan_lock = asyncio.Lock()
         self.loop.create_task(self._pump())
-        self.loop.create_task(self._discover())
-        logging.info(f"[Light] Listo. Bombillas guardadas: {self.bulb_ips or '(ninguna)'}")
+        self.loop.create_task(self._state_sync_loop())
+        self.loop.create_task(self._discover(aggressive=not bool(self.bulb_ips)))
+        _LOG.info("[Light] Listo. Bombillas guardadas: %s", self.bulb_ips or "(ninguna)")
+
+    def _run_coro(self, coro):
+        if self.loop.is_running():
+            return asyncio.run_coroutine_threadsafe(coro, self.loop)
+        return None
 
     # ------------------------------------------------------------------ #
-    #  Escritura coalescida
+    # Targeting: una ampolleta / todas
+    # ------------------------------------------------------------------ #
+    def _normalise_mode(self, mode: Any) -> str:
+        m = str(mode or "single").lower().strip()
+        return "all" if m in {"all", "multi", "group", "todas"} else "single"
+
+    def _save_control_config(self) -> None:
+        self.config.set(
+            "control",
+            {
+                "mode": self._target_mode,
+                "active_ip": self._active_ip,
+                "slider_interval_ms": self._slider_interval_ms,
+            },
+        )
+
+    def _save_state_sync_config(self) -> None:
+        self.config.set(
+            "state_sync",
+            {
+                "enabled": self._state_sync_enabled,
+                "interval_s": self._state_sync_interval_s,
+                "max_targets": self._state_sync_max_targets,
+            },
+        )
+
+    def set_state_sync(self, enabled: bool | None = None, interval_s: float | None = None) -> None:
+        if enabled is not None:
+            self._state_sync_enabled = bool(enabled)
+        if interval_s is not None:
+            try:
+                self._state_sync_interval_s = max(0.25, min(10.0, float(interval_s)))
+            except Exception:
+                pass
+        self._save_state_sync_config()
+        self._fire_callback()
+
+    def get_state_sync_config(self) -> dict[str, Any]:
+        return {
+            "enabled": self._state_sync_enabled,
+            "interval_s": self._state_sync_interval_s,
+            "max_targets": self._state_sync_max_targets,
+        }
+
+    def _valid_ips(self, ips) -> set[str]:
+        valid: set[str] = set()
+        for ip in ips:
+            try:
+                ipaddress.ip_address(str(ip))
+            except ValueError:
+                continue
+            valid.add(str(ip))
+        return valid
+
+    def _reachable_targets(self) -> set[str]:
+        targets = set(self.bulbs.keys())
+        if self.proto:
+            targets |= set(self.proto.discovered.keys())
+            targets |= set(self.proto.last_pilot.keys())
+        return self._valid_ips(targets)
+
+    def _saved_targets(self) -> set[str]:
+        return self._valid_ips(self.bulb_ips)
+
+    def _ensure_active_ip(self) -> str | None:
+        reachable = self._reachable_targets()
+        saved = self._saved_targets()
+        all_known = reachable | saved
+
+        # Si la IP activa no existe, o quedó vieja/offline y hay una viva, cambia a una viva.
+        if self._active_ip not in all_known or (reachable and self._active_ip not in reachable):
+            preferred = sorted(self.bulbs.keys()) or sorted(reachable) or sorted(saved)
+            self._active_ip = preferred[0] if preferred else None
+            self._save_control_config()
+        return self._active_ip
+
+    def _control_targets(self) -> set[str]:
+        reachable = self._reachable_targets()
+        if self._target_mode == "single":
+            ip = self._ensure_active_ip()
+            return {ip} if ip else set()
+
+        # Modo todas: prioriza solo dispositivos vivos/descubiertos; fallback a guardados si nada responde.
+        return reachable or self._saved_targets()
+
+    def set_target_mode(self, mode: str) -> None:
+        self._target_mode = self._normalise_mode(mode)
+        self._ensure_active_ip()
+        self._save_control_config()
+        self._fire_callback()
+
+    def set_active_bulb(self, ip: str) -> None:
+        ip = (ip or "").strip()
+        try:
+            ipaddress.ip_address(ip)
+        except ValueError:
+            return
+        self._active_ip = ip
+        self.bulb_ips.add(ip)
+        self._target_mode = "single"
+        self._save_control_config()
+        self._seed_mirror_from_first_live_bulb(ip)
+        self._fire_callback()
+
+    def set_slider_interval_ms(self, ms: int) -> None:
+        try:
+            ms = int(ms)
+        except Exception:
+            return
+        self._slider_interval_ms = max(35, min(200, ms))
+        self.MIN_INTERVAL = self._slider_interval_ms / 1000.0
+        self._save_control_config()
+
+    def get_target_config(self) -> dict[str, Any]:
+        active = self._ensure_active_ip()
+        return {
+            "mode": self._target_mode,
+            "active_ip": active,
+            "targets": sorted(self._control_targets()),
+            "reachable": sorted(self._reachable_targets()),
+            "saved": sorted(self._saved_targets()),
+            "slider_interval_ms": self._slider_interval_ms,
+        }
+
+    def cleanup_offline_bulbs(self) -> int:
+        """Borra IPs guardadas que no están online ni recién descubiertas."""
+        keep = self._reachable_targets()
+        removed = 0
+        for ip in list(self.bulb_ips):
+            if ip not in keep:
+                self.bulb_ips.discard(ip)
+                self.bulbs.pop(ip, None)
+                self.bulbs_manager.remove_bulb(ip)
+                removed += 1
+        if self._active_ip not in keep:
+            self._active_ip = None
+            self._ensure_active_ip()
+        self._save_control_config()
+        self._fire_callback()
+        return removed
+
+    # ------------------------------------------------------------------ #
+    # Escritura coalescida
     # ------------------------------------------------------------------ #
     async def _pump(self) -> None:
         while self.running:
@@ -78,109 +292,560 @@ class LightController:
             else:
                 await asyncio.sleep(0.01)
 
-    def _broadcast(self, params: dict) -> None:
+    def _broadcast(self, params: dict[str, Any]) -> None:
         if not params or not self.proto:
             return
-        for ip in list(self.bulb_ips):
-            self.proto.send_pilot(ip, params)
-        self._fire_callback()
 
-    def _fire_callback(self) -> None:
-        if self._callback:
+        targets = self._control_targets()
+        if not targets:
+            _LOG.warning("[Light] Control ignorado: no hay targets. Params=%s", params)
+            return
+
+        for ip in sorted(targets):
+            self.proto.send_pilot(ip, params)
+
+        now = time.monotonic()
+        if now - self._last_control_log > 0.8:
+            _LOG.info("[Light] setPilot -> %s params=%s", sorted(targets), params)
+            self._last_control_log = now
+
+        now = time.monotonic()
+        self._last_control_at = now
+        self._sync_boost_until = max(self._sync_boost_until, now + 1.4)
+        self._schedule_post_action_verify(targets)
+
+        self._fire_callback(throttle=True)
+
+    def _schedule_post_action_verify(self, targets: set[str]) -> None:
+        """Verifica estado real poco después de mandar setPilot.
+
+        Esto mantiene la UI/tray precisos sin esperar ACK en el camino caliente.
+        Si la bombilla corrige algún valor o la app móvil interviene, el espejo se ajusta.
+        """
+        if not self.proto or not targets or not self.loop.is_running():
+            return
+        for delay in self.POST_ACTION_VERIFY_DELAYS:
             try:
-                self._callback(self.get_state())
+                self.loop.create_task(self._verify_targets_after(sorted(targets), float(delay)))
             except Exception:
                 pass
 
-    # ------------------------------------------------------------------ #
-    #  Discovery + lectura de estado real y capacidades
-    # ------------------------------------------------------------------ #
-    async def _discover(self) -> None:
-        try:
-            local_ip = get_local_ip()
-            for _ in range(3):
-                self.proto.send_registration(local_ip)
-                await asyncio.sleep(0.35)
-            await asyncio.sleep(0.4)
+    async def _verify_targets_after(self, targets: list[str], delay: float) -> None:
+        await asyncio.sleep(max(0.05, delay))
+        if not self.running or not self.proto:
+            return
+        any_changed = False
+        for ip in targets[: max(1, self._state_sync_max_targets)]:
+            try:
+                pilot = await self.proto.query(
+                    ip,
+                    "getPilot",
+                    self.loop,
+                    timeout=self.STATE_SYNC_TIMEOUT,
+                    retries=0,
+                )
+                if pilot:
+                    any_changed = self._merge_pilot_state(ip, pilot) or any_changed
+            except Exception:
+                continue
+        if any_changed:
+            self._fire_callback()
 
-            ips = set(self.proto.discovered.keys()) | set(self.bulb_ips)
-            for ip in ips:
+    def _fire_callback(self, *, throttle: bool = False) -> None:
+        if not self._callback:
+            return
+        now = time.monotonic()
+        if throttle and now - self._last_callback_log < self.CALLBACK_MIN_INTERVAL:
+            return
+        self._last_callback_log = now
+        try:
+            self._callback(self.get_state())
+        except Exception:
+            _LOG.debug("[Light] callback falló", exc_info=True)
+
+    # ------------------------------------------------------------------ #
+    # Discovery + probing
+    # ------------------------------------------------------------------ #
+    async def _discover(self, *, aggressive: bool = False) -> None:
+        if not self.proto:
+            return
+        if self._scan_lock is None:
+            self._scan_lock = asyncio.Lock()
+
+        async with self._scan_lock:
+            try:
+                broadcasts = get_broadcast_addresses()
+                local_ip = get_local_ip()
+                self.proto.discovered.clear()
+
+                pywiz_task = asyncio.create_task(
+                    discover_with_pywizlight(broadcasts, wait_time=1.25)
+                )
+
+                for _ in range(self.DISCOVERY_ROUNDS):
+                    for bcast in broadcasts:
+                        self.proto.send_registration(local_ip, bcast, register=False)
+                    await asyncio.sleep(self.DISCOVERY_INTERVAL)
+
+                await asyncio.sleep(0.25)
+
+                for item in await pywiz_task:
+                    ip = item.get("ip")
+                    if ip:
+                        prev = self.proto.discovered.get(ip, {})
+                        self.proto.discovered[ip] = {**prev, **item, "seen_at": time.time()}
+
+                candidates = set(self.bulb_ips) | set(self.proto.discovered.keys())
+
+                if aggressive or not candidates:
+                    candidates |= await self._scan_subnet()
+
+                self._remember_discovered_targets()
+                candidates |= set(self.bulb_ips)
+
+                await self._probe_many(candidates)
+                self._ensure_active_ip()
+                self._seed_mirror_from_first_live_bulb()
+
+                _LOG.info(
+                    "[Light] Discovery listo. Guardadas=%d, online=%d, modo=%s, activa=%s",
+                    len(self.bulb_ips),
+                    len(self.bulbs),
+                    self._target_mode,
+                    self._active_ip,
+                )
+                self._fire_callback()
+            except Exception:
+                _LOG.debug("[Light] discovery falló", exc_info=True)
+
+    async def _scan_subnet(self) -> set[str]:
+        if not self.proto:
+            return set()
+
+        ips = [ip for ip in get_lan_scan_ips(limit=512) if ip not in self.bulb_ips]
+        found: set[str] = set()
+        sem = asyncio.Semaphore(self.SCAN_CONCURRENCY)
+
+        async def check(ip: str) -> None:
+            async with sem:
+                res = await self.proto.query(ip, "getSystemConfig", self.loop, self.SCAN_TIMEOUT)
+                if res and (res.get("mac") or res.get("moduleName") or res.get("fwVersion")):
+                    found.add(ip)
+                    prev = self.proto.discovered.get(ip, {})
+                    self.proto.discovered[ip] = {
+                        **prev,
+                        "ip": ip,
+                        "mac": res.get("mac") or prev.get("mac"),
+                        "moduleName": res.get("moduleName"),
+                        "source": "subnet-scan",
+                        "seen_at": time.time(),
+                    }
+
+        await asyncio.gather(*(check(ip) for ip in ips), return_exceptions=True)
+        return found
+
+    def _remember_discovered_targets(self) -> None:
+        if not self.proto:
+            return
+
+        saved = self.bulbs_manager.get_bulbs()
+        for ip, info in list(self.proto.discovered.items()):
+            try:
+                ipaddress.ip_address(ip)
+            except ValueError:
+                continue
+
+            mac = info.get("mac")
+            module = info.get("moduleName") or info.get("module")
+            self.bulb_ips.add(ip)
+
+            payload: dict[str, Any] = {"ip": ip, "mac": mac, "port": WIZ_PORT}
+            if module:
+                payload["module"] = module
+            if isinstance(saved, dict) and ip in saved and saved[ip].get("name"):
+                payload["name"] = saved[ip]["name"]
+            self.bulbs_manager.add_bulb(payload)
+
+    async def _probe_many(self, ips: set[str]) -> None:
+        sem = asyncio.Semaphore(self.PROBE_CONCURRENCY)
+
+        async def one(ip: str) -> None:
+            async with sem:
                 await self._probe(ip)
 
-            # Sembrar el espejo con el estado REAL de la primera bombilla viva
-            for info in self.bulbs.values():
-                st = info.get("state") or {}
-                if "state" in st:
-                    self._mirror["state"] = st["state"]
-                if "dimming" in st:
-                    self._mirror["dimming"] = st["dimming"]
-                break
+        await asyncio.gather(*(one(ip) for ip in sorted(ips)), return_exceptions=True)
 
-            logging.info(f"[Light] Bombillas activas: {len(self.bulbs)}")
-            self._fire_callback()
-        except Exception as e:
-            logging.debug(f"[Light] discovery: {e}")
+    async def _probe(self, ip: str) -> bool:
+        if not self.proto:
+            return False
 
-    async def _probe(self, ip: str) -> None:
-        sysc = await self.proto.query(ip, "getSystemConfig", self.loop, 1.0)
-        pilot = await self.proto.query(ip, "getPilot", self.loop, 1.0)
-        if sysc is None and pilot is None and ip not in self.bulb_ips:
-            return  # inalcanzable
+        sys_task = asyncio.create_task(
+            self.proto.query(ip, "getSystemConfig", self.loop, self.QUERY_TIMEOUT)
+        )
+        pilot_task = asyncio.create_task(
+            self.proto.query(ip, "getPilot", self.loop, self.QUERY_TIMEOUT)
+        )
+        sysc, pilot = await asyncio.gather(sys_task, pilot_task)
 
-        module = (sysc or {}).get("moduleName")
-        mac = (sysc or {}).get("mac") or self.proto.discovered.get(ip, {}).get("mac")
-        caps = from_module_name(module)
+        if sysc is None and pilot is None:
+            self.bulbs.pop(ip, None)
+            return False
 
-        self.bulbs[ip] = {"mac": mac, "caps": caps, "state": pilot or {}}
+        model = None
+        if sysc is not None:
+            model = await self.proto.query(ip, "getModelConfig", self.loop, self.MODEL_TIMEOUT)
+
+        discovered = self.proto.discovered.get(ip, {})
+        saved = self.bulbs_manager.get_bulbs()
+        saved_entry = saved.get(ip, {}) if isinstance(saved, dict) else {}
+
+        module = (sysc or {}).get("moduleName") or discovered.get("moduleName") or saved_entry.get("module")
+        mac = (
+            (sysc or {}).get("mac")
+            or (pilot or {}).get("mac")
+            or discovered.get("mac")
+            or saved_entry.get("mac")
+        )
+        caps = from_wiz_config(sysc, model, pilot)
+        name = saved_entry.get("name")
+
+        real_state = pilot or self.proto.last_pilot.get(ip, {})
+        self.bulbs[ip] = {
+            "ip": ip,
+            "mac": mac,
+            "caps": caps,
+            "state": real_state,
+            "name": name,
+            "module": module,
+            "system": sysc or {},
+            "model": model or {},
+            "rssi": (real_state or {}).get("rssi"),
+            "last_seen": time.time(),
+        }
+        if real_state:
+            self._last_state_signature[ip] = self._state_signature(real_state)
         self.bulb_ips.add(ip)
-        self.bulbs_manager.add_bulb({"ip": ip, "mac": mac, "port": WIZ_PORT})
+
+        payload: dict[str, Any] = {"ip": ip, "mac": mac, "port": WIZ_PORT, "module": module}
+        if name:
+            payload["name"] = name
+        self.bulbs_manager.add_bulb(payload)
+        return True
+
+    def _seed_mirror_from_first_live_bulb(self, preferred_ip: str | None = None) -> None:
+        order: list[str] = []
+        if preferred_ip:
+            order.append(preferred_ip)
+        if self._active_ip and self._active_ip not in order:
+            order.append(self._active_ip)
+        order.extend([ip for ip in self.bulbs.keys() if ip not in order])
+
+        for ip in order:
+            info = self.bulbs.get(ip)
+            if not info:
+                continue
+            st = info.get("state") or {}
+            for key in ("state", "dimming", "temp", "sceneId", "speed", "r", "g", "b", "ratio"):
+                if key in st:
+                    self._mirror[key] = st[key]
+            break
 
     async def _refresh_async(self) -> None:
-        for ip in list(self.bulb_ips):
-            pilot = await self.proto.query(ip, "getPilot", self.loop, 1.0)
-            if pilot and ip in self.bulbs:
-                self.bulbs[ip]["state"] = pilot
+        await self._probe_many(set(self.bulb_ips))
+        self._ensure_active_ip()
+        self._seed_mirror_from_first_live_bulb()
         self._fire_callback()
 
     def refresh(self) -> None:
-        """Relee el estado real de las bombillas (on-demand, no bloquea la UI)."""
-        if self.proto:
-            asyncio.run_coroutine_threadsafe(self._refresh_async(), self.loop)
+        self._run_coro(self._refresh_async())
 
     # ------------------------------------------------------------------ #
-    #  API pública (control)
+    # Sync de estado real: cambios hechos desde celular/app WiZ
     # ------------------------------------------------------------------ #
+    def _state_signature(self, state: dict[str, Any] | None) -> tuple:
+        st = state or {}
+        keys = ("state", "dimming", "temp", "sceneId", "speed", "r", "g", "b", "c", "w", "ratio")
+        return tuple((k, st.get(k)) for k in keys if k in st)
+
+    def _state_sync_ips(self) -> list[str]:
+        # En modo single, el polling debe ser casi gratis: solo la ampolleta activa.
+        active = self._ensure_active_ip()
+        ordered: list[str] = []
+        if active:
+            ordered.append(active)
+        for ip in sorted(self._control_targets() | set(self.bulbs.keys())):
+            if ip and ip not in ordered:
+                ordered.append(ip)
+        return ordered[: self._state_sync_max_targets]
+
+    def _merge_pilot_state(self, ip: str, pilot: dict[str, Any]) -> bool:
+        if not pilot:
+            return False
+
+        before = self._last_state_signature.get(ip)
+        after = self._state_signature(pilot)
+        mirror_before = self._state_signature(self._mirror)
+
+        # Importante: before puede ser None si el primer probe no alcanzó a leer getPilot.
+        # En ese caso igual hay que actualizar la UI si el piloto trae estado real.
+        changed = before != after
+        self._last_state_signature[ip] = after
+        self._last_successful_sync_at = time.time()
+
+        if ip in self.bulbs:
+            self.bulbs[ip]["state"] = pilot
+            self.bulbs[ip]["rssi"] = pilot.get("rssi", self.bulbs[ip].get("rssi"))
+            self.bulbs[ip]["last_seen"] = time.time()
+        elif self.proto and ip in self.proto.discovered:
+            self.bulb_ips.add(ip)
+
+        active = self._ensure_active_ip()
+        if ip == active or (self._target_mode == "all" and active is None):
+            for key in ("state", "dimming", "temp", "sceneId", "speed", "r", "g", "b", "ratio"):
+                if key in pilot:
+                    self._mirror[key] = pilot[key]
+
+            # Limpiar modos mutuamente excluyentes para que la UI no quede mezclada.
+            if "sceneId" in pilot:
+                for k in ("r", "g", "b", "temp"):
+                    if k not in pilot:
+                        self._mirror.pop(k, None)
+            elif "temp" in pilot:
+                for k in ("r", "g", "b", "sceneId", "speed"):
+                    if k not in pilot:
+                        self._mirror.pop(k, None)
+            elif all(k in pilot for k in ("r", "g", "b")):
+                for k in ("temp", "sceneId", "speed"):
+                    if k not in pilot:
+                        self._mirror.pop(k, None)
+
+            changed = changed or self._state_signature(self._mirror) != mirror_before
+        return changed
+
+    def _state_sync_sleep_interval(self, changed: bool = False) -> float:
+        # Punto dulce: rápido con una ampolleta, prudente en segundo plano/múltiples targets.
+        now = time.monotonic()
+        if changed:
+            self._sync_boost_until = max(self._sync_boost_until, now + 1.2)
+            return 0.16
+        if now < self._sync_boost_until:
+            return 0.22
+        if self._target_mode == "single":
+            return min(self._state_sync_interval_s, 0.35)
+        return max(self._state_sync_interval_s, 0.85)
+
+    async def _state_sync_loop(self) -> None:
+        # Da tiempo al discovery inicial; después queda como monitor liviano.
+        await asyncio.sleep(0.8)
+        while self.running:
+            any_changed = False
+            try:
+                if self._state_sync_enabled and self.proto:
+                    for ip in self._state_sync_ips():
+                        pilot = await self.proto.query(
+                            ip,
+                            "getPilot",
+                            self.loop,
+                            timeout=self.STATE_SYNC_TIMEOUT,
+                            retries=0,
+                        )
+                        if pilot:
+                            any_changed = self._merge_pilot_state(ip, pilot) or any_changed
+
+                    if any_changed:
+                        now = time.monotonic()
+                        if now - self._last_state_sync_log > 0.6:
+                            _LOG.info("[Light] Estado externo sincronizado desde WiZ/app móvil")
+                            self._last_state_sync_log = now
+                        self._fire_callback()
+            except Exception:
+                _LOG.debug("[Light] state sync falló", exc_info=True)
+            await asyncio.sleep(self._state_sync_sleep_interval(any_changed))
+
+    # ------------------------------------------------------------------ #
+    # Gestión de ampolletas para Ajustes
+    # ------------------------------------------------------------------ #
+    def rescan(self) -> None:
+        self._run_coro(self._discover(aggressive=True))
+
+    def add_bulb_manual(self, ip: str) -> None:
+        ip = (ip or "").strip()
+        try:
+            ipaddress.ip_address(ip)
+        except ValueError:
+            _LOG.warning("IP inválida: %s", ip)
+            return
+
+        self.bulb_ips.add(ip)
+        self.bulbs_manager.add_bulb({"ip": ip, "mac": None, "port": WIZ_PORT})
+        if not self._active_ip:
+            self._active_ip = ip
+            self._save_control_config()
+        fut = self._run_coro(self._probe_then_notify(ip))
+        if fut is None:
+            self._fire_callback()
+
+    async def _probe_then_notify(self, ip: str) -> None:
+        await self._probe(ip)
+        self._ensure_active_ip()
+        self._fire_callback()
+
+    def rename_bulb(self, ip: str, name: str) -> None:
+        self.bulbs_manager.set_bulb_name(ip, name)
+        if ip in self.bulbs:
+            self.bulbs[ip]["name"] = name
+        self._fire_callback()
+
+    def remove_bulb(self, ip: str) -> None:
+        self.bulb_ips.discard(ip)
+        self.bulbs.pop(ip, None)
+        self.bulbs_manager.remove_bulb(ip)
+        if self._active_ip == ip:
+            self._active_ip = None
+            self._ensure_active_ip()
+            self._save_control_config()
+        self._fire_callback()
+
+    def get_bulbs_detailed(self) -> list[dict[str, Any]]:
+        saved = self.bulbs_manager.get_bulbs()
+        out: list[dict[str, Any]] = []
+        target_cfg = self.get_target_config()
+
+        for ip in sorted(self.bulb_ips | self._reachable_targets()):
+            info = self.bulbs.get(ip, {})
+            saved_entry = saved.get(ip, {}) if isinstance(saved, dict) else {}
+            caps: Capabilities | None = info.get("caps")
+            state = info.get("state") or {}
+            out.append(
+                {
+                    "ip": ip,
+                    "name": info.get("name") or saved_entry.get("name") or ip,
+                    "mac": info.get("mac") or saved_entry.get("mac"),
+                    "label": caps.label if caps else "—",
+                    "online": ip in self.bulbs or ip in self._reachable_targets(),
+                    "active": ip == target_cfg.get("active_ip"),
+                    "targeted": ip in set(target_cfg.get("targets", [])),
+                    "module": info.get("module") or saved_entry.get("module"),
+                    "rssi": state.get("rssi") or info.get("rssi"),
+                    "dimming": state.get("dimming"),
+                    "state": state.get("state"),
+                    "temp": state.get("temp"),
+                    "sceneId": state.get("sceneId"),
+                    "last_seen": info.get("last_seen"),
+                    "kelvin_min": caps.kelvin_min if caps else None,
+                    "kelvin_max": caps.kelvin_max if caps else None,
+                    "rgb": bool(caps.rgb) if caps else None,
+                    "tunable_white": bool(caps.tunable_white) if caps else None,
+                }
+            )
+        return out
+
+    def get_device_info(self, ip: str | None = None) -> dict[str, Any]:
+        ip = ip or self._ensure_active_ip()
+        if not ip:
+            return {}
+        items = {b["ip"]: b for b in self.get_bulbs_detailed()}
+        info = dict(items.get(ip, {}))
+        raw = self.bulbs.get(ip, {})
+        caps: Capabilities | None = raw.get("caps")
+        if caps:
+            info["capabilities"] = caps.__dict__.copy()
+        info["system"] = raw.get("system", {})
+        info["model_config"] = raw.get("model", {})
+        info["raw_state"] = raw.get("state", {})
+        return info
+
+    def get_tray_status(self) -> dict[str, Any]:
+        """Estado compacto para bandeja/panel rápido."""
+        info = self.get_device_info() or {}
+        state = self.get_state()
+        summary = self.summary()
+        last_seen = info.get("last_seen") or self._last_successful_sync_at or None
+        age = None
+        if last_seen:
+            try:
+                age = max(0.0, time.time() - float(last_seen))
+            except Exception:
+                age = None
+        return {
+            "name": info.get("name") or summary.get("active_ip") or "Ampolleta",
+            "ip": summary.get("active_ip"),
+            "online": bool(summary.get("active", 0) > 0),
+            "mode": summary.get("target_mode", "single"),
+            "state": state,
+            "summary": summary,
+            "last_sync_age": age,
+            "label": info.get("label") or summary.get("label") or "",
+            "rssi": info.get("rssi"),
+        }
+
+    # ------------------------------------------------------------------ #
+    # API pública de control
+    # ------------------------------------------------------------------ #
+
+    def apply_favorite(self, fav: dict[str, Any]) -> None:
+        ftype = fav.get("type")
+        value = fav.get("value")
+        if ftype == "rgb":
+            h = str(value).strip().lstrip("#")
+            if len(h) == 6:
+                self.set_rgb(*(int(h[i:i + 2], 16) for i in (0, 2, 4)))
+        elif ftype == "white":
+            self.set_white(int(value))
+        elif ftype == "brightness":
+            self.set_brightness(int(value))
+        elif ftype == "scene":
+            if isinstance(value, dict):
+                self.set_scene(int(value.get("sceneId", 1)), value.get("speed"))
+            else:
+                self.set_scene(int(value))
+
+    def _drop_mode_keys(self, *keys: str) -> None:
+        for key in keys:
+            self._target.pop(key, None)
+            self._mirror.pop(key, None)
+
     def _mark(self) -> None:
         self._mirror.update(self._target)
         self._dirty = True
 
     def set_rgb(self, r: int, g: int, b: int) -> None:
-        self._target.update({"state": True, "r": int(r), "g": int(g), "b": int(b)})
-        for k in ("temp", "sceneId", "speed"):
-            self._target.pop(k, None)
+        self._target.update(
+            {
+                "state": True,
+                "r": max(0, min(255, int(r))),
+                "g": max(0, min(255, int(g))),
+                "b": max(0, min(255, int(b))),
+            }
+        )
+        self._drop_mode_keys("temp", "sceneId", "speed", "c", "w", "cw", "ww", "temperature")
         self._mark()
 
     def set_white(self, kelvin: int) -> None:
-        self._target.update({"state": True, "temp": int(kelvin)})
-        for k in ("r", "g", "b", "sceneId", "speed"):
-            self._target.pop(k, None)
+        lo, hi = self.get_kelvin_range()
+        kelvin = max(lo, min(hi, int(kelvin)))
+        self._target.update({"state": True, "temp": kelvin})
+        self._drop_mode_keys("r", "g", "b", "sceneId", "speed", "c", "w", "cw", "ww")
         self._mark()
+
+    def set_white_percent(self, pct: int) -> None:
+        lo, hi = self.get_kelvin_range()
+        p = max(0, min(100, int(pct))) / 100.0
+        self.set_white(round(lo + (hi - lo) * p))
 
     def set_scene(self, scene_id: int, speed: int | None = None) -> None:
         self._target.update({"state": True, "sceneId": int(scene_id)})
         if speed is not None:
             self._target["speed"] = int(max(20, min(200, speed)))
-        for k in ("r", "g", "b", "temp"):
-            self._target.pop(k, None)
+        self._drop_mode_keys("r", "g", "b", "temp", "c", "w", "cw", "ww", "temperature")
         self._mark()
 
     def set_ratio(self, ratio: int) -> None:
-        """Dispositivos de doble zona (0-100)."""
         self._target["ratio"] = int(max(0, min(100, ratio)))
         self._mark()
 
     def set_brightness(self, pct: int) -> None:
-        self._target["dimming"] = int(max(10, min(100, pct)))   # dimming local es 0-100
+        self._target["dimming"] = int(max(10, min(100, pct)))
         self._mark()
 
     def turn_on(self) -> None:
@@ -194,14 +859,137 @@ class LightController:
     def toggle(self) -> None:
         self.turn_off() if self._mirror.get("state", True) else self.turn_on()
 
-    def get_state(self) -> dict:
+    def reset_light(self) -> None:
+        lo, hi = self.get_kelvin_range()
+        neutral = 4000 if lo <= 4000 <= hi else round((lo + hi) / 2)
+        self._target.clear()
+        self._mirror.clear()
+        self._mirror.update({"state": True, "dimming": 100, "temp": neutral})
+        self._target.update({"state": True, "dimming": 100, "temp": neutral})
+        self._dirty = True
+
+    def get_state(self) -> dict[str, Any]:
         return dict(self._mirror)
 
+
+    def apply_custom_scene(self, scene: dict[str, Any]) -> None:
+        """Aplica una escena personalizada local de la app.
+
+        Formatos soportados:
+        - {mode: rgb, value:{r,g,b,dimming?}}
+        - {mode: white, value:{temp,dimming?}}
+        - {mode: scene, value:{sceneId,speed?,dimming?}}
+        - {mode: combo, value:[{type:..., value:...}, ...]}
+        """
+        if not scene:
+            return
+        mode = str(scene.get("mode") or scene.get("type") or "").lower()
+        value = scene.get("value") or {}
+
+        def maybe_dim(v):
+            if isinstance(v, dict) and "dimming" in v:
+                self.set_brightness(int(v.get("dimming", 100)))
+
+        if mode == "rgb":
+            if isinstance(value, str):
+                h = value.strip().lstrip("#")
+                if len(h) == 6:
+                    self.set_rgb(*(int(h[i:i + 2], 16) for i in (0, 2, 4)))
+                    return
+            if isinstance(value, dict):
+                self.set_rgb(int(value.get("r", 255)), int(value.get("g", 0)), int(value.get("b", 0)))
+                maybe_dim(value)
+        elif mode == "white":
+            if isinstance(value, dict):
+                self.set_white(int(value.get("temp", value.get("kelvin", 4000))))
+                maybe_dim(value)
+            else:
+                self.set_white(int(value))
+        elif mode == "scene":
+            if isinstance(value, dict):
+                self.set_scene(int(value.get("sceneId", 18)), value.get("speed"))
+                maybe_dim(value)
+            else:
+                self.set_scene(int(value))
+        elif mode == "brightness":
+            self.set_brightness(int(value.get("dimming", value) if isinstance(value, dict) else value))
+        elif mode == "combo" and isinstance(value, list):
+            for step in value[:8]:
+                self.apply_custom_scene(step)
+
+    def capture_current_scene_payload(self) -> dict[str, Any]:
+        """Devuelve un payload estable para guardar la luz actual como escena."""
+        st = self.get_state()
+        dimming = int(st.get("dimming", 100) or 100)
+        if "sceneId" in st:
+            return {"mode": "scene", "value": {"sceneId": int(st.get("sceneId", 18)), "speed": int(st.get("speed", 100) or 100), "dimming": dimming}}
+        if "temp" in st:
+            return {"mode": "white", "value": {"temp": int(st.get("temp", 4000)), "dimming": dimming}}
+        if all(k in st for k in ("r", "g", "b")):
+            return {"mode": "rgb", "value": {"r": int(st.get("r", 255)), "g": int(st.get("g", 255)), "b": int(st.get("b", 255)), "dimming": dimming}}
+        return {"mode": "white", "value": {"temp": 4000, "dimming": dimming}}
+
     # ------------------------------------------------------------------ #
-    #  Capacidades agregadas (para la UI)
+    # Compatibilidad UI fase 3
     # ------------------------------------------------------------------ #
-    def summary(self) -> dict:
-        caps = [b["caps"] for b in self.bulbs.values()]
+    def get_control_config(self) -> dict[str, Any]:
+        return self.get_target_config()
+
+    def set_control_mode(self, mode: str) -> None:
+        self.set_target_mode(mode)
+
+    def set_selected_bulb(self, ip: str) -> None:
+        self.set_active_bulb(ip)
+
+    def prune_offline_bulbs(self) -> int:
+        return self.cleanup_offline_bulbs()
+
+    def get_selected_bulb_info(self) -> dict[str, Any] | None:
+        info = self.get_device_info()
+        return info or None
+
+    def kelvin_from_percent(self, pct: int | float) -> int:
+        lo, hi = self.get_kelvin_range()
+        p = max(0.0, min(100.0, float(pct))) / 100.0
+        return int(round(lo + (hi - lo) * p))
+
+    def percent_from_kelvin(self, kelvin: int | float) -> int:
+        lo, hi = self.get_kelvin_range()
+        if hi <= lo:
+            return 50
+        return int(round((float(kelvin) - lo) * 100 / (hi - lo)))
+
+    def adjust_brightness(self, delta: int) -> None:
+        cur = int(self._mirror.get("dimming", 100) or 100)
+        self.set_brightness(cur + int(delta))
+
+    def reset_brightness(self) -> None:
+        self.set_brightness(100)
+
+    def adjust_temperature_percent(self, delta: int) -> None:
+        cur = self.percent_from_kelvin(int(self._mirror.get("temp", self.kelvin_from_percent(50))))
+        self.set_white_percent(cur + int(delta))
+
+    def reset_temperature(self) -> None:
+        self.set_white_percent(50)
+
+    # ------------------------------------------------------------------ #
+    # Capacidades agregadas para UI
+    # ------------------------------------------------------------------ #
+    def get_kelvin_range(self) -> tuple[int, int]:
+        ip = self._ensure_active_ip()
+        if ip and ip in self.bulbs:
+            caps = self.bulbs[ip].get("caps")
+            if caps:
+                return int(caps.kelvin_min), int(caps.kelvin_max)
+
+        caps_list = [b.get("caps") for b in self.bulbs.values() if b.get("caps")]
+        if caps_list:
+            return min(c.kelvin_min for c in caps_list), max(c.kelvin_max for c in caps_list)
+        return 2200, 6500
+
+    def summary(self) -> dict[str, Any]:
+        caps = [b["caps"] for b in self.bulbs.values() if b.get("caps")]
         if any(c.rgb for c in caps):
             label = "RGB + Blancos"
         elif any(c.tunable_white for c in caps):
@@ -210,7 +998,22 @@ class LightController:
             label = "Regulable"
         else:
             label = ""
-        return {"count": len(self.bulb_ips), "active": len(self.bulbs), "label": label}
+
+        discovered = len(self.proto.discovered) if self.proto else 0
+        target_cfg = self.get_target_config()
+        return {
+            "count": len(self.bulb_ips),
+            "active": len(self.bulbs),
+            "discovered": discovered,
+            "targets": len(target_cfg.get("targets", [])),
+            "target_mode": self._target_mode,
+            "active_ip": target_cfg.get("active_ip"),
+            "state_sync": self.get_state_sync_config(),
+            "label": label,
+        }
 
     def supports_color(self) -> bool:
-        return any(b["caps"].rgb for b in self.bulbs.values()) or not self.bulbs
+        ip = self._ensure_active_ip()
+        if ip and ip in self.bulbs and self.bulbs[ip].get("caps"):
+            return bool(self.bulbs[ip]["caps"].rgb)
+        return any(b["caps"].rgb for b in self.bulbs.values() if b.get("caps")) or not self.bulbs

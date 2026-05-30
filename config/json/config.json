@@ -1,9 +1,19 @@
 {
     "window": {
-        "width": 900,
-        "height": 800,
+        "width": 1080,
+        "height": 720,
         "top": -1,
         "left": -1,
         "maximized": false
+    },
+    "control": {
+        "mode": "single",
+        "active_ip": "192.168.1.4",
+        "slider_interval_ms": 65
+    },
+    "state_sync": {
+        "enabled": true,
+        "interval_s": 0.35,
+        "max_targets": 1
     }
 }

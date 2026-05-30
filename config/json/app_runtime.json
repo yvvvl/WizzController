@@ -1,0 +1,9 @@
+{
+    "voice_start_mode": "always",
+    "last_voice_continuous_active": false,
+    "tray_enabled": true,
+    "minimize_to_tray": true,
+    "open_minimized": true,
+    "startup_with_windows": true,
+    "quick_tray_panel": false
+}
