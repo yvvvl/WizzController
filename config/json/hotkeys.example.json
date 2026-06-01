@@ -1,0 +1,9 @@
+{
+    "enabled": true,
+    "suppress": false,
+    "hotkeys": {
+        "toggle": "ctrl+alt+l",
+        "bri_up": "ctrl+alt+up",
+        "bri_down": "ctrl+alt+down"
+    }
+}

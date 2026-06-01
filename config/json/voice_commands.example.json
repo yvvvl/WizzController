@@ -1,0 +1,9 @@
+{
+    "wake_words": [
+        "pc",
+        "pese",
+        "wizz",
+        "wiz"
+    ],
+    "commands": []
+}

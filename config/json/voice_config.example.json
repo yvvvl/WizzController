@@ -1,0 +1,15 @@
+{
+    "voice_setup_preset": "adaptive",
+    "audio_input_profile": "adaptive",
+    "performance_profile": "balanced",
+    "continuous_model_size": "base",
+    "continuous_cpu_threads": 1,
+    "wake_words": [
+        "pc",
+        "pese",
+        "wizz",
+        "wiz"
+    ],
+    "continuous_require_wake_word": true,
+    "continuous_wake_position": "prefix"
+}

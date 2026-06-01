@@ -1,0 +1,45 @@
+# Entornos
+.venv/
+venv/
+env/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Builds / packaging
+build/
+dist/
+*.spec
+*.manifest
+
+# Logs / runtime / modelos
+logs/
+models/
+*.log
+
+# Backups de parches
+backups/
+.patch_backups/
+*.bak
+*.bak.*
+*.backup
+*.backup.*
+
+# Configuración local sensible
+config/json/*.json
+!config/json/*.example.json
+!config/json/.gitkeep
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
