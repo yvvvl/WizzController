@@ -219,61 +219,115 @@ class VoiceService:
             "voice_capture_normalize_target_rms": 0.0,
             "voice_capture_normalize_max_gain": 1.0,
         }
-        if preset in ("adaptive", "auto", "automatico", "automatic", "voicemeeter_auto"):
+        if preset in ("responsive", "rapido", "reactivo", "hyper", "hiperreactivo"):
+            payload.update({
+                "voice_setup_preset": "responsive",
+                "audio_input_profile": "adaptive",
+                "performance_profile": "responsive",
+                "continuous_model_size": "base",
+                "continuous_cpu_threads": 2,
+                "continuous_num_workers": 1,
+                "energy_threshold": 0.0030,
+                "end_silence_ms": 760,
+                "continuous_start_timeout": 1.40,
+                "wake_probe_seconds": 4.0,
+                "wake_probe_start_timeout": 1.40,
+                "wake_probe_min_speech_seconds": 0.24,
+                "wake_probe_end_silence_ms": 980,
+                "wake_command_bridge_ms": 1600,
+                "wake_command_bridge_short_max_seconds": 1.25,
+                "wake_probe_min_rms_peak": 0.0038,
+                "command_after_wake_seconds": 3.8,
+                "command_after_wake_start_timeout": 1.35,
+                "command_after_wake_end_silence_ms": 980,
+                "command_after_wake_min_speech_seconds": 0.24,
+                "continuous_min_speech_seconds": 0.24,
+                "continuous_min_rms_peak": 0.0038,
+                "continuous_pause_after_command_ms": 130,
+                "continuous_pause_after_non_wake_ms": 110,
+                "governor_idle_min_ms": 90,
+                "governor_idle_max_ms": 360,
+                "governor_non_wake_min_ms": 100,
+                "governor_non_wake_max_ms": 420,
+                "continuous_min_execute_confidence": 0.84,
+                "voice_capture_input_gain": 1.35,
+                "voice_capture_normalize_target_rms": 0.062,
+                "voice_capture_normalize_max_gain": 3.1,
+                "auto_mic_adaptation_enabled": True,
+                "far_field_assist_enabled": True,
+                "far_field_low_rms_peak": 0.018,
+                "far_field_target_rms": 0.070,
+                "far_field_max_gain": 3.5,
+                "speech_start_confirm_blocks": 2,
+                "speech_continue_threshold_ratio": 0.72,
+            })
+        elif preset in ("adaptive", "auto", "automatico", "automatic", "voicemeeter_auto"):
             payload.update({
                 "voice_setup_preset": "adaptive",
                 "audio_input_profile": "adaptive",
-                "performance_profile": "balanced",
+                "performance_profile": "responsive",
                 "continuous_model_size": "base",
-                "continuous_cpu_threads": 1,
-                "energy_threshold": 0.0055,
-                "end_silence_ms": 820,
-                "continuous_start_timeout": 1.45,
-                "wake_probe_seconds": 3.9,
-                "wake_probe_start_timeout": 1.45,
-                "wake_probe_min_speech_seconds": 0.34,
-                "wake_probe_end_silence_ms": 950,
-                "wake_command_bridge_ms": 1450,
-                "wake_command_bridge_short_max_seconds": 1.20,
-                "wake_probe_min_rms_peak": 0.0045,
-                "command_after_wake_seconds": 3.6,
-                "command_after_wake_start_timeout": 1.25,
-                "command_after_wake_end_silence_ms": 980,
-                "command_after_wake_min_speech_seconds": 0.34,
-                "continuous_min_speech_seconds": 0.34,
-                "continuous_min_rms_peak": 0.0045,
-                "voice_capture_input_gain": 1.15,
-                "voice_capture_normalize_target_rms": 0.050,
-                "voice_capture_normalize_max_gain": 2.4,
+                "continuous_cpu_threads": 2,
+                "energy_threshold": 0.0032,
+                "end_silence_ms": 920,
+                "continuous_start_timeout": 1.65,
+                "wake_probe_seconds": 4.2,
+                "wake_probe_start_timeout": 1.65,
+                "wake_probe_min_speech_seconds": 0.28,
+                "wake_probe_end_silence_ms": 1080,
+                "wake_command_bridge_ms": 1750,
+                "wake_command_bridge_short_max_seconds": 1.30,
+                "wake_probe_min_rms_peak": 0.0038,
+                "command_after_wake_seconds": 4.0,
+                "command_after_wake_start_timeout": 1.55,
+                "command_after_wake_end_silence_ms": 1120,
+                "command_after_wake_min_speech_seconds": 0.28,
+                "continuous_min_speech_seconds": 0.28,
+                "continuous_min_rms_peak": 0.0038,
+                "voice_capture_input_gain": 1.35,
+                "voice_capture_normalize_target_rms": 0.060,
+                "voice_capture_normalize_max_gain": 3.2,
                 "auto_mic_adaptation_enabled": True,
+                "far_field_assist_enabled": True,
+                "far_field_low_rms_peak": 0.018,
+                "far_field_target_rms": 0.072,
+                "far_field_max_gain": 3.6,
+                "speech_start_confirm_blocks": 2,
+                "speech_continue_threshold_ratio": 0.70,
             })
         elif preset in ("far", "far_field", "distancia", "lejano", "mic_lejos"):
 
             payload.update({
                 "voice_setup_preset": "far_field",
                 "audio_input_profile": "far_field",
-                "performance_profile": "balanced",
+                "performance_profile": "responsive",
                 "continuous_model_size": "base",
-                "continuous_cpu_threads": 1,
-                "energy_threshold": 0.0055,
-                "end_silence_ms": 950,
-                "continuous_start_timeout": 1.75,
-                "wake_probe_seconds": 4.0,
-                "wake_probe_start_timeout": 1.75,
-                "wake_probe_min_speech_seconds": 0.34,
-                "wake_probe_end_silence_ms": 1050,
-                "wake_command_bridge_ms": 1550,
-                "wake_command_bridge_short_max_seconds": 1.25,
-                "wake_probe_min_rms_peak": 0.0045,
-                "command_after_wake_seconds": 3.8,
-                "command_after_wake_start_timeout": 1.45,
-                "command_after_wake_end_silence_ms": 1100,
-                "command_after_wake_min_speech_seconds": 0.34,
-                "continuous_min_speech_seconds": 0.38,
-                "continuous_min_rms_peak": 0.0045,
-                "voice_capture_input_gain": 1.35,
-                "voice_capture_normalize_target_rms": 0.060,
-                "voice_capture_normalize_max_gain": 2.7,
+                "continuous_cpu_threads": 2,
+                "energy_threshold": 0.0028,
+                "end_silence_ms": 1050,
+                "continuous_start_timeout": 2.05,
+                "wake_probe_seconds": 4.6,
+                "wake_probe_start_timeout": 2.05,
+                "wake_probe_min_speech_seconds": 0.24,
+                "wake_probe_end_silence_ms": 1250,
+                "wake_command_bridge_ms": 2100,
+                "wake_command_bridge_short_max_seconds": 1.45,
+                "wake_probe_min_rms_peak": 0.0032,
+                "command_after_wake_seconds": 4.4,
+                "command_after_wake_start_timeout": 1.85,
+                "command_after_wake_end_silence_ms": 1300,
+                "command_after_wake_min_speech_seconds": 0.24,
+                "continuous_min_speech_seconds": 0.24,
+                "continuous_min_rms_peak": 0.0032,
+                "voice_capture_input_gain": 1.70,
+                "voice_capture_normalize_target_rms": 0.070,
+                "voice_capture_normalize_max_gain": 3.8,
+                "far_field_assist_enabled": True,
+                "far_field_low_rms_peak": 0.020,
+                "far_field_target_rms": 0.078,
+                "far_field_max_gain": 4.2,
+                "speech_start_confirm_blocks": 2,
+                "speech_continue_threshold_ratio": 0.66,
             })
         elif preset in ("voicemeeter", "gated", "vm"):
             payload.update({
@@ -432,12 +486,146 @@ class VoiceService:
                 pass
         if result.get("speaker_similarity") is not None:
             lines.append(f"Coincidencia de voz: {result.get('speaker_similarity')} ({result.get('speaker_mode', 'open')}).")
+        recs = result.get("recommendations")
+        if isinstance(recs, list):
+            for rec in recs[:3]:
+                if rec:
+                    lines.append(str(rec))
         if text:
             # Detectar transcripciones repetitivas/alucinadas aunque hayan pasado al UI.
             words = normalize_text(text).split()
             if len(words) >= 12 and len(set(words)) <= max(3, len(words) // 5):
                 lines.append("Texto repetitivo detectado: probable alucinación de ASR por ruido/clip corto.")
         return lines[:7] or ["Resultado normal. Sin alertas claras."]
+
+
+
+    # ------------------------------------------------------------------ #
+    # Phase 57: diagnóstico far-field sin ejecutar acciones
+    # ------------------------------------------------------------------ #
+    def _far_field_recommendations(self, result: dict[str, Any]) -> list[str]:
+        """Recomendaciones simples según métricas reales del último audio.
+
+        No cambia configuración automáticamente. Sirve para saber si el problema
+        es micrófono/Voicemeeter, VAD/corte, ASR o parser.
+        """
+        recommendations: list[str] = []
+        try:
+            peak = float(result.get("rms_peak") or 0.0)
+        except Exception:
+            peak = 0.0
+        try:
+            capture_seconds = float(result.get("capture_seconds") or 0.0)
+        except Exception:
+            capture_seconds = 0.0
+        try:
+            elapsed = float(result.get("elapsed") or 0.0)
+        except Exception:
+            elapsed = 0.0
+        transcript = normalize_text(str(result.get("transcript") or ""))
+        command = normalize_text(str(result.get("command_transcript") or ""))
+        speech_started = result.get("speech_started")
+        wake_ok = bool(result.get("wake_ok"))
+        parser_ok = bool(result.get("parser_ok"))
+
+        if speech_started is False:
+            recommendations.append("No entró voz al VAD: usa preset 'Micrófono lejos' y revisa que Voicemeeter tenga Gate en 0.0.")
+        if peak and peak < 0.006:
+            recommendations.append("Nivel extremadamente bajo: sube ganancia/fader del micrófono antes de seguir bajando sensibilidad.")
+        elif peak and peak < 0.012:
+            recommendations.append("Nivel bajo para distancia: prueba perfil 'Lejos / habitación' o acerca/sube el micrófono.")
+        elif peak > 0.85:
+            recommendations.append("Nivel saturado: baja ganancia; Whisper entiende peor cuando el audio clipea.")
+
+        if 0 < capture_seconds < 0.75:
+            recommendations.append("Clip muy corto: el gate/corte de silencio está comiéndose sílabas; sube corte silencio o baja Gate.")
+        elif capture_seconds > 4.2:
+            recommendations.append("Clip largo: hay ruido sostenido o silencio no cortado; eso sube latencia.")
+
+        if transcript and not wake_ok:
+            recommendations.append("Whisper oyó texto, pero no activador al inicio: habla 'pc apaga la luz' de corrido o usa activador más largo como 'wizz'.")
+        if wake_ok and not command:
+            recommendations.append("Solo se detectó activador: falta capturar la continuación; habla activador y comando sin pausa larga.")
+        if wake_ok and command and not parser_ok:
+            recommendations.append("El activador pasó, pero el parser no entendió acción: usa frases simples tipo 'pc prende la luz al cincuenta'.")
+        if elapsed > 4.8:
+            recommendations.append("Latencia alta: el modelo está demorando; deja fondo en base + 2 hilos o precarga modelo antes de probar.")
+
+        return recommendations[:5] or ["Métrica normal: si falla lejos, el límite probablemente es físico del micrófono/ruido ambiente."]
+
+    def diagnose_far_field_once(self) -> dict[str, Any]:
+        """Captura una frase de prueba, transcribe y diagnostica sin ejecutar WiZ.
+
+        Úsalo diciendo una frase completa a distancia, por ejemplo:
+        'pc apaga la luz' o 'pc prende la luz al cincuenta'.
+        """
+        if self.is_continuous_running():
+            return {
+                "ok": False,
+                "event": "far_field_diagnostic",
+                "message": "Detén la escucha continua antes de diagnosticar el micrófono",
+                "transcript": "",
+                "recommendations": ["No abras dos capturas de micrófono al mismo tiempo; pausa la escucha continua y vuelve a medir."],
+            }
+        status = self.dependency_status()
+        if not status.get("ok"):
+            return {"ok": False, "event": "far_field_diagnostic", "message": f"Dependencias faltantes: {status}", "transcript": ""}
+
+        started = time.time()
+        cfg = self.config()
+        capture = self._capture_wake_probe()
+        result: dict[str, Any] = {
+            "ok": False,
+            "event": "far_field_diagnostic",
+            "message": "Diagnóstico de micrófono listo",
+            "transcript": "",
+            "capture_seconds": round(float(getattr(capture, "seconds", 0.0)), 2),
+            "speech_started": bool(getattr(capture, "speech_started", False)),
+            "auto_stopped": bool(getattr(capture, "auto_stopped", False)),
+            "rms_peak": round(float(getattr(capture, "rms_peak", 0.0)), 4),
+            "profile": cfg.get("voice_setup_preset", cfg.get("performance_profile", "balanced")),
+            "audio_profile": cfg.get("audio_input_profile", "adaptive"),
+            "energy_threshold": float(cfg.get("energy_threshold", 0.0) or 0.0),
+            "wake_probe_min_rms_peak": float(cfg.get("wake_probe_min_rms_peak", 0.0) or 0.0),
+        }
+        if not bool(getattr(capture, "speech_started", False)):
+            result["message"] = "No detecté voz suficiente en la prueba"
+            result["elapsed"] = round(time.time() - started, 2)
+            result["recommendations"] = self._far_field_recommendations(result)
+            return result
+
+        text = self._transcribe_capture(capture, continuous=True)
+        result["transcript"] = text
+        if self._looks_like_hallucination(text, capture_seconds=float(getattr(capture, "seconds", 0.0))):
+            result["message"] = "Whisper generó texto repetitivo/ruido probable"
+            result["elapsed"] = round(time.time() - started, 2)
+            result["recommendations"] = [
+                "Hay ruido o clip muy débil: sube relación voz/ruido antes de bajar más sensibilidad.",
+                "Prueba Gate 0.0, Denoiser 0.0 a -0.5 y Comp 2.0 a 3.0 en Voicemeeter.",
+            ]
+            return result
+
+        wake_ok, command_text, wake_error = self._detect_wake_prefix(text)
+        result["wake_ok"] = bool(wake_ok)
+        result["wake_error"] = wake_error
+        result["command_transcript"] = command_text or ""
+        if not wake_ok:
+            result["message"] = wake_error or "No detecté activador al inicio"
+            result["elapsed"] = round(time.time() - started, 2)
+            result["recommendations"] = self._far_field_recommendations(result)
+            return result
+
+        command_text = self._sanitize_continuous_command_text(command_text or "", "continuous_command")
+        result["command_transcript"] = command_text
+        intent = self.parser.parse(command_text) if command_text else None
+        result["parser_ok"] = bool(intent and intent.ok)
+        result["confidence"] = float(getattr(intent, "confidence", 0.0) or 0.0) if intent else 0.0
+        result["action"] = getattr(intent, "action", None) if intent else None
+        result["ok"] = bool(result["parser_ok"])
+        result["message"] = "Diagnóstico OK: activador y comando se entienden" if result["ok"] else "Activador detectado, pero comando no claro"
+        result["elapsed"] = round(time.time() - started, 2)
+        result["recommendations"] = self._far_field_recommendations(result)
+        return result
 
     def dependency_status(self) -> dict[str, Any]:
         audio_ok = True
@@ -561,30 +749,31 @@ class VoiceService:
         """
         profile = str(cfg.get("audio_input_profile", "flow_gated") or "flow_gated")
         if profile in ("adaptive", "auto", "voicemeeter_auto"):
-            # Phase 42: un solo perfil que cubre cerca/lejos sin que el usuario cambie nada.
-            # Más sensible que flow_gated, pero mantiene activador obligatorio para evitar falsos positivos.
+            # Phase 56: perfil automático más tolerante para hablar desde lejos.
+            # Baja VAD + histéresis; el activador obligatorio sigue siendo la
+            # protección contra ejecución accidental.
             return {
-                "start_timeout": 1.45,
-                "wake_end_silence_ms": 950,
-                "cmd_end_silence_ms": 980,
-                "min_speech": 0.34,
-                "wake_seconds": 3.9,
-                "cmd_seconds": 3.6,
-                "pre_roll_ms": 1000,
-                "wake_bridge_ms": int(cfg.get("wake_command_bridge_ms", 1450)),
-                "wake_bridge_short_max": float(cfg.get("wake_command_bridge_short_max_seconds", 1.20)),
+                "start_timeout": 1.65,
+                "wake_end_silence_ms": 1080,
+                "cmd_end_silence_ms": 1120,
+                "min_speech": 0.28,
+                "wake_seconds": 4.2,
+                "cmd_seconds": 4.0,
+                "pre_roll_ms": 1150,
+                "wake_bridge_ms": int(cfg.get("wake_command_bridge_ms", 1750)),
+                "wake_bridge_short_max": float(cfg.get("wake_command_bridge_short_max_seconds", 1.30)),
             }
         if profile == "far_field":
             return {
-                "start_timeout": 1.75,
-                "wake_end_silence_ms": 1050,
-                "cmd_end_silence_ms": 1100,
-                "min_speech": 0.34,
-                "wake_seconds": 4.0,
-                "cmd_seconds": 3.8,
-                "pre_roll_ms": 1050,
-                "wake_bridge_ms": int(cfg.get("wake_command_bridge_ms", 1550)),
-                "wake_bridge_short_max": float(cfg.get("wake_command_bridge_short_max_seconds", 1.25)),
+                "start_timeout": 2.05,
+                "wake_end_silence_ms": 1250,
+                "cmd_end_silence_ms": 1300,
+                "min_speech": 0.24,
+                "wake_seconds": 4.6,
+                "cmd_seconds": 4.4,
+                "pre_roll_ms": 1300,
+                "wake_bridge_ms": int(cfg.get("wake_command_bridge_ms", 2100)),
+                "wake_bridge_short_max": float(cfg.get("wake_command_bridge_short_max_seconds", 1.45)),
             }
         if profile == "very_gated":
             return {
@@ -756,6 +945,12 @@ class VoiceService:
                 input_gain=float(cfg.get("voice_capture_input_gain", 1.0)),
                 normalize_target_rms=float(cfg.get("voice_capture_normalize_target_rms", 0.0)),
                 normalize_max_gain=float(cfg.get("voice_capture_normalize_max_gain", 1.0)),
+                start_confirm_blocks=int(cfg.get("speech_start_confirm_blocks", 2)),
+                continue_threshold_ratio=float(cfg.get("speech_continue_threshold_ratio", 0.72)),
+                far_field_boost_enabled=bool(cfg.get("far_field_assist_enabled", True)),
+                far_field_low_rms_peak=float(cfg.get("far_field_low_rms_peak", 0.018)),
+                far_field_target_rms=float(cfg.get("far_field_target_rms", 0.070)),
+                far_field_max_gain=float(cfg.get("far_field_max_gain", 3.5)),
             )
         return audio.record_to_wav(max_seconds)
 
@@ -788,6 +983,12 @@ class VoiceService:
             input_gain=float(cfg.get("voice_capture_input_gain", 1.0)),
             normalize_target_rms=float(cfg.get("voice_capture_normalize_target_rms", 0.0)),
             normalize_max_gain=float(cfg.get("voice_capture_normalize_max_gain", 1.0)),
+            start_confirm_blocks=int(cfg.get("speech_start_confirm_blocks", 2)),
+            continue_threshold_ratio=float(cfg.get("speech_continue_threshold_ratio", 0.72)),
+            far_field_boost_enabled=bool(cfg.get("far_field_assist_enabled", True)),
+            far_field_low_rms_peak=float(cfg.get("far_field_low_rms_peak", 0.018)),
+            far_field_target_rms=float(cfg.get("far_field_target_rms", 0.070)),
+            far_field_max_gain=float(cfg.get("far_field_max_gain", 3.5)),
         )
 
     def _capture_wake_probe(self) -> AudioCaptureResult:
@@ -1419,6 +1620,81 @@ class VoiceService:
         allowed = ", ".join(self.config().get("wake_words", ["wizz", "wiz"]))
         return False, norm, f"Ignorado: debe empezar con palabra clave ({allowed})"
 
+    def _wake_mentions_in_text(self, text: str) -> list[str]:
+        """Devuelve activadores encontrados con bordes de palabra/frase.
+
+        Se usa para proteger la escucha continua de música/ruido que Whisper
+        convierte en un loop de comandos tipo "pc..., wizz..., wizz...".
+        """
+        norm = normalize_text(text)
+        if not norm:
+            return []
+        mentions: list[str] = []
+        for alias in self._wake_aliases():
+            alias_norm = normalize_text(alias)
+            if not alias_norm:
+                continue
+            pattern = r"(?<!\w)" + re.escape(alias_norm) + r"(?!\w)"
+            for _match in re.finditer(pattern, norm):
+                mentions.append(alias_norm)
+        return mentions
+
+    def _looks_like_repeated_command_noise(self, text: str) -> tuple[bool, str]:
+        """Detecta música/ruido transcrito como comandos repetidos.
+
+        Caso real: música de fondo fue transcrita como
+        "pc pese prende la luz..., wizz pon rojo..., wizz pon rojo..." y llegó
+        a ejecutarse. En escucha continua preferimos descartar cualquier frase
+        con varios activadores/comandos; la app no necesita multi-comando en una
+        sola captura para funcionar bien.
+        """
+        cfg = self.config()
+        if not bool(cfg.get("continuous_music_guard_enabled", True)):
+            return False, ""
+        norm = normalize_text(text)
+        if not norm:
+            return False, ""
+        words = norm.split()
+        wake_mentions = self._wake_mentions_in_text(norm)
+        wake_count = len(wake_mentions)
+        unique_wakes = set(wake_mentions)
+
+        # Dos activadores distintos en la misma captura no es un comando normal.
+        # Caso real: "pc pese prende..." desde música/Whisper.
+        if len(words) >= 3 and wake_count >= 2 and len(unique_wakes) >= 2:
+            return True, "Ignorado: activadores mezclados/repetidos en una sola captura"
+
+        if len(words) < int(cfg.get("continuous_music_guard_min_words", 8) or 8):
+            return False, ""
+
+        action_words = {
+            "pon", "pone", "poner", "ponle", "prende", "prender", "enciende", "encender",
+            "apaga", "apagar", "cambia", "cambiar", "modo", "brillo", "luz", "luces",
+            "rojo", "azul", "verde", "rosado", "rosa", "morado", "amarillo", "blanco",
+            "turn", "switch", "set", "on", "off", "red", "blue", "green", "pink",
+        }
+        action_count = sum(1 for word in words if word in action_words)
+
+        repeated_markers = (
+            "prende la luz", "enciende la luz", "apaga la luz", "pon rojo", "pon rosado",
+            "al cincuenta", "al cincuenta por ciento", "turn on", "turn off", "set red",
+        )
+        if any(norm.count(marker) >= 2 for marker in repeated_markers):
+            return True, "Ignorado: comandos repetidos detectados en una sola captura"
+
+        max_wakes = int(cfg.get("continuous_max_wake_mentions", 2) or 2)
+        if wake_count > max_wakes:
+            return True, "Ignorado: demasiados activadores en una sola captura"
+        if wake_count >= 2 and len(unique_wakes) >= 2:
+            return True, "Ignorado: activadores mezclados/repetidos en una sola captura"
+        if wake_count >= 2 and action_count >= 2:
+            return True, "Ignorado: varios comandos en una sola captura"
+        if len(words) >= 14 and action_count >= 4:
+            return True, "Ignorado: patrón repetitivo de comandos probable por música/ruido"
+        if len(norm) > int(cfg.get("continuous_music_guard_max_chars", 140) or 140) and wake_count >= 1 and action_count >= 2:
+            return True, "Ignorado: transcripción larga con comandos; probable música/ruido"
+        return False, ""
+
     def _looks_like_hallucination(self, text: str, *, capture_seconds: float = 0.0) -> bool:
         """Filtra alucinaciones típicas de Whisper en clips cortos/ruido.
 
@@ -1428,6 +1704,9 @@ class VoiceService:
         norm = normalize_text(raw)
         if not norm:
             return False
+        repeated_noise, _reason = self._looks_like_repeated_command_noise(norm)
+        if repeated_noise:
+            return True
         words = norm.split()
         if len(raw) > 140 and capture_seconds and capture_seconds < 1.2:
             return True
@@ -1528,6 +1807,16 @@ class VoiceService:
                 "ok": False, "source": source, "transcript": parsed_text, "confidence": 0.0,
                 "message": "Ignorado: comando vacío tras activador", "action": None,
                 "intent_source": "continuous_safety",
+            }
+
+        repeated_noise, noise_reason = self._looks_like_repeated_command_noise(norm)
+        if repeated_noise:
+            return {
+                "ok": False, "source": source, "transcript": parsed_text,
+                "confidence": float(getattr(intent, "confidence", 0.0) or 0.0),
+                "message": noise_reason or "Ignorado: patrón de música/ruido en escucha continua",
+                "action": getattr(intent, "action", None),
+                "intent_source": "continuous_music_guard",
             }
 
         # Permitir comandos de una palabra solo si son inequívocos.

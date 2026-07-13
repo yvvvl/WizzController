@@ -43,3 +43,11 @@ config/json/*.json
 .idea/
 .DS_Store
 Thumbs.db
+
+# Flet / Flutter local
+.flet/
+.flutter/
+
+# Artifacts de release
+*.sha256
+console.log

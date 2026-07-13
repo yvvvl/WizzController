@@ -1,38 +1,50 @@
-import os
+from __future__ import annotations
+
 import json
 import logging
+import os
+from pathlib import Path
 from typing import Any
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CONFIG_PATH = os.path.join(BASE_DIR, "config", "json", "config.json")
+from .paths import config_dir
 
 
-def ensure_json_file(file_path: str, default_data: Any = None) -> None:
+def default_config_path() -> Path:
+    return config_dir() / "config.json"
+
+
+def ensure_json_file(file_path: str | os.PathLike[str], default_data: Any = None) -> None:
     if default_data is None:
         default_data = {}
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
-    if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
-        with open(file_path, "w", encoding="utf-8") as f:
+    path = Path(file_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not path.exists() or path.stat().st_size == 0:
+        temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+        with temporary.open("w", encoding="utf-8") as f:
             json.dump(default_data, f, indent=4, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temporary, path)
 
 
 class ConfigManager:
-    def __init__(self, filepath=None):
-        self.file_path = filepath if filepath else CONFIG_PATH
-        self.config = {}
+    def __init__(self, filepath: str | os.PathLike[str] | None = None):
+        self.file_path = str(Path(filepath).expanduser().resolve()) if filepath else str(default_config_path())
+        self.config: dict[str, Any] = {}
         ensure_json_file(self.file_path, self._get_defaults())
         self._load()
         self._merge_defaults()
 
-    def _load(self):
+    def _load(self) -> None:
         try:
             with open(self.file_path, "r", encoding="utf-8") as f:
-                self.config = json.load(f)
-        except Exception as e:
-            logging.error(f"Error cargando config: {e}")
+                loaded = json.load(f)
+            self.config = loaded if isinstance(loaded, dict) else self._get_defaults()
+        except Exception as exc:
+            logging.error("Error cargando config: %s", exc)
             self.config = self._get_defaults()
 
-    def _merge_defaults(self):
+    def _merge_defaults(self) -> None:
         defaults = self._get_defaults()
         changed = False
         for key, value in defaults.items():
@@ -47,14 +59,24 @@ class ConfigManager:
         if changed:
             self.save()
 
-    def save(self):
+    def save(self) -> None:
+        path = Path(self.file_path)
+        temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
         try:
-            with open(self.file_path, "w", encoding="utf-8") as f:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with temporary.open("w", encoding="utf-8") as f:
                 json.dump(self.config, f, indent=4, ensure_ascii=False)
-        except Exception as e:
-            logging.error(f"Error guardando config: {e}")
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temporary, path)
+        except Exception as exc:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
+            logging.error("Error guardando config: %s", exc)
 
-    def _get_defaults(self):
+    def _get_defaults(self) -> dict[str, Any]:
         return {
             "window": {"width": 1080, "height": 720, "top": -1, "left": -1, "maximized": False},
             "control": {"mode": "single", "active_ip": None, "slider_interval_ms": 65},
@@ -71,13 +93,11 @@ class ConfigManager:
         return self.config.get("window", self._get_defaults()["window"])
 
     def set_window_geometry(self, width, height, top, left, maximized):
-        if width < 400:
-            width = 400
-        if height < 500:
-            height = 500
+        width = max(400, int(width))
+        height = max(500, int(height))
         self.config["window"] = {
-            "width": int(width),
-            "height": int(height),
+            "width": width,
+            "height": height,
             "top": int(top) if top is not None else -1,
             "left": int(left) if left is not None else -1,
             "maximized": bool(maximized),

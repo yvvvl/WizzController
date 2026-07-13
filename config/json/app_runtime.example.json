@@ -1,6 +1,4 @@
 {
-    "voice_start_mode": "manual",
-    "last_voice_continuous_active": false,
     "tray_enabled": true,
     "minimize_to_tray": true,
     "open_minimized": false,

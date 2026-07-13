@@ -1,0 +1,65 @@
+[project]
+name = "wizz-controller"
+version = "1.0.0"
+description = "Control local de ampolletas WiZ por LAN."
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+authors = [
+  { name = "Ignacio" },
+]
+dependencies = [
+  "flet==0.85.2",
+  "pywizlight==0.6.3",
+  "psutil>=5.9",
+  "keyboard>=0.13.5",
+  "pystray>=0.19.5",
+  "Pillow>=10.0.0",
+]
+
+[tool.flet]
+product = "WizZ Desktop"
+company = "yvvvl"
+copyright = "Copyright © 2026 Ignacio"
+build_number = 1
+org = "io.github.yvvvl"
+
+[tool.flet.windows]
+artifact = "WizZDesktop"
+
+[tool.flet.app]
+path = "."
+module = "main"
+exclude = [
+  ".git",
+  ".github",
+  ".venv",
+  ".pytest_cache",
+  ".ruff_cache",
+  "build",
+  "dist",
+  "config/json",
+  "docs",
+  "scripts",
+  "tests",
+  "tools",
+  "requirements-dev.txt",
+  "requirements-build.txt",
+  "pytest.ini",
+  "CHANGELOG.md",
+]
+
+[tool.flet.app.boot_screen]
+show = true
+message = "Preparando WizZ Desktop…"
+
+[tool.flet.app.startup_screen]
+show = true
+message = "Iniciando control WiZ local…"
+
+[tool.flet.compile]
+app = true
+packages = false
+
+[tool.flet.cleanup]
+app = true
+packages = true

@@ -70,6 +70,12 @@ class AudioInput:
         input_gain: float = 1.0,
         normalize_target_rms: float = 0.0,
         normalize_max_gain: float = 1.0,
+        start_confirm_blocks: int = 1,
+        continue_threshold_ratio: float = 0.78,
+        far_field_boost_enabled: bool = False,
+        far_field_low_rms_peak: float = 0.018,
+        far_field_target_rms: float = 0.070,
+        far_field_max_gain: float = 3.4,
     ) -> AudioCaptureResult:
         """Graba hasta detectar fin de habla.
 
@@ -93,6 +99,11 @@ class AudioInput:
         threshold_floor = max(0.0018, min(0.08, float(energy_threshold or 0.010)))
         blocksize = max(160, int(self.sample_rate * max(20, min(100, int(block_ms or 40))) / 1000))
         pre_roll_blocks = max(1, int(max(0, int(pre_roll_ms or 220)) / max(1, int(block_ms or 40))))
+        start_confirm_blocks = max(1, min(4, int(start_confirm_blocks or 1)))
+        continue_threshold_ratio = max(0.55, min(1.0, float(continue_threshold_ratio or 0.78)))
+        far_field_low_rms_peak = max(0.002, min(0.08, float(far_field_low_rms_peak or 0.018)))
+        far_field_target_rms = max(0.0, min(0.18, float(far_field_target_rms or 0.070)))
+        far_field_max_gain = max(1.0, min(8.0, float(far_field_max_gain or 3.4)))
 
         # Phase 43: cola acotada. En reposo no necesitamos acumular audio antiguo;
         # si el callback se adelanta, descartamos el bloque más viejo. Esto baja
@@ -124,6 +135,7 @@ class AudioInput:
         chunks: list = []
         prebuffer: deque = deque(maxlen=pre_roll_blocks)
         noise_values: list[float] = []
+        speech_candidate_blocks = 0
 
         with sd.InputStream(
             samplerate=self.sample_rate,
@@ -175,10 +187,23 @@ class AudioInput:
                 # sílabas iniciales como "pc", "pese" o "wiz".
                 threshold = min(threshold, max(threshold_floor, threshold_floor * 3.0))
 
-                is_speech = rms >= threshold
+                start_is_speech = rms >= threshold
+                # Phase 56: far-field real. Para seguir capturando sílabas débiles
+                # después de detectar el inicio usamos histéresis: el umbral de
+                # continuidad es un poco menor que el de arranque. Así no se corta
+                # "pc ... prende la luz" cuando el micrófono está lejos o hay gate.
+                continue_threshold = max(threshold_floor * 0.70, threshold * continue_threshold_ratio)
+                is_speech = rms >= continue_threshold if speech_started else start_is_speech
                 if not speech_started:
                     prebuffer.append(block)
-                    if is_speech:
+                    if start_is_speech:
+                        speech_candidate_blocks += 1
+                    else:
+                        speech_candidate_blocks = 0
+                    # Requerir 2 bloques en perfiles sensibles evita que un click
+                    # o ruido corto active una transcripción completa. Si el pico es
+                    # claro, arrancamos inmediatamente para no perder el activador.
+                    if speech_candidate_blocks >= start_confirm_blocks or rms >= threshold * 1.85:
                         speech_started = True
                         first_speech_at = now
                         last_speech_at = now
@@ -248,6 +273,12 @@ class AudioInput:
                 audio = audio * gain
             target = max(0.0, min(0.20, float(normalize_target_rms or 0.0)))
             max_gain = max(1.0, min(8.0, float(normalize_max_gain or 1.0)))
+            if bool(far_field_boost_enabled) and speech_started and 0.0 < float(rms_peak) <= far_field_low_rms_peak:
+                # Phase 56: si el clip sí tuvo voz pero llegó bajo, entregamos a
+                # Whisper un WAV más estable. Esto no baja el VAD ni ejecuta nada
+                # por sí solo: el parser mantiene activador obligatorio al inicio.
+                target = max(target, far_field_target_rms)
+                max_gain = max(max_gain, far_field_max_gain)
             if target > 0 and audio.size:
                 rms_all = float(np.sqrt(np.mean(np.square(audio))))
                 if 0.0001 < rms_all < target:
@@ -255,22 +286,8 @@ class AudioInput:
             audio = np.clip(audio, -1.0, 1.0).astype(np.float32)
         except Exception:
             pass
-        # Phase 42: normalización automática para distancia variable.
-        # Si estás lejos, sube nivel del WAV antes de Whisper. Si estás cerca,
-        # casi no actúa. No aumenta hilos/modelo y mantiene precisión.
-        try:
-            gain = max(0.25, min(5.0, float(input_gain or 1.0)))
-            if gain != 1.0:
-                audio = audio * gain
-            target = max(0.0, min(0.20, float(normalize_target_rms or 0.0)))
-            max_gain = max(1.0, min(8.0, float(normalize_max_gain or 1.0)))
-            if target > 0 and audio.size:
-                rms_all = float(np.sqrt(np.mean(np.square(audio))))
-                if 0.0001 < rms_all < target:
-                    audio = audio * min(max_gain, target / rms_all)
-            audio = np.clip(audio, -1.0, 1.0).astype(np.float32)
-        except Exception:
-            pass
+        # Phase 55: la normalización ya se aplicó una vez arriba.
+        # Evitamos duplicarla para no amplificar ruido/artefactos de Voicemeeter.
         seconds = float(len(audio)) / float(self.sample_rate)
         return self._write_float_wav(
             audio,

@@ -11,8 +11,3 @@ keyboard>=0.13.5
 # Bandeja de sistema
 pystray>=0.19.5
 Pillow>=10.0.0
-
-# Voz local/offline
-faster-whisper
-sounddevice
-numpy
