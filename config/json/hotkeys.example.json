@@ -1,0 +1,12 @@
+{
+    "enabled": true,
+    "suppress": false,
+    "trigger_on_release": true,
+    "cooldown_ms": 280,
+    "backend": "auto",
+    "hotkeys": {
+        "toggle": "ctrl+alt+l",
+        "bri_up": "ctrl+alt+up",
+        "bri_down": "ctrl+alt+down"
+    }
+}

@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+import os
+
 import flet as ft
+from app_meta import APP_PRODUCT, display_version
+from config.app_runtime_manager import AppRuntimeManager
+from config.paths import config_dir, logs_dir
+from ui.responsive import PANEL_BREAKPOINTS, Viewport, dialog_dimensions
 from ui.theme import Theme, mounted, supdate
 
 
@@ -8,6 +14,8 @@ class SettingsPanel(ft.Column):
     def __init__(self, wiz):
         super().__init__(scroll=ft.ScrollMode.AUTO, spacing=18, expand=True)
         self.wiz = wiz
+        self.runtime = AppRuntimeManager()
+        self._viewport = Viewport(900, 720)
         self._build()
 
     # ------------------------------------------------------------------ #
@@ -27,21 +35,31 @@ class SettingsPanel(ft.Column):
         )
         self.scan_ring = ft.ProgressRing(width=18, height=18, stroke_width=2, color=Theme.PRIMARY, visible=False)
 
-        header = ft.Row(
-            [
-                ft.Column(
-                    [
-                        ft.Text("Ajustes", style=Theme.H1),
-                        ft.Text("Target, discovery y gestión de ampolletas", color=Theme.MUTED, size=13),
-                    ],
-                    spacing=2,
-                ),
-                ft.Container(expand=True),
-                self.scan_ring,
-                self.btn_add,
-                self.btn_scan,
-            ],
+        self.header_actions = ft.Row(
+            [self.scan_ring, self.btn_add, self.btn_scan],
+            spacing=10,
+            run_spacing=8,
+            wrap=True,
+            alignment=ft.MainAxisAlignment.END,
+        )
+        self.header = ft.ResponsiveRow(
+            breakpoints=PANEL_BREAKPOINTS,
+            spacing=12,
+            run_spacing=10,
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            controls=[
+                ft.Container(
+                    content=ft.Column(
+                        [
+                            ft.Text("Ajustes", style=Theme.H1),
+                            ft.Text("Target, discovery y gestión de ampolletas", color=Theme.MUTED, size=13),
+                        ],
+                        spacing=2,
+                    ),
+                    col={"xs": 12, "md": 7},
+                ),
+                ft.Container(content=self.header_actions, col={"xs": 12, "md": 5}, alignment=ft.Alignment.CENTER_RIGHT),
+            ],
         )
 
         self.mode_dropdown = ft.Dropdown(
@@ -93,13 +111,15 @@ class SettingsPanel(ft.Column):
                 [
                     ft.Text("DESTINO", style=Theme.LABEL),
                     ft.ResponsiveRow(
+                        breakpoints=PANEL_BREAKPOINTS,
                         spacing=14,
                         run_spacing=12,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
                         controls=[
-                            ft.Container(content=self.mode_dropdown, col={"xs": 12, "md": 3}),
-                            ft.Container(content=self.active_dropdown, col={"xs": 12, "md": 4}),
-                            ft.Container(content=self.interval_dropdown, col={"xs": 12, "md": 3}),
-                            ft.Container(content=self.btn_cleanup, col={"xs": 12, "md": 2}, alignment=ft.Alignment.CENTER_RIGHT),
+                            ft.Container(content=self.mode_dropdown, col={"xs": 12, "sm": 6, "lg": 3}),
+                            ft.Container(content=self.active_dropdown, col={"xs": 12, "sm": 6, "lg": 3}),
+                            ft.Container(content=self.interval_dropdown, col={"xs": 12, "sm": 8, "lg": 3}),
+                            ft.Container(content=self.btn_cleanup, col={"xs": 12, "sm": 4, "lg": 3}, alignment=ft.Alignment.CENTER_RIGHT),
                         ],
                     ),
                     ft.Text("Sin paneles vacíos: el destino solo controla a qué IP se mandan los comandos.", color=Theme.FAINT, size=11),
@@ -108,8 +128,136 @@ class SettingsPanel(ft.Column):
             )
         )
 
+        self.runtime_status = ft.Text("", color=Theme.FAINT, size=11)
+        self.tray_enabled_switch = ft.Switch(
+            value=bool(self.runtime.get("tray_enabled", True)),
+            active_color=Theme.PRIMARY,
+            on_change=self._runtime_changed,
+        )
+        self.minimize_to_tray_switch = ft.Switch(
+            value=bool(self.runtime.get("minimize_to_tray", True)),
+            active_color=Theme.PRIMARY,
+            on_change=self._runtime_changed,
+        )
+        self.open_minimized_switch = ft.Switch(
+            value=bool(self.runtime.get("open_minimized", False)),
+            active_color=Theme.PRIMARY,
+            on_change=self._runtime_changed,
+        )
+        self.startup_switch = ft.Switch(
+            value=bool(self.runtime.get("startup_with_windows", False)),
+            active_color=Theme.PRIMARY,
+            on_change=self._runtime_changed,
+        )
+        self._sync_runtime_controls()
+
+        runtime_options = ft.ResponsiveRow(
+            breakpoints=PANEL_BREAKPOINTS,
+            spacing=12,
+            run_spacing=12,
+            controls=[
+                self._runtime_option("Bandeja activa", "Mantiene WizZ disponible junto al reloj.", self.tray_enabled_switch),
+                self._runtime_option("Cerrar a bandeja", "La X oculta la ventana en vez de salir.", self.minimize_to_tray_switch),
+                self._runtime_option("Abrir minimizado", "Inicia oculto cuando la bandeja está activa.", self.open_minimized_switch),
+                self._runtime_option("Iniciar con Windows", "Registra o quita el inicio automático.", self.startup_switch),
+            ],
+        )
+        runtime_card = self._card(
+            ft.Column(
+                [
+                    ft.Text("INICIO Y SEGUNDO PLANO", style=Theme.LABEL),
+                    runtime_options,
+                    ft.Text(
+                        "Los cambios de bandeja se aplican mejor al reiniciar la app. No fuerza restaurar ventanas en modo dev de Flet.",
+                        color=Theme.FAINT,
+                        size=11,
+                    ),
+                    self.runtime_status,
+                ],
+                spacing=10,
+            )
+        )
+
+        release_card = self._card(
+            ft.Column(
+                [
+                    ft.Text("ACERCA DE", style=Theme.LABEL),
+                    ft.ResponsiveRow(
+                        breakpoints=PANEL_BREAKPOINTS,
+                        spacing=12,
+                        run_spacing=10,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                        controls=[
+                            ft.Container(
+                                col={"xs": 12, "md": 7},
+                                content=ft.Row(
+                                    [
+                                        ft.Container(
+                                            width=44,
+                                            height=44,
+                                            border_radius=14,
+                                            bgcolor=ft.Colors.with_opacity(0.18, Theme.PRIMARY),
+                                            alignment=ft.Alignment.CENTER,
+                                            content=ft.Icon(ft.Icons.LIGHTBULB_ROUNDED, color="white", size=23),
+                                        ),
+                                        ft.Column(
+                                            [
+                                                ft.Text(APP_PRODUCT, color=Theme.TEXT, weight=ft.FontWeight.W_700, size=14),
+                                                ft.Text(display_version(), color=Theme.MUTED, size=11),
+                                                ft.Text("Control WiZ local · sin nube obligatoria", color=Theme.FAINT, size=10),
+                                            ],
+                                            spacing=1,
+                                            expand=True,
+                                        ),
+                                    ],
+                                    spacing=12,
+                                ),
+                            ),
+                            ft.Container(
+                                col={"xs": 12, "md": 5},
+                                alignment=ft.Alignment.CENTER_RIGHT,
+                                content=ft.Row(
+                                    [
+                                        ft.OutlinedButton(
+                                            "Datos",
+                                            icon=ft.Icons.FOLDER_OPEN_ROUNDED,
+                                            style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)),
+                                            on_click=lambda e: self._open_folder(config_dir()),
+                                        ),
+                                        ft.OutlinedButton(
+                                            "Logs",
+                                            icon=ft.Icons.DESCRIPTION_OUTLINED,
+                                            style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)),
+                                            on_click=lambda e: self._open_folder(logs_dir()),
+                                        ),
+                                    ],
+                                    spacing=8,
+                                    run_spacing=8,
+                                    wrap=True,
+                                    alignment=ft.MainAxisAlignment.END,
+                                ),
+                            ),
+                        ],
+                    ),
+                    ft.Text(
+                        "En el .exe, configuraciones y logs viven en el almacenamiento persistente de la app y se conservan entre actualizaciones.",
+                        color=Theme.FAINT,
+                        size=11,
+                    ),
+                ],
+                spacing=10,
+            )
+        )
+
         self.list_view = ft.Column(spacing=12)
-        self.controls = [header, target_card, ft.Text("AMPOLLETAS", style=Theme.LABEL), self.list_view]
+        self.controls = [
+            self.header,
+            target_card,
+            runtime_card,
+            release_card,
+            ft.Text("AMPOLLETAS", style=Theme.LABEL),
+            self.list_view,
+        ]
         self._render_all()
 
     # ------------------------------------------------------------------ #
@@ -122,6 +270,43 @@ class SettingsPanel(ft.Column):
             border=ft.Border.all(1, Theme.STROKE),
             shadow=Theme.SHADOW,
         )
+
+    def _runtime_option(self, title: str, subtitle: str, switch: ft.Switch) -> ft.Container:
+        return ft.Container(
+            col={"xs": 12, "sm": 6, "lg": 3},
+            padding=12,
+            border_radius=Theme.R_SM,
+            bgcolor=Theme.CARD_HI,
+            border=ft.Border.all(1, Theme.STROKE),
+            content=ft.Row(
+                [
+                    ft.Column(
+                        [
+                            ft.Text(title, color=Theme.TEXT, size=12, weight=ft.FontWeight.W_600),
+                            ft.Text(subtitle, color=Theme.FAINT, size=10, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS),
+                        ],
+                        spacing=2,
+                        expand=True,
+                    ),
+                    switch,
+                ],
+                spacing=8,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+        )
+
+    def _open_folder(self, path) -> None:
+        try:
+            folder = os.fspath(path)
+            if os.name == "nt":
+                os.startfile(folder)  # type: ignore[attr-defined]
+            else:
+                self.runtime_status.value = folder
+                supdate(self.runtime_status)
+        except Exception as exc:
+            self.runtime_status.value = f"No se pudo abrir la carpeta: {exc}"
+            self.runtime_status.color = Theme.WARNING
+            supdate(self.runtime_status)
 
     def _render_all(self):
         self._render_target_controls()
@@ -187,12 +372,98 @@ class SettingsPanel(ft.Column):
         if b.get("tunable_white"):
             badges.append(self._badge("K", "#f59e0b"))
 
-        details = f"{b['ip']}   ·   {b.get('mac') or 'sin MAC'}"
+        details = f"{b['ip']} · {b.get('mac') or 'sin MAC'}"
         if b.get("module"):
-            details += f"   ·   {b['module']}"
+            details += f" · {b['module']}"
         kr = ""
         if b.get("kelvin_min") and b.get("kelvin_max"):
             kr = f" · {b['kelvin_min']}–{b['kelvin_max']}K"
+
+        identity = ft.Row(
+            [
+                ft.Container(
+                    content=ft.Icon(
+                        ft.Icons.LIGHTBULB_ROUNDED,
+                        color=Theme.SUCCESS if online else Theme.MUTED,
+                        size=22,
+                    ),
+                    width=44,
+                    height=44,
+                    border_radius=12,
+                    bgcolor=ft.Colors.with_opacity(0.14, Theme.SUCCESS if online else Theme.MUTED),
+                    alignment=ft.Alignment.CENTER,
+                ),
+                ft.Column(
+                    [
+                        ft.Row(
+                            [
+                                ft.Text(
+                                    b.get("name") or b["ip"],
+                                    color=Theme.TEXT,
+                                    weight=ft.FontWeight.W_600,
+                                    size=15,
+                                    max_lines=1,
+                                    overflow=ft.TextOverflow.ELLIPSIS,
+                                ),
+                                ft.Row(badges, spacing=6, wrap=True),
+                            ],
+                            spacing=8,
+                            run_spacing=5,
+                            wrap=True,
+                        ),
+                        ft.Text(details, color=Theme.MUTED, size=11, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS),
+                        ft.Text(
+                            ("● en línea · " + b.get("label", "") + kr) if online else "○ sin respuesta",
+                            color=Theme.SUCCESS if online else Theme.FAINT,
+                            size=11,
+                            max_lines=2,
+                            overflow=ft.TextOverflow.ELLIPSIS,
+                        ),
+                    ],
+                    spacing=2,
+                    expand=True,
+                ),
+            ],
+            spacing=12,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        )
+
+        actions = ft.Row(
+            [
+                ft.IconButton(
+                    ft.Icons.RADIO_BUTTON_CHECKED_ROUNDED,
+                    icon_color=Theme.PRIMARY,
+                    icon_size=20,
+                    tooltip="Usar como activa",
+                    on_click=lambda e, ip=b["ip"]: self._select_ip(ip),
+                ),
+                ft.IconButton(
+                    ft.Icons.INFO_OUTLINE_ROUNDED,
+                    icon_color=Theme.MUTED,
+                    icon_size=20,
+                    tooltip="Información",
+                    on_click=lambda e, ip=b["ip"]: self._info_dialog(ip),
+                ),
+                ft.IconButton(
+                    ft.Icons.EDIT_ROUNDED,
+                    icon_color=Theme.PRIMARY,
+                    icon_size=20,
+                    tooltip="Renombrar",
+                    on_click=lambda e, x=b: self._rename_dialog(x),
+                ),
+                ft.IconButton(
+                    ft.Icons.DELETE_OUTLINE_ROUNDED,
+                    icon_color=Theme.ERROR,
+                    icon_size=20,
+                    tooltip="Quitar",
+                    on_click=lambda e, ip=b["ip"]: self._remove(ip),
+                ),
+            ],
+            spacing=2,
+            wrap=True,
+            alignment=ft.MainAxisAlignment.END,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        )
 
         return ft.Container(
             padding=16,
@@ -201,39 +472,15 @@ class SettingsPanel(ft.Column):
             border=ft.Border.all(1, Theme.PRIMARY if active else Theme.STROKE),
             on_click=lambda e, ip=b["ip"]: self._select_ip(ip),
             ink=True,
-            content=ft.Row(
-                [
-                    ft.Container(
-                        content=ft.Icon(ft.Icons.LIGHTBULB_ROUNDED, color=Theme.SUCCESS if online else Theme.MUTED, size=22),
-                        width=44,
-                        height=44,
-                        border_radius=12,
-                        bgcolor=ft.Colors.with_opacity(0.14, Theme.SUCCESS if online else Theme.MUTED),
-                        alignment=ft.Alignment.CENTER,
-                    ),
-                    ft.Column(
-                        [
-                            ft.Row(
-                                [
-                                    ft.Text(b["name"], color=Theme.TEXT, weight=ft.FontWeight.W_600, size=15),
-                                    ft.Row(badges, spacing=6),
-                                ],
-                                spacing=8,
-                                wrap=True,
-                            ),
-                            ft.Text(details, color=Theme.MUTED, size=11),
-                            ft.Text(("● en línea · " + b.get("label", "") + kr) if online else "○ sin respuesta", color=Theme.SUCCESS if online else Theme.FAINT, size=11),
-                        ],
-                        spacing=2,
-                        expand=True,
-                    ),
-                    ft.IconButton(ft.Icons.RADIO_BUTTON_CHECKED_ROUNDED, icon_color=Theme.PRIMARY, icon_size=20, tooltip="Usar como activa", on_click=lambda e, ip=b["ip"]: self._select_ip(ip)),
-                    ft.IconButton(ft.Icons.INFO_OUTLINE_ROUNDED, icon_color=Theme.MUTED, icon_size=20, tooltip="Información", on_click=lambda e, ip=b["ip"]: self._info_dialog(ip)),
-                    ft.IconButton(ft.Icons.EDIT_ROUNDED, icon_color=Theme.PRIMARY, icon_size=20, tooltip="Renombrar", on_click=lambda e, x=b: self._rename_dialog(x)),
-                    ft.IconButton(ft.Icons.DELETE_OUTLINE_ROUNDED, icon_color=Theme.ERROR, icon_size=20, tooltip="Quitar", on_click=lambda e, ip=b["ip"]: self._remove(ip)),
-                ],
+            content=ft.ResponsiveRow(
+                breakpoints=PANEL_BREAKPOINTS,
+                spacing=12,
+                run_spacing=8,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                spacing=14,
+                controls=[
+                    ft.Container(content=identity, col={"xs": 12, "md": 8, "lg": 9}),
+                    ft.Container(content=actions, col={"xs": 12, "md": 4, "lg": 3}, alignment=ft.Alignment.CENTER_RIGHT),
+                ],
             ),
         )
 
@@ -247,12 +494,20 @@ class SettingsPanel(ft.Column):
 
     def _info_line(self, label, value):
         value = "—" if value is None or value == "" else str(value)
-        return ft.Row(
-            [
-                ft.Text(label, color=Theme.MUTED, size=12, width=125),
-                ft.Text(value, color=Theme.TEXT, size=12, selectable=True, expand=True),
-            ],
+        return ft.ResponsiveRow(
+            breakpoints=PANEL_BREAKPOINTS,
             spacing=8,
+            run_spacing=2,
+            controls=[
+                ft.Container(
+                    content=ft.Text(label, color=Theme.MUTED, size=12),
+                    col={"xs": 12, "sm": 4},
+                ),
+                ft.Container(
+                    content=ft.Text(value, color=Theme.TEXT, size=12, selectable=True),
+                    col={"xs": 12, "sm": 8},
+                ),
+            ],
         )
 
     def _info_dialog(self, ip: str):
@@ -296,11 +551,13 @@ class SettingsPanel(ft.Column):
             if visible_model:
                 rows.append(self._info_line("Modelo", visible_model))
 
+        dialog_w, dialog_h = dialog_dimensions(self, 560, 590)
         dlg = ft.AlertDialog(
             title=ft.Text("Información de ampolleta", color=Theme.TEXT),
             bgcolor=Theme.SURFACE,
             content=ft.Container(
-                width=520,
+                width=dialog_w,
+                height=dialog_h,
                 content=ft.Column(rows, spacing=7, tight=True, scroll=ft.ScrollMode.AUTO),
             ),
             actions=[
@@ -349,6 +606,40 @@ class SettingsPanel(ft.Column):
             pass
         self._render_all()
 
+    def _sync_runtime_controls(self):
+        tray_enabled = bool(self.tray_enabled_switch.value)
+        if not tray_enabled:
+            self.minimize_to_tray_switch.value = False
+            self.open_minimized_switch.value = False
+        self.minimize_to_tray_switch.disabled = not tray_enabled
+        self.open_minimized_switch.disabled = not tray_enabled
+
+    def _runtime_changed(self, e=None):
+        tray_enabled = bool(self.tray_enabled_switch.value)
+        minimize_to_tray = bool(self.minimize_to_tray_switch.value) if tray_enabled else False
+        open_minimized = bool(self.open_minimized_switch.value) if tray_enabled else False
+        startup = bool(self.startup_switch.value)
+
+        self.runtime.update(
+            tray_enabled=tray_enabled,
+            minimize_to_tray=minimize_to_tray,
+            open_minimized=open_minimized,
+        )
+
+        message = "Configuración de segundo plano guardada."
+        if getattr(e, "control", None) is self.startup_switch:
+            ok, startup_msg = self.runtime.set_startup_with_windows(startup)
+            if startup or ok:
+                message = startup_msg
+            else:
+                message = "Inicio con Windows desactivado."
+
+        self.runtime_status.value = message
+        self._sync_runtime_controls()
+        supdate(self.runtime_status)
+        supdate(self.minimize_to_tray_switch)
+        supdate(self.open_minimized_switch)
+
     def _remove(self, ip):
         self.wiz.remove_bulb(ip)
         self._render_all()
@@ -396,6 +687,19 @@ class SettingsPanel(ft.Column):
             ],
         )
         self.page.show_dialog(dlg)
+
+    def set_viewport(self, width: float, height: float, *, update: bool = True) -> None:
+        viewport = Viewport(max(280.0, float(width)), max(320.0, float(height)))
+        mode_changed = viewport.mode != self._viewport.mode
+        self._viewport = viewport
+        if mode_changed:
+            card_padding = 14 if viewport.compact else 18
+            # Las tres cards superiores son controles directos del panel.
+            for control in self.controls[:3]:
+                if isinstance(control, ft.Container):
+                    control.padding = card_padding
+            if update:
+                supdate(self)
 
     # ------------------------------------------------------------------ #
     def sync_state(self, state: dict):

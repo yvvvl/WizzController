@@ -87,7 +87,7 @@ class RoutinesManager(JsonManager):
     """Gestor de rutinas/presets compuestos.
 
     No maneja horarios ni automatizaciones por tiempo. Solo guarda acciones
-    reutilizables para UI, voz y hotkeys.
+    reutilizables para UI y hotkeys.
     """
 
     def __init__(self) -> None:

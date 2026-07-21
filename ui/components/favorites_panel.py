@@ -1,8 +1,24 @@
 from __future__ import annotations
 
+import colorsys
+from typing import Any
+
 import flet as ft
+
 from config.favorites_manager import FavoritesManager
+from core import wiz_scenes
+from ui.scene_visuals import scene_color, scene_icon
+from ui.responsive import PANEL_BREAKPOINTS, Viewport, dialog_dimensions
 from ui.theme import Theme, mounted, supdate
+
+
+RGB_SWATCHES = [
+    ("Rojo", "#ff0000"), ("Naranjo", "#ff7f00"), ("Amarillo", "#ffd000"),
+    ("Verde", "#00ff40"), ("Cian", "#00d5ff"), ("Azul", "#0055ff"),
+    ("Violeta", "#7f00ff"), ("Magenta", "#ff00cc"), ("Rosa", "#ff4fa3"),
+]
+
+WHITE_PRESETS = [(2200, "Vela"), (2700, "Cálido"), (4000, "Neutro"), (5000, "Día"), (6500, "Frío")]
 
 
 def _parse_rgb(hex_color: str) -> tuple[int, int, int] | None:
@@ -15,53 +31,70 @@ def _parse_rgb(hex_color: str) -> tuple[int, int, int] | None:
         return None
 
 
+def _hex_from_hsv(h: int, s: int, v: int) -> str:
+    r, g, b = colorsys.hsv_to_rgb((h % 360) / 360.0, max(0, min(100, s)) / 100.0, max(0, min(100, v)) / 100.0)
+    return "#{:02x}{:02x}{:02x}".format(round(r * 255), round(g * 255), round(b * 255))
+
+
+def _hsv_from_hex(hex_color: str) -> tuple[int, int, int]:
+    rgb = _parse_rgb(hex_color) or (255, 0, 0)
+    h, s, v = colorsys.rgb_to_hsv(rgb[0] / 255.0, rgb[1] / 255.0, rgb[2] / 255.0)
+    return round(h * 360), round(s * 100), round(v * 100)
+
+
 class FavoritesPanel(ft.Column):
     def __init__(self, wiz):
         super().__init__(scroll=ft.ScrollMode.AUTO, spacing=18, expand=True)
         self.wiz = wiz
         self.manager = FavoritesManager()
+        self._viewport = Viewport(900, 720)
+        self._cards: list[ft.Container] = []
         self._build()
 
     def _build(self):
         self.manager.seed_defaults()
-        header = ft.Row(
-            [
-                ft.Column(
-                    [
-                        ft.Text("Favoritos", style=Theme.H1),
-                        ft.Text("Colores, blancos, escenas y brillo guardados", color=Theme.MUTED, size=13),
-                    ],
-                    spacing=2,
-                ),
-                ft.Container(expand=True),
-                ft.OutlinedButton(
-                    "Nuevo",
-                    icon=ft.Icons.ADD_ROUNDED,
-                    style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)),
-                    on_click=lambda e: self._new_dialog(),
-                ),
-            ],
-            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        new_btn = ft.OutlinedButton(
+            "Nuevo",
+            icon=ft.Icons.ADD_ROUNDED,
+            style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)),
+            on_click=lambda e: self._new_dialog(),
         )
-        self.grid = ft.Row(wrap=True, spacing=12, run_spacing=12)
-        self.controls = [header, self.grid]
+        self.header = ft.ResponsiveRow(
+            breakpoints=PANEL_BREAKPOINTS,
+            spacing=12,
+            run_spacing=8,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            controls=[
+                ft.Container(
+                    content=ft.Column(
+                        [
+                            ft.Text("Favoritos", style=Theme.H1),
+                            ft.Text("Colores, blancos, escenas y brillo guardados", color=Theme.MUTED, size=13),
+                        ],
+                        spacing=2,
+                    ),
+                    col={"xs": 12, "sm": 8},
+                ),
+                ft.Container(content=new_btn, col={"xs": 12, "sm": 4}, alignment=ft.Alignment.CENTER_RIGHT),
+            ],
+        )
+        self.grid = ft.ResponsiveRow(breakpoints=PANEL_BREAKPOINTS, spacing=12, run_spacing=12)
+        self.controls = [self.header, self.grid]
         self._render()
 
     def _render(self):
         self.manager = FavoritesManager()
         favs = self.manager.get_favorites()
         self.grid.controls.clear()
+        self._cards.clear()
         if not favs:
             self.grid.controls.append(
                 ft.Container(
-                    width=420,
+                    col={"xs": 12},
                     padding=32,
                     alignment=ft.Alignment.CENTER,
                     content=ft.Column(
-                        [
-                            ft.Icon(ft.Icons.STAR_BORDER_ROUNDED, color=Theme.MUTED, size=38),
-                            ft.Text("Aún no hay favoritos.", color=Theme.MUTED),
-                        ],
+                        [ft.Icon(ft.Icons.STAR_BORDER_ROUNDED, color=Theme.MUTED, size=38), ft.Text("Aún no hay favoritos.", color=Theme.MUTED)],
                         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
                 )
@@ -71,36 +104,27 @@ class FavoritesPanel(ft.Column):
                 self.grid.controls.append(self._card(fav))
         supdate(self.grid)
 
-    def _card(self, fav: dict):
+    def _fav_visual(self, fav: dict[str, Any]) -> tuple[str, Any, str]:
         ftype = fav.get("type")
         value = fav.get("value")
-        color = Theme.PRIMARY
-        icon = ft.Icons.STAR_ROUNDED
-        subtitle = str(value)
         if ftype == "rgb":
-            color = str(value)
-            icon = ft.Icons.PALETTE_ROUNDED
-            subtitle = str(value).upper()
-        elif ftype == "white":
-            color = "#fbbf24"
-            icon = ft.Icons.LIGHT_MODE_ROUNDED
-            subtitle = f"{value}K"
-        elif ftype == "scene":
-            color = "#8b5cf6"
-            icon = ft.Icons.AUTO_AWESOME_ROUNDED
-            if isinstance(value, dict):
-                subtitle = f"Escena {value.get('sceneId')} · vel {value.get('speed', '—')}"
-            else:
-                subtitle = f"Escena {value}"
-        elif ftype == "brightness":
-            color = Theme.ACCENT
-            icon = ft.Icons.BRIGHTNESS_6_ROUNDED
-            subtitle = f"{value}%"
+            return str(value), ft.Icons.PALETTE_ROUNDED, str(value).upper()
+        if ftype == "white":
+            return "#fbbf24", ft.Icons.LIGHT_MODE_ROUNDED, f"{value}K"
+        if ftype == "scene":
+            sid = int(value.get("sceneId", 18) if isinstance(value, dict) else value)
+            sc = wiz_scenes.get(sid)
+            return scene_color(sid, "#8b5cf6"), scene_icon(sid), sc.name if sc else f"Escena {sid}"
+        if ftype == "brightness":
+            return Theme.ACCENT, ft.Icons.BRIGHTNESS_6_ROUNDED, f"{value}%"
+        return Theme.PRIMARY, ft.Icons.STAR_ROUNDED, str(value)
 
-        return ft.Container(
-            width=176,
+    def _card(self, fav: dict):
+        color, icon, subtitle = self._fav_visual(fav)
+        card = ft.Container(
+            col={"xs": 12, "sm": 6, "md": 4, "lg": 3},
             padding=14,
-            height=128,
+            height=136,
             border_radius=Theme.R_MD,
             bgcolor=Theme.CARD,
             border=ft.Border.all(1, Theme.STROKE),
@@ -113,9 +137,9 @@ class FavoritesPanel(ft.Column):
                         [
                             ft.Container(
                                 content=ft.Icon(icon, color="white", size=20),
-                                width=40,
-                                height=40,
-                                border_radius=12,
+                                width=42,
+                                height=42,
+                                border_radius=13,
                                 bgcolor=color,
                                 alignment=ft.Alignment.CENTER,
                             ),
@@ -136,13 +160,15 @@ class FavoritesPanel(ft.Column):
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             ),
         )
+        self._cards.append(card)
+        return card
 
     def _apply(self, fav: dict):
-        ftype = fav.get("type")
-        value = fav.get("value")
         if hasattr(self.wiz, "apply_favorite"):
             self.wiz.apply_favorite(fav)
             return
+        ftype = fav.get("type")
+        value = fav.get("value")
         if ftype == "rgb":
             rgb = _parse_rgb(value)
             if rgb:
@@ -152,10 +178,7 @@ class FavoritesPanel(ft.Column):
         elif ftype == "brightness":
             self.wiz.set_brightness(int(value))
         elif ftype == "scene":
-            if isinstance(value, dict):
-                self.wiz.set_scene(int(value.get("sceneId", 1)), value.get("speed"))
-            else:
-                self.wiz.set_scene(int(value))
+            self.wiz.set_scene(int(value.get("sceneId", 1)), value.get("speed") if isinstance(value, dict) else None)
 
     def _delete(self, uid: str):
         self.manager.remove_favorite(uid)
@@ -167,66 +190,254 @@ class FavoritesPanel(ft.Column):
     def _edit_dialog(self, fav: dict):
         self._favorite_dialog(fav)
 
+    def _kelvin_range(self) -> tuple[int, int]:
+        try:
+            lo, hi = self.wiz.get_kelvin_range()
+            return int(lo), int(hi)
+        except Exception:
+            return 2200, 6500
+
+    def _kelvin_from_pct(self, pct: int) -> int:
+        lo, hi = self._kelvin_range()
+        return round(lo + (hi - lo) * max(0, min(100, int(pct))) / 100)
+
+    def _pct_from_kelvin(self, kelvin: int) -> int:
+        lo, hi = self._kelvin_range()
+        if hi <= lo:
+            return 50
+        return round((max(lo, min(hi, int(kelvin))) - lo) * 100 / (hi - lo))
+
     def _favorite_dialog(self, fav: dict | None = None):
         if not mounted(self):
             return
+
         editing = fav is not None
         fav = fav or {"name": "Nuevo favorito", "type": "rgb", "value": "#ff0000"}
-        value_obj = fav.get("value")
-        if isinstance(value_obj, dict):
-            raw_value = str(value_obj.get("sceneId", 18))
-        else:
-            raw_value = str(value_obj)
+        state = {
+            "type": fav.get("type", "rgb"),
+            "rgb": str(fav.get("value", "#ff0000")) if fav.get("type") == "rgb" else "#ff0000",
+            "white": int(fav.get("value", 4000)) if fav.get("type") == "white" else 4000,
+            "brightness": int(fav.get("value", 80)) if fav.get("type") == "brightness" else 80,
+            "scene": int((fav.get("value") or {}).get("sceneId", 18)) if isinstance(fav.get("value"), dict) else int(fav.get("value", 18) if fav.get("type") == "scene" else 18),
+            "speed": int((fav.get("value") or {}).get("speed", 100)) if isinstance(fav.get("value"), dict) else 100,
+        }
+        h, s, v = _hsv_from_hex(state["rgb"])
+        state.update({"h": h, "s": s, "v": v})
 
         name = ft.TextField(label="Nombre", value=fav.get("name", "Nuevo favorito"), color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
         kind = ft.Dropdown(
             label="Tipo",
-            value=fav.get("type", "rgb"),
+            value=state["type"],
             options=[
-                ft.DropdownOption(key="rgb", text="Color HEX"),
-                ft.DropdownOption(key="white", text="Blanco Kelvin"),
-                ft.DropdownOption(key="scene", text="Escena"),
+                ft.DropdownOption(key="rgb", text="Color"),
+                ft.DropdownOption(key="white", text="Blanco"),
+                ft.DropdownOption(key="scene", text="Escena WiZ"),
                 ft.DropdownOption(key="brightness", text="Brillo"),
             ],
             color=Theme.TEXT,
             bgcolor=Theme.BG,
             border_color=Theme.STROKE,
         )
-        value = ft.TextField(label="Valor", value=raw_value, hint_text="#ff0000 / 4000 / 18 / 80", color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
+        preview = ft.Container(width=58, height=58, border_radius=18, bgcolor="#ff0000", border=ft.Border.all(1, Theme.STROKE), alignment=ft.Alignment.CENTER)
+        summary = ft.Text("", color=Theme.MUTED, size=12)
+        editor = ft.Column(spacing=10)
+
+        def update_preview():
+            ftype = kind.value or "rgb"
+            if ftype == "rgb":
+                state["rgb"] = _hex_from_hsv(int(state["h"]), int(state["s"]), int(state["v"]))
+                preview.bgcolor = state["rgb"]
+                preview.content = ft.Icon(ft.Icons.PALETTE_ROUNDED, color="white")
+                summary.value = state["rgb"].upper()
+            elif ftype == "white":
+                preview.bgcolor = "#fbbf24"
+                preview.content = ft.Icon(ft.Icons.LIGHT_MODE_ROUNDED, color="white")
+                summary.value = f"{int(state['white'])}K · {self._pct_from_kelvin(int(state['white']))}%"
+            elif ftype == "brightness":
+                preview.bgcolor = Theme.ACCENT
+                preview.content = ft.Icon(ft.Icons.BRIGHTNESS_6_ROUNDED, color="white")
+                summary.value = f"Brillo {int(state['brightness'])}%"
+            else:
+                sid = int(state["scene"])
+                preview.bgcolor = scene_color(sid, "#8b5cf6")
+                preview.content = ft.Icon(scene_icon(sid), color="white")
+                sc = wiz_scenes.get(sid)
+                summary.value = f"{sc.name if sc else 'Escena'} · vel {int(state['speed'])}"
+            supdate(preview)
+            supdate(summary)
+
+        def render_editor(e=None):
+            state["type"] = kind.value or "rgb"
+            editor.controls.clear()
+            ftype = state["type"]
+
+            if ftype == "rgb":
+                hex_field = ft.TextField(label="HEX", value=state["rgb"], color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE, dense=True)
+                hue = ft.Slider(min=0, max=359, value=state["h"], divisions=36, active_color=Theme.PRIMARY, thumb_color="white", expand=True)
+                sat = ft.Slider(min=0, max=100, value=state["s"], divisions=20, active_color=Theme.ACCENT, thumb_color="white", expand=True)
+                val = ft.Slider(min=10, max=100, value=max(10, state["v"]), divisions=18, active_color=Theme.WARNING, thumb_color="white", expand=True)
+
+                def from_sliders(ev=None):
+                    state["h"], state["s"], state["v"] = int(hue.value), int(sat.value), int(val.value)
+                    hex_field.value = _hex_from_hsv(state["h"], state["s"], state["v"])
+                    update_preview()
+                    supdate(hex_field)
+
+                def from_hex(ev=None):
+                    rgb = _parse_rgb(hex_field.value)
+                    if not rgb:
+                        return
+                    state["rgb"] = hex_field.value if str(hex_field.value).startswith("#") else "#" + str(hex_field.value)
+                    state["h"], state["s"], state["v"] = _hsv_from_hex(state["rgb"])
+                    hue.value, sat.value, val.value = state["h"], state["s"], state["v"]
+                    update_preview()
+                    supdate(hue); supdate(sat); supdate(val)
+
+                hue.on_change = sat.on_change = val.on_change = from_sliders
+                hex_field.on_submit = from_hex
+                swatches = ft.Row(wrap=True, spacing=8, run_spacing=8, controls=[
+                    ft.Container(width=32, height=32, border_radius=16, bgcolor=c, tooltip=n, border=ft.Border.all(1, ft.Colors.with_opacity(0.35, "white")), on_click=lambda ev, col=c, hf=hex_field: (setattr(hf, "value", col), from_hex()))
+                    for n, c in RGB_SWATCHES
+                ])
+                editor.controls.extend([swatches, hex_field, ft.Text("Matiz", style=Theme.LABEL), hue, ft.Text("Intensidad", style=Theme.LABEL), sat, ft.Text("Claridad", style=Theme.LABEL), val])
+
+            elif ftype == "white":
+                pct = self._pct_from_kelvin(int(state["white"]))
+                label = ft.Text("", color=Theme.TEXT, weight=ft.FontWeight.W_600)
+                slider = ft.Slider(min=0, max=100, value=pct, divisions=100, active_color=Theme.WARNING, thumb_color="white", expand=True)
+
+                def set_white_from_pct(ev=None):
+                    state["white"] = self._kelvin_from_pct(int(slider.value))
+                    label.value = f"{int(slider.value)}% · {state['white']}K"
+                    update_preview()
+                    supdate(label)
+
+                slider.on_change = set_white_from_pct
+                def preset_white(k: int, sl=slider):
+                    state["white"] = int(k)
+                    sl.value = self._pct_from_kelvin(int(k))
+                    set_white_from_pct()
+                    supdate(sl)
+
+                buttons = ft.Row(wrap=True, spacing=8, run_spacing=8, controls=[
+                    ft.OutlinedButton(txt, style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)), on_click=lambda ev, k=k: preset_white(k))
+                    for k, txt in WHITE_PRESETS
+                ])
+                set_white_from_pct()
+                editor.controls.extend([label, slider, buttons])
+
+            elif ftype == "scene":
+                dd = ft.Dropdown(
+                    label="Escena",
+                    value=str(state["scene"]),
+                    options=[ft.DropdownOption(key=str(sid), text=f"{sid} · {sc.name}") for sid, sc in wiz_scenes.CATALOG.items()],
+                    color=Theme.TEXT,
+                    bgcolor=Theme.BG,
+                    border_color=Theme.STROKE,
+                )
+                speed_label = ft.Text(f"Velocidad {state['speed']}", color=Theme.TEXT, weight=ft.FontWeight.W_600)
+                speed = ft.Slider(min=20, max=200, value=state["speed"], divisions=18, active_color=Theme.ACCENT, thumb_color="white", expand=True)
+
+                def scene_changed(ev=None):
+                    state["scene"] = int(dd.value or 18)
+                    update_preview()
+
+                def speed_changed(ev=None):
+                    state["speed"] = int(speed.value)
+                    speed_label.value = f"Velocidad {state['speed']}"
+                    update_preview()
+                    supdate(speed_label)
+
+                dd.on_change = scene_changed
+                speed.on_change = speed_changed
+                editor.controls.extend([dd, speed_label, speed])
+
+            else:
+                label = ft.Text(f"Brillo {state['brightness']}%", color=Theme.TEXT, weight=ft.FontWeight.W_600)
+                slider = ft.Slider(min=10, max=100, value=state["brightness"], divisions=18, active_color=Theme.ACCENT, thumb_color="white", expand=True)
+
+                def bri_changed(ev=None):
+                    state["brightness"] = int(slider.value)
+                    label.value = f"Brillo {state['brightness']}%"
+                    update_preview()
+                    supdate(label)
+
+                slider.on_change = bri_changed
+                editor.controls.extend([label, slider])
+
+            update_preview()
+            supdate(editor)
+
+        kind.on_change = render_editor
+        render_editor()
 
         def save(e):
-            raw = (value.value or "").strip()
             ftype = kind.value or "rgb"
-            val: object = raw
-            try:
-                if ftype == "white":
-                    val = max(1000, min(10000, int(raw)))
-                elif ftype == "brightness":
-                    val = max(10, min(100, int(raw)))
-                elif ftype == "scene":
-                    val = {"sceneId": int(raw), "speed": 100}
-                elif ftype == "rgb":
-                    val = raw if raw.startswith("#") else "#" + raw
-            except ValueError:
-                return
-
-            if editing:
-                self.manager.update_favorite(fav.get("id"), name.value, ftype, val, fav.get("icon", "STAR"))
+            if ftype == "rgb":
+                val: object = state["rgb"]
+                icon = "PALETTE"
+            elif ftype == "white":
+                val = int(state["white"])
+                icon = "LIGHT_MODE"
+            elif ftype == "brightness":
+                val = int(state["brightness"])
+                icon = "BRIGHTNESS_6"
             else:
-                self.manager.add_favorite(name.value, ftype, val)
+                val = {"sceneId": int(state["scene"]), "speed": int(state["speed"])}
+                icon = "AUTO_AWESOME"
+            if editing:
+                self.manager.update_favorite(fav.get("id"), name.value, ftype, val, fav.get("icon", icon))
+            else:
+                self.manager.add_favorite(name.value, ftype, val, icon)
             self.page.pop_dialog()
             self._render()
 
+        dialog_w, dialog_h = dialog_dimensions(self, 560, 560)
+        identity = ft.ResponsiveRow(
+            breakpoints=PANEL_BREAKPOINTS,
+            spacing=12,
+            run_spacing=8,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            controls=[
+                ft.Container(content=preview, col={"xs": 12, "sm": 2}, alignment=ft.Alignment.CENTER),
+                ft.Container(content=ft.Column([name, summary], spacing=6), col={"xs": 12, "sm": 10}),
+            ],
+        )
         dlg = ft.AlertDialog(
             title=ft.Text("Editar favorito" if editing else "Nuevo favorito", color=Theme.TEXT),
             bgcolor=Theme.SURFACE,
-            content=ft.Column([name, kind, value], tight=True, spacing=10, width=360),
+            content=ft.Container(
+                width=dialog_w,
+                height=dialog_h,
+                content=ft.Column(
+                    [
+                        identity,
+                        kind,
+                        ft.Divider(height=8, color=Theme.STROKE),
+                        ft.Container(content=editor, expand=True),
+                    ],
+                    spacing=10,
+                    scroll=ft.ScrollMode.AUTO,
+                ),
+            ),
             actions=[
                 ft.TextButton("Cancelar", on_click=lambda e: self.page.pop_dialog()),
                 ft.ElevatedButton("Guardar", bgcolor=Theme.PRIMARY, color="white", on_click=save),
             ],
         )
         self.page.show_dialog(dlg)
+
+    def set_viewport(self, width: float, height: float, *, update: bool = True) -> None:
+        viewport = Viewport(max(280.0, float(width)), max(320.0, float(height)))
+        mode_changed = viewport.mode != self._viewport.mode
+        self._viewport = viewport
+        if mode_changed:
+            self.spacing = 14 if viewport.compact else 18
+            padding = 12 if viewport.compact else 14
+            for card in self._cards:
+                card.padding = padding
+            if update:
+                supdate(self)
 
     def sync_state(self, state: dict):
         # No necesita refrescar en cada tick de slider; evita CPU extra.

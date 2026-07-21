@@ -4,7 +4,9 @@ import time
 
 import flet as ft
 from config.favorites_manager import FavoritesManager
+from ui.responsive import PANEL_BREAKPOINTS, Viewport
 from ui.theme import Theme, mounted, supdate
+from ui.interaction import LocalEditGuard
 
 EO = ft.AnimationCurve.EASE_OUT
 
@@ -28,7 +30,9 @@ class HomePanel(ft.Column):
         self.wiz = wiz
         self.is_on = False
         self._bri_throttle = _Throttle(0.065)
+        self._bri_guard = LocalEditGuard(1.05)
         self.favorites = FavoritesManager()
+        self._viewport = Viewport(900, 720)
         self._build()
 
     # ------------------------------------------------------------------ #
@@ -51,50 +55,63 @@ class HomePanel(ft.Column):
             on_click=lambda e: self.wiz.refresh(),
         )
 
-        header = ft.Row(
-            [
-                ft.Column(
-                    [
-                        ft.Text("Inicio", style=Theme.H1),
-                        ft.Text("Control principal de iluminación", color=Theme.MUTED, size=13),
-                    ],
-                    spacing=2,
-                ),
-                ft.Container(expand=True),
-                self.status_chip,
-                self.btn_refresh,
-            ],
+        self.header = ft.ResponsiveRow(
+            breakpoints=PANEL_BREAKPOINTS,
+            spacing=10,
+            run_spacing=8,
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            controls=[
+                ft.Container(
+                    content=ft.Column(
+                        [
+                            ft.Text("Inicio", style=Theme.H1),
+                            ft.Text("Control principal de iluminación", color=Theme.MUTED, size=13),
+                        ],
+                        spacing=2,
+                    ),
+                    col={"xs": 12, "md": 7},
+                ),
+                ft.Container(
+                    content=ft.Row([self.status_chip, self.btn_refresh], spacing=6, alignment=ft.MainAxisAlignment.END),
+                    col={"xs": 12, "md": 5},
+                    alignment=ft.Alignment.CENTER_RIGHT,
+                ),
+            ],
         )
 
         # --- Control maestro ---
         self.master_icon = ft.Icon(ft.Icons.POWER_OFF_ROUNDED, size=34, color="white")
         self.master_label = ft.Text("APAGADO", size=18, weight=ft.FontWeight.BOLD, color="white")
+        self.master_text = ft.Column(
+            [
+                ft.Text("Control maestro", color="white", size=12, opacity=0.85),
+                self.master_label,
+                ft.Text("Toca para alternar el target activo", color="white", size=11, opacity=0.7),
+            ],
+            spacing=2,
+        )
+        self.master_icon_box = ft.Container(
+            content=self.master_icon,
+            width=64,
+            height=64,
+            border_radius=20,
+            bgcolor=ft.Colors.with_opacity(0.22, "white"),
+            alignment=ft.Alignment.CENTER,
+        )
+        self.master_touch = ft.Icon(ft.Icons.TOUCH_APP_ROUNDED, color="white", opacity=0.6)
+        self.master_body = ft.ResponsiveRow(
+            breakpoints=PANEL_BREAKPOINTS,
+            spacing=14,
+            run_spacing=8,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            controls=[
+                ft.Container(content=self.master_icon_box, col={"xs": 3, "sm": 2}),
+                ft.Container(content=self.master_text, col={"xs": 9, "sm": 8}),
+                ft.Container(content=self.master_touch, col={"xs": 12, "sm": 2}, alignment=ft.Alignment.CENTER_RIGHT),
+            ],
+        )
         self.master_card = ft.Container(
-            content=ft.Row(
-                [
-                    ft.Container(
-                        content=self.master_icon,
-                        width=64,
-                        height=64,
-                        border_radius=20,
-                        bgcolor=ft.Colors.with_opacity(0.22, "white"),
-                        alignment=ft.Alignment.CENTER,
-                    ),
-                    ft.Column(
-                        [
-                            ft.Text("Control maestro", color="white", size=12, opacity=0.85),
-                            self.master_label,
-                            ft.Text("Toca para alternar el target activo", color="white", size=11, opacity=0.7),
-                        ],
-                        spacing=2,
-                    ),
-                    ft.Container(expand=True),
-                    ft.Icon(ft.Icons.TOUCH_APP_ROUNDED, color="white", opacity=0.6),
-                ],
-                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                spacing=18,
-            ),
+            content=self.master_body,
             padding=24,
             border_radius=Theme.R_LG,
             gradient=ft.LinearGradient(
@@ -149,8 +166,8 @@ class HomePanel(ft.Column):
             )
         )
 
-        quick = ft.Row(
-            wrap=True,
+        quick = ft.ResponsiveRow(
+            breakpoints=PANEL_BREAKPOINTS,
             spacing=12,
             run_spacing=12,
             controls=[
@@ -164,7 +181,7 @@ class HomePanel(ft.Column):
             ],
         )
 
-        self.fav_row = ft.Row(wrap=True, spacing=10, run_spacing=10)
+        self.fav_row = ft.ResponsiveRow(breakpoints=PANEL_BREAKPOINTS, spacing=10, run_spacing=10)
         favs_card = self._card(
             ft.Column(
                 [
@@ -181,7 +198,7 @@ class HomePanel(ft.Column):
             )
         )
 
-        self.controls = [header, self.master_card, bri_card, ft.Text("ACCESOS RÁPIDOS", style=Theme.LABEL), quick, favs_card]
+        self.controls = [self.header, self.master_card, bri_card, ft.Text("ACCESOS RÁPIDOS", style=Theme.LABEL), quick, favs_card]
         self._render_favorites()
 
     # ------------------------------------------------------------------ #
@@ -197,7 +214,7 @@ class HomePanel(ft.Column):
 
     def _quick(self, title, icon, color, action):
         return ft.Container(
-            width=150,
+            col={"xs": 6, "sm": 4, "md": 3, "lg": 2},
             height=92,
             padding=12,
             border_radius=Theme.R_MD,
@@ -267,14 +284,18 @@ class HomePanel(ft.Column):
 
     def _on_brightness(self, e):
         v = int(self.bri_slider.value)
+        self._bri_guard.touch(v, hold_seconds=0.85)
         self.bri_value.value = f"{v}%"
         self._safe(self.bri_value)
         self._emit_brightness(final=False)
 
     def _on_brightness_end(self, e):
+        v = int(self.bri_slider.value)
+        self._bri_guard.touch(v, hold_seconds=1.15)
         self._emit_brightness(final=True)
 
     def _reset_brightness(self, e=None):
+        self._bri_guard.touch(100, hold_seconds=1.15)
         self.bri_slider.value = 100
         self.bri_value.value = "100%"
         self.wiz.set_brightness(100)
@@ -304,7 +325,7 @@ class HomePanel(ft.Column):
         value = fav.get("value")
         color = str(value) if ftype == "rgb" else "#fbbf24" if ftype == "white" else "#8b5cf6"
         return ft.Container(
-            width=168,
+            col={"xs": 12, "sm": 6, "md": 4},
             height=46,
             padding=ft.Padding.symmetric(horizontal=10, vertical=6),
             border_radius=14,
@@ -325,6 +346,10 @@ class HomePanel(ft.Column):
     def _go_favorites(self):
         try:
             app = self.page.controls[0]
+            navigate = getattr(app, "navigate_to", None)
+            if callable(navigate):
+                navigate(3)
+                return
             app.rail.selected_index = 3
             app.selected_index = 3
             app.content_area.content = app.panels[3]
@@ -333,10 +358,25 @@ class HomePanel(ft.Column):
             pass
 
     # ------------------------------------------------------------------ #
+    def set_viewport(self, width: float, height: float, *, update: bool = True) -> None:
+        viewport = Viewport(max(280.0, float(width)), max(320.0, float(height)))
+        if viewport.mode == self._viewport.mode:
+            self._viewport = viewport
+            return
+        self._viewport = viewport
+        self.master_card.padding = 16 if viewport.compact else 20 if viewport.medium else 24
+        self.master_touch.visible = not viewport.compact
+        self.master_icon_box.width = 54 if viewport.compact else 64
+        self.master_icon_box.height = 54 if viewport.compact else 64
+        self.master_icon_box.border_radius = 17 if viewport.compact else 20
+        if update:
+            supdate(self.master_card)
+
+    # ------------------------------------------------------------------ #
     def sync_state(self, state: dict):
         if not mounted(self):
             return
-        if "dimming" in state:
+        if "dimming" in state and not self._bri_guard.blocks(state["dimming"], tolerance=1):
             self.bri_slider.value = state["dimming"]
             self.bri_value.value = f"{int(state['dimming'])}%"
         if "state" in state:
@@ -359,7 +399,8 @@ class HomePanel(ft.Column):
             self.status_dot.bgcolor = Theme.ERROR
             self.status_text.value = "Sin bombillas"
         self.target_text.value = f"target: {mode} · {active_ip}"
-        self._render_favorites()
+        # No re-renderizar favoritos en cada tick de sync: evita repintados caros
+        # mientras se arrastran sliders. El panel Favoritos refresca su propia vista.
 
         supdate(self)
 

@@ -1,0 +1,2 @@
+# CLI oficial para generar el ejecutable nativo con `flet build windows`.
+flet[cli]==0.85.2

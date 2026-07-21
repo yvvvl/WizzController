@@ -8,7 +8,7 @@ from .base_manager import JsonManager
 class ControllerSettingsManager(JsonManager):
     """Preferencias pequeñas del controlador/UI.
 
-    Se guarda en config/json/controller_settings.json.
+    Se guarda en el directorio de configuración activo de WizZ.
     """
 
     DEFAULTS: dict[str, Any] = {
