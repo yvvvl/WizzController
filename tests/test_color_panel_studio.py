@@ -204,8 +204,11 @@ def test_manual_apply_builds_one_color_and_brightness_sequence(panel: ColorPanel
 
 
 def test_live_palette_is_throttled_but_final_value_is_forced(panel: ColorPanel) -> None:
+    panel.live_switch.value = True
+    panel._pending = False
     panel.wiz.calls.clear()
     panel._color_gate.interval = 60.0
+    panel._color_gate.last = 0.0
     geo = panel._palette_geometry
     red = (geo.radius, geo.image_height - geo.radius)
     panel._apply_palette_point(red, emit_live=True, interactive=True, update=False)
