@@ -1,0 +1,92 @@
+name: Build Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "release/**"
+    tags:
+      - "v*"
+
+concurrency:
+  group: windows-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # Flet 0.85.2 is validated with the VS 2022 image. windows-latest moved to
+    # Windows 2025 + Visual Studio 2026 in June 2026.
+    runs-on: windows-2022
+    timeout-minutes: 60
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
+      FLET_CLI_NO_RICH_OUTPUT: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+            requirements-build.txt
+
+      - name: Enable Windows developer mode when available
+        shell: pwsh
+        run: |
+          try {
+            New-ItemProperty `
+              -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" `
+              -Name "AllowDevelopmentWithoutDevLicense" `
+              -PropertyType DWord `
+              -Value 1 `
+              -Force | Out-Null
+          } catch {
+            Write-Warning "Developer Mode could not be changed; continuing with runner permissions."
+          }
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -r requirements-dev.txt -r requirements-build.txt
+
+      - name: Verify source
+        run: |
+          python -m compileall -q main.py app_meta.py core config ui tests tools
+          python -m pytest -q
+
+      - name: Build native Windows app
+        shell: pwsh
+        run: |
+          .\scripts\build_windows.ps1 -Clean -SkipInstall -SkipTests *>&1 |
+            Tee-Object -FilePath build-windows.log
+
+      - name: Upload build diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: WizZDesktop-windows-build-log
+          path: |
+            build-windows.log
+            build/flutter/build/windows/x64/cmake_install.cmake
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WizZDesktop-windows-x64
+          path: |
+            dist/release/*.zip
+            dist/release/*.sha256
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,6 @@
+{
+    "tray_enabled": true,
+    "minimize_to_tray": true,
+    "open_minimized": false,
+    "startup_with_windows": false
+}

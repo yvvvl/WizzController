@@ -1,18 +1,13 @@
-# --- Núcleo ---
+# Núcleo UI
 flet==0.85.2
 
-# --- Discovery WiZ híbrido ---
+# WiZ LAN / discovery híbrido
 pywizlight==0.6.3
 psutil>=5.9
 
-# --- Hotkeys globales ---
+# Hotkeys globales
 keyboard>=0.13.5
 
-# --- Voz local/offline fase 11 ---
-faster-whisper
-sounddevice
-numpy
-
-# --- Bandeja pendientes ---
-# pystray
-# Pillow
+# Bandeja de sistema
+pystray>=0.19.5
+Pillow>=10.0.0

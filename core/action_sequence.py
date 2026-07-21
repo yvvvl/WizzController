@@ -6,11 +6,11 @@ import time
 from typing import Any
 
 _LOG = logging.getLogger(__name__)
-_SEQUENCE_LOCK = threading.Lock()  # Phase 39: cola ligera de rutinas
+_SEQUENCE_LOCK = threading.RLock()  # Phase55: rutinas pueden llamar otras rutinas sin deadlock
 
 
 class ActionSequenceExecutor:
-    """Motor único de acciones para rutinas, voz, hotkeys y favoritos compuestos.
+    """Motor único de acciones para rutinas, hotkeys y favoritos compuestos.
 
     Diseño:
     - Python puro, sin Flet.
@@ -21,6 +21,7 @@ class ActionSequenceExecutor:
 
     def __init__(self, wiz) -> None:
         self.wiz = wiz
+        self._routine_stack = threading.local()
 
     def execute_routine(self, routine_id: str, threaded: bool = True) -> str:
         from config.routines_manager import RoutinesManager
@@ -57,7 +58,7 @@ class ActionSequenceExecutor:
 
     def _execute_safe(self, actions: list[dict[str, Any]], name: str) -> str:
         # Phase 39: cola ligera. Evita que dos rutinas se mezclen si entran
-        # por voz/hotkey casi al mismo tiempo. No bloquea la UI porque esto
+        # por hotkey/UI casi al mismo tiempo. No bloquea la UI porque esto
         # normalmente corre en thread daemon.
         with _SEQUENCE_LOCK:
             labels: list[str] = []
@@ -149,6 +150,28 @@ class ActionSequenceExecutor:
                 speed = action.get("speed")
             self.wiz.set_scene(scene_id, speed)
             return f"Escena {scene_id}"
+
+
+        if kind == "routine":
+            from config.routines_manager import RoutinesManager
+
+            uid = str(value or action.get("id") or "")
+            routine = RoutinesManager().get_routine(uid)
+            if not routine:
+                return "Rutina no encontrada"
+            stack = list(getattr(self._routine_stack, "ids", []))
+            if uid in stack:
+                return "Rutina omitida"
+            stack.append(uid)
+            self._routine_stack.ids = stack
+            try:
+                return self._execute_safe(self._extract_actions(routine), str(routine.get("name") or "Rutina"))
+            finally:
+                try:
+                    stack.pop()
+                    self._routine_stack.ids = stack
+                except Exception:
+                    pass
 
         if kind == "favorite":
             from config.favorites_manager import FavoritesManager

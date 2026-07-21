@@ -9,6 +9,9 @@ import flet as ft
 from config.custom_scenes_manager import CustomScenesManager
 from core import wiz_scenes
 from ui.theme import Theme, mounted, supdate
+from ui.interaction import LocalEditGuard
+from ui.responsive import PANEL_BREAKPOINTS, Viewport, dialog_dimensions
+from ui.scene_visuals import scene_icon, scene_color
 
 EO = ft.AnimationCurve.EASE_OUT
 
@@ -40,16 +43,14 @@ class _Throttle:
 class ScenesPanel(ft.Column):
     """Escenas WiZ + escenas personalizadas.
 
-    Fase 9, versión estable:
-    - No usa GridView.
-    - No usa ResponsiveRow.
-    - No usa Row(wrap=True).
-    - No usa hijos expandibles dentro de filas con wrap.
-    - Renderiza filas manuales de tarjetas fijas para evitar el ErrorWidget gris de Flet/Flutter.
+    La grilla principal usa filas manuales de tarjetas con ancho calculado.
+    Esto conserva el workaround estable frente al ErrorWidget gris de
+    GridView/filas expandibles, mientras header y controles auxiliares sí se
+    adaptan con ResponsiveRow.
     """
 
     CARD_W = 126
-    CARD_H = 98
+    CARD_H = 104
     CARDS_PER_ROW = 5
 
     def __init__(self, wiz):
@@ -60,13 +61,17 @@ class ScenesPanel(ft.Column):
         self.selected_custom_id: str | None = None
         self.speed = 100
         self._speed_throttle = _Throttle(0.08)
+        self._speed_guard = LocalEditGuard(0.90)
         self._builtin_cards: dict[int, ft.Container] = {}
         self._custom_cards: dict[str, ft.Container] = {}
+        self._viewport = Viewport(900, 720)
+        self._cards_per_row = self.CARDS_PER_ROW
+        self._card_width = float(self.CARD_W)
         self._build()
 
     # ------------------------------------------------------------------ #
     def _build(self):
-        self.speed_label = ft.Text("100", size=12, color=Theme.TEXT, width=38, text_align=ft.TextAlign.RIGHT)
+        self.speed_label = ft.Text("100", size=12, color=Theme.TEXT, text_align=ft.TextAlign.RIGHT)
         self.speed_slider = ft.Slider(
             min=20,
             max=200,
@@ -79,28 +84,22 @@ class ScenesPanel(ft.Column):
             expand=True,
         )
         self.custom_block = ft.Column(spacing=10)
+        self.builtin_block = ft.Column(spacing=10)
 
         self.controls = [
             self._header(),
             self._speed_card(),
             self._section_title("MIS ESCENAS"),
             self.custom_block,
+            self._section_title("ESCENAS WIZ"),
+            self.builtin_block,
         ]
         self._render_custom()
         self._render_builtin_sections()
 
     def _header(self):
-        # Importante: sin wrap=True. El spacer expandible solo va en Row normal.
-        return ft.Row(
+        buttons = ft.Row(
             [
-                ft.Column(
-                    [
-                        ft.Text("Escenas", style=Theme.H1),
-                        ft.Text("Escenas WiZ y escenas personalizadas locales", color=Theme.MUTED, size=13),
-                    ],
-                    spacing=2,
-                ),
-                ft.Container(expand=True),
                 ft.OutlinedButton(
                     "Guardar actual",
                     icon=ft.Icons.ADD_PHOTO_ALTERNATE_ROUNDED,
@@ -115,41 +114,63 @@ class ScenesPanel(ft.Column):
                     on_click=lambda e: self._custom_dialog(),
                 ),
             ],
+            spacing=8,
+            run_spacing=8,
+            wrap=True,
+            alignment=ft.MainAxisAlignment.END,
+        )
+        return ft.ResponsiveRow(
+            breakpoints=PANEL_BREAKPOINTS,
+            spacing=12,
+            run_spacing=8,
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
-            spacing=10,
+            controls=[
+                ft.Container(
+                    content=ft.Column(
+                        [
+                            ft.Text("Escenas", style=Theme.H1),
+                            ft.Text("Escenas WiZ y escenas personalizadas locales", color=Theme.MUTED, size=13),
+                        ],
+                        spacing=2,
+                    ),
+                    col={"xs": 12, "md": 7},
+                ),
+                ft.Container(content=buttons, col={"xs": 12, "md": 5}, alignment=ft.Alignment.CENTER_RIGHT),
+            ],
         )
 
     def _speed_card(self):
+        reset = ft.IconButton(
+            ft.Icons.RESTART_ALT_ROUNDED,
+            icon_color=Theme.MUTED,
+            tooltip="Restaurar velocidad",
+            on_click=self._reset_speed,
+        )
         return ft.Container(
-            padding=ft.Padding.symmetric(horizontal=14, vertical=8),
+            padding=ft.Padding.symmetric(horizontal=14, vertical=10),
             border_radius=Theme.R_MD,
             bgcolor=Theme.CARD,
             border=ft.Border.all(1, Theme.STROKE),
-            content=ft.Column(
-                [
-                    ft.Row(
-                        [
-                            ft.Row(
-                                [
-                                    ft.Icon(ft.Icons.SPEED_ROUNDED, color=Theme.ACCENT, size=18),
-                                    ft.Text("VELOCIDAD DE ESCENA", style=Theme.LABEL),
-                                ],
-                                spacing=8,
-                            ),
-                            ft.Container(expand=True),
-                            self.speed_label,
-                            ft.IconButton(
-                                ft.Icons.RESTART_ALT_ROUNDED,
-                                icon_color=Theme.MUTED,
-                                tooltip="Restaurar velocidad",
-                                on_click=self._reset_speed,
-                            ),
-                        ],
-                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            content=ft.ResponsiveRow(
+                breakpoints=PANEL_BREAKPOINTS,
+                spacing=10,
+                run_spacing=4,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                controls=[
+                    ft.Container(
+                        content=ft.Row(
+                            [ft.Icon(ft.Icons.SPEED_ROUNDED, color=Theme.ACCENT, size=18), ft.Text("VELOCIDAD DE ESCENA", style=Theme.LABEL)],
+                            spacing=8,
+                        ),
+                        col={"xs": 12, "sm": 4},
                     ),
-                    self.speed_slider,
+                    ft.Container(content=self.speed_slider, col={"xs": 9, "sm": 6}),
+                    ft.Container(
+                        content=ft.Row([self.speed_label, reset], spacing=2, alignment=ft.MainAxisAlignment.END),
+                        col={"xs": 3, "sm": 2},
+                        alignment=ft.Alignment.CENTER_RIGHT,
+                    ),
                 ],
-                spacing=0,
             ),
         )
 
@@ -159,15 +180,14 @@ class ScenesPanel(ft.Column):
     # ------------------------------------------------------------------ #
     def _render_builtin_sections(self):
         self._builtin_cards.clear()
+        self.builtin_block.controls.clear()
         for group_name, ids in wiz_scenes.GROUPS.items():
-            self.controls.append(self._section_title(group_name.upper()))
-            for row_ids in _chunks(ids, self.CARDS_PER_ROW):
-                self.controls.append(
-                    ft.Row(
-                        spacing=10,
-                        controls=[self._scene_card(sid) for sid in row_ids],
-                    )
+            self.builtin_block.controls.append(self._section_title(group_name.upper()))
+            for row_ids in _chunks(ids, self._cards_per_row):
+                self.builtin_block.controls.append(
+                    ft.Row(spacing=10, controls=[self._scene_card(sid) for sid in row_ids])
                 )
+        supdate(self.builtin_block)
 
     def _scene_card(self, scene_id: int):
         sc = wiz_scenes.get(scene_id)
@@ -175,7 +195,7 @@ class ScenesPanel(ft.Column):
             return ft.Container(width=1, height=1)
         card = ft.Container(
             key=f"sc{scene_id}",
-            width=self.CARD_W,
+            width=self._card_width,
             height=self.CARD_H,
             padding=10,
             border_radius=Theme.R_MD,
@@ -184,11 +204,12 @@ class ScenesPanel(ft.Column):
             content=ft.Column(
                 [
                     ft.Container(
-                        content=ft.Text(sc.glyph, size=20),
+                        content=ft.Icon(scene_icon(sc.id), color=scene_color(sc.id, sc.color), size=22),
                         width=38,
                         height=38,
                         border_radius=11,
-                        bgcolor=Theme.CARD_HI,
+                        bgcolor=ft.Colors.with_opacity(0.16, scene_color(sc.id, sc.color)),
+                        border=ft.Border.all(1, ft.Colors.with_opacity(0.30, scene_color(sc.id, sc.color))),
                         alignment=ft.Alignment.CENTER,
                     ),
                     ft.Text(
@@ -245,7 +266,7 @@ class ScenesPanel(ft.Column):
                 )
             )
         else:
-            for scene_row in _chunks(scenes, self.CARDS_PER_ROW):
+            for scene_row in _chunks(scenes, self._cards_per_row):
                 self.custom_block.controls.append(
                     ft.Row(spacing=10, controls=[self._custom_card(scene) for scene in scene_row])
                 )
@@ -261,7 +282,7 @@ class ScenesPanel(ft.Column):
 
         card = ft.Container(
             key=f"custom_{uid}",
-            width=self.CARD_W,
+            width=self._card_width,
             height=self.CARD_H,
             padding=9,
             border_radius=Theme.R_MD,
@@ -283,6 +304,9 @@ class ScenesPanel(ft.Column):
                                 ft.Icons.EDIT_ROUNDED,
                                 icon_color=Theme.MUTED,
                                 icon_size=16,
+                                width=30,
+                                height=30,
+                                padding=0,
                                 tooltip="Editar",
                                 on_click=lambda e, s=scene: self._custom_dialog(s),
                             ),
@@ -290,6 +314,9 @@ class ScenesPanel(ft.Column):
                                 ft.Icons.DELETE_OUTLINE_ROUNDED,
                                 icon_color=Theme.ERROR,
                                 icon_size=16,
+                                width=30,
+                                height=30,
+                                padding=0,
                                 tooltip="Eliminar",
                                 on_click=lambda e, x=uid: self._delete_custom(x),
                             ),
@@ -357,11 +384,13 @@ class ScenesPanel(ft.Column):
 
     def _on_speed(self, e):
         self.speed = int(self.speed_slider.value)
+        self._speed_guard.touch(self.speed, hold_seconds=0.80)
         self.speed_label.value = str(self.speed)
         supdate(self.speed_label)
         self._emit_speed(final=False)
 
     def _on_speed_end(self, e):
+        self._speed_guard.touch(int(self.speed_slider.value), hold_seconds=1.10)
         self._emit_speed(final=True)
 
     def _reset_speed(self, e=None):
@@ -450,11 +479,13 @@ class ScenesPanel(ft.Column):
             self.page.pop_dialog()
             self._render_custom()
 
+        dialog_w, dialog_h = dialog_dimensions(self, 460, 560)
         dlg = ft.AlertDialog(
             title=ft.Text("Editar escena" if editing else "Nueva escena personalizada", color=Theme.TEXT),
             bgcolor=Theme.SURFACE,
             content=ft.Container(
-                width=420,
+                width=dialog_w,
+                height=dialog_h,
                 content=ft.Column(
                     [
                         name,
@@ -467,6 +498,7 @@ class ScenesPanel(ft.Column):
                     ],
                     tight=True,
                     spacing=8,
+                    scroll=ft.ScrollMode.AUTO,
                 ),
             ),
             actions=[
@@ -475,6 +507,32 @@ class ScenesPanel(ft.Column):
             ],
         )
         self.page.show_dialog(dlg)
+
+    def set_viewport(self, width: float, height: float, *, update: bool = True) -> None:
+        viewport = Viewport(max(280.0, float(width)), max(320.0, float(height)))
+        available = max(260.0, viewport.width - (4.0 if viewport.compact else 8.0))
+        # 120 px es el mínimo real de la card personalizada: contiene un
+        # swatch y dos IconButton sin permitir que salgan del borde.
+        minimum = 122.0
+        cards = max(1, min(7, int((available + 10.0) // (minimum + 10.0))))
+        raw_width = (available - 10.0 * (cards - 1)) / cards
+        # Cuantizar hacia abajo evita que el redondeo agregue unos píxeles y
+        # produzca overflow horizontal justo antes de un breakpoint.
+        card_width = float(int(raw_width // 12.0) * 12)
+        card_width = max(120.0, min(154.0, card_width, raw_width))
+        layout_changed = cards != self._cards_per_row or abs(card_width - self._card_width) >= 6.0
+        mode_changed = viewport.mode != self._viewport.mode
+        self._viewport = viewport
+        if layout_changed:
+            self._cards_per_row = cards
+            self._card_width = card_width
+            self._render_custom()
+            self._render_builtin_sections()
+            self._highlight()
+        if mode_changed:
+            self.spacing = 12 if viewport.compact else 14
+        if update and (layout_changed or mode_changed):
+            supdate(self)
 
     def _delete_custom(self, uid: str):
         self.custom.remove_scene(uid)
