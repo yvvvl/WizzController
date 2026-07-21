@@ -17,8 +17,14 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-latest
+    # Flet 0.85.2 is validated with the VS 2022 image. windows-latest moved to
+    # Windows 2025 + Visual Studio 2026 in June 2026.
+    runs-on: windows-2022
     timeout-minutes: 60
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
+      FLET_CLI_NO_RICH_OUTPUT: "true"
 
     steps:
       - name: Checkout
@@ -27,7 +33,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.13"
           cache: "pip"
           cache-dependency-path: |
             requirements.txt
@@ -45,7 +51,7 @@ jobs:
               -Value 1 `
               -Force | Out-Null
           } catch {
-            Write-Warning "No se pudo cambiar Developer Mode; se continuará con los permisos del runner."
+            Write-Warning "Developer Mode could not be changed; continuing with runner permissions."
           }
 
       - name: Install dependencies
@@ -60,7 +66,20 @@ jobs:
 
       - name: Build native Windows app
         shell: pwsh
-        run: .\scripts\build_windows.ps1 -Clean -SkipInstall -SkipTests
+        run: |
+          .\scripts\build_windows.ps1 -Clean -SkipInstall -SkipTests *>&1 |
+            Tee-Object -FilePath build-windows.log
+
+      - name: Upload build diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: WizZDesktop-windows-build-log
+          path: |
+            build-windows.log
+            build/flutter/build/windows/x64/cmake_install.cmake
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4

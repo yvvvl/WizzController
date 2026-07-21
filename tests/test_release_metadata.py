@@ -73,3 +73,26 @@ def test_windows_build_and_smoke_scripts_are_present():
     assert "BUILD_INFO.json" in build_script
     assert "WizZDesktop.exe" in smoke_script
     assert "LaunchSecondInstance" in smoke_script
+
+
+def test_windows_build_recovers_vc_runtime_install_and_cleans_cache():
+    build_script = (ROOT / "scripts" / "build_windows.ps1").read_text(
+        encoding="utf-8"
+    )
+
+    assert "Repair-FletWindowsInstall" in build_script
+    assert "vcruntime140_1.dll" in build_script
+    assert "cmake_install.cmake" in build_script
+    assert 'Join-Path $Root "build"' in build_script
+    assert "runtime_install_recovered" in build_script
+
+
+def test_windows_workflow_uses_stable_runner_and_keeps_failure_logs():
+    workflow = (
+        ROOT / ".github" / "workflows" / "build-windows.yml"
+    ).read_text(encoding="utf-8")
+
+    assert "runs-on: windows-2022" in workflow
+    assert 'python-version: "3.13"' in workflow
+    assert "Upload build diagnostics" in workflow
+    assert "build-windows.log" in workflow
