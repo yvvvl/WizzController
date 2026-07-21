@@ -47,6 +47,9 @@ class TrayService:
         self._show_lock = threading.Lock()
         self._last_show_request = 0.0
         self._last_show_ok = False
+        self._tray_click_lock = threading.Lock()
+        self._last_tray_click = 0.0
+        self._double_click_seconds = self._system_double_click_seconds()
         try:
             import pystray  # type: ignore
             from PIL import Image, ImageDraw  # type: ignore
@@ -224,8 +227,29 @@ class TrayService:
 
         hotkey_items = self._hotkey_menu_items()
 
+        # pystray ejecuta el item ``default`` en cada click izquierdo. En
+        # Windows usamos un item invisible para distinguir un click simple de
+        # un doble click real; las opciones visibles del menu siguen siendo
+        # acciones directas de un solo click.
+        primary_action_items = []
+        show_is_default = os.name != "nt"
+        if os.name == "nt":
+            primary_action_items.append(
+                item(
+                    "Alternar WizZ",
+                    lambda icon, it: self._handle_tray_primary_click(),
+                    default=True,
+                    visible=False,
+                )
+            )
+
         return menu(
-            item("Mostrar WizZ", lambda icon, it: self.show_window(), default=True),
+            *primary_action_items,
+            item(
+                "Mostrar WizZ",
+                lambda icon, it: self.show_window(),
+                default=show_is_default,
+            ),
             item("Ocultar a bandeja", lambda icon, it: self.hide_window()),
             item("Actualizar menú", lambda icon, it: self.refresh_menu()),
             sep,
@@ -405,6 +429,97 @@ class TrayService:
         mode = "1 luz" if status.get("mode") == "single" else "todas"
         ip = status.get("ip") or "—"
         return f"Destino: {mode} · {ip}"
+
+    # ------------------------------------------------------------------ #
+    # Activacion primaria del icono
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _system_double_click_seconds() -> float:
+        """Devuelve el intervalo de doble click configurado en Windows."""
+
+        if os.name != "nt":
+            return 0.5
+        try:
+            import ctypes
+
+            user32 = ctypes.WinDLL("user32", use_last_error=True)
+            user32.GetDoubleClickTime.argtypes = []
+            user32.GetDoubleClickTime.restype = ctypes.c_uint
+            milliseconds = int(user32.GetDoubleClickTime())
+            return max(0.20, min(1.50, milliseconds / 1000.0))
+        except Exception:
+            return 0.5
+
+    def _handle_tray_primary_click(self) -> bool:
+        """Alterna la ventana al completar un doble click en Windows."""
+
+        if os.name != "nt":
+            return self.toggle_window()
+
+        now = time.monotonic()
+        should_toggle = False
+        with self._tray_click_lock:
+            elapsed = now - self._last_tray_click
+            if 0.0 < elapsed <= self._double_click_seconds:
+                self._last_tray_click = 0.0
+                should_toggle = True
+            else:
+                self._last_tray_click = now
+
+        return self.toggle_window() if should_toggle else False
+
+    def _window_is_visible_for_toggle(self) -> bool:
+        """Indica si el doble click debe ocultar en vez de restaurar.
+
+        Una ventana minimizada se considera no visible para esta accion: el
+        doble click debe restaurarla. Cuando Win32 no esta disponible se usa el
+        modelo de Flet y, por ultimo, el estado interno de la bandeja.
+        """
+
+        if self._hidden:
+            return False
+
+        if os.name == "nt":
+            try:
+                import ctypes
+                from ctypes import wintypes
+
+                user32 = ctypes.WinDLL("user32", use_last_error=True)
+                user32.FindWindowW.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR]
+                user32.FindWindowW.restype = wintypes.HWND
+                user32.IsWindowVisible.argtypes = [wintypes.HWND]
+                user32.IsWindowVisible.restype = wintypes.BOOL
+                user32.IsIconic.argtypes = [wintypes.HWND]
+                user32.IsIconic.restype = wintypes.BOOL
+
+                title = str(getattr(self.page, "title", "") or APP_PRODUCT)
+                hwnd = user32.FindWindowW(None, title)
+                if hwnd:
+                    return bool(
+                        user32.IsWindowVisible(hwnd)
+                        and not user32.IsIconic(hwnd)
+                    )
+            except Exception:
+                pass
+
+        window = self._window()
+        if window is None:
+            return not self._hidden
+        try:
+            visible = getattr(window, "visible", None)
+            minimized = bool(getattr(window, "minimized", False))
+            if visible is not None:
+                return bool(visible) and not minimized
+        except Exception:
+            pass
+        return not self._hidden
+
+    def toggle_window(self) -> bool:
+        """Oculta una ventana visible o restaura una oculta/minimizada."""
+
+        if self._window_is_visible_for_toggle():
+            return self.hide_window()
+        return self.show_window()
 
     # ------------------------------------------------------------------ #
     # Ventana

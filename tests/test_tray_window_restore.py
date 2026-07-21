@@ -180,3 +180,68 @@ def test_hide_window_syncs_on_live_loop(monkeypatch):
         loop.call_soon_threadsafe(loop.stop)
         thread.join(timeout=1.0)
         loop.close()
+
+
+def test_windows_tray_primary_action_requires_double_click(monkeypatch):
+    tray = TrayService(_Page(), object(), _Runtime())
+    tray._double_click_seconds = 0.5
+    calls: list[bool] = []
+    ticks = iter((10.0, 10.18))
+
+    monkeypatch.setattr(tray_module.os, "name", "nt")
+    monkeypatch.setattr(tray_module.time, "monotonic", lambda: next(ticks))
+    monkeypatch.setattr(
+        tray,
+        "toggle_window",
+        lambda: calls.append(True) or True,
+    )
+
+    assert tray._handle_tray_primary_click() is False
+    assert calls == []
+    assert tray._handle_tray_primary_click() is True
+    assert calls == [True]
+
+
+def test_windows_tray_primary_action_resets_after_timeout(monkeypatch):
+    tray = TrayService(_Page(), object(), _Runtime())
+    tray._double_click_seconds = 0.4
+    calls: list[bool] = []
+    ticks = iter((20.0, 20.8, 21.0))
+
+    monkeypatch.setattr(tray_module.os, "name", "nt")
+    monkeypatch.setattr(tray_module.time, "monotonic", lambda: next(ticks))
+    monkeypatch.setattr(
+        tray,
+        "toggle_window",
+        lambda: calls.append(True) or True,
+    )
+
+    assert tray._handle_tray_primary_click() is False
+    assert tray._handle_tray_primary_click() is False
+    assert calls == []
+    assert tray._handle_tray_primary_click() is True
+    assert calls == [True]
+
+
+def test_toggle_window_hides_when_window_is_visible(monkeypatch):
+    tray = TrayService(_Page(), object(), _Runtime())
+    calls: list[str] = []
+
+    monkeypatch.setattr(tray, "_window_is_visible_for_toggle", lambda: True)
+    monkeypatch.setattr(tray, "hide_window", lambda: calls.append("hide") or True)
+    monkeypatch.setattr(tray, "show_window", lambda: calls.append("show") or True)
+
+    assert tray.toggle_window() is True
+    assert calls == ["hide"]
+
+
+def test_toggle_window_restores_when_hidden_or_minimized(monkeypatch):
+    tray = TrayService(_Page(), object(), _Runtime())
+    calls: list[str] = []
+
+    monkeypatch.setattr(tray, "_window_is_visible_for_toggle", lambda: False)
+    monkeypatch.setattr(tray, "hide_window", lambda: calls.append("hide") or True)
+    monkeypatch.setattr(tray, "show_window", lambda: calls.append("show") or True)
+
+    assert tray.toggle_window() is True
+    assert calls == ["show"]

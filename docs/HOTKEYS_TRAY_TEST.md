@@ -35,6 +35,13 @@ Notas normales de Windows:
 
 ## 3. Menú de bandeja
 
+Validar primero la acción primaria del icono:
+
+- Un clic izquierdo no cambia el estado.
+- Doble clic con la ventana visible la oculta a bandeja.
+- Doble clic con la ventana oculta o minimizada la restaura.
+- Clic derecho continúa abriendo el menú contextual.
+
 Desde el menú de bandeja validar:
 
 - Mostrar WizZ.
