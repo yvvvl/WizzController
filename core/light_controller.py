@@ -298,6 +298,38 @@ class LightController:
             self.proto.discovered.pop(ip, None)
             self.proto.last_pilot.pop(ip, None)
 
+    def _prune_removed_protocol_cache(self) -> None:
+        """Purga respuestas tard?as de dispositivos expl?citamente quitados."""
+
+        if not self.proto:
+            return
+
+        candidates = (
+            set(self.proto.discovered.keys())
+            | set(self.proto.last_pilot.keys())
+        )
+
+        for ip in list(candidates):
+            discovered = self.proto.discovered.get(ip, {})
+            pilot = self.proto.last_pilot.get(ip, {})
+
+            discovered_mac = (
+                discovered.get("mac")
+                if isinstance(discovered, dict)
+                else None
+            )
+            pilot_mac = (
+                pilot.get("mac")
+                if isinstance(pilot, dict)
+                else None
+            )
+
+            if self._is_removed_bulb(
+                ip,
+                discovered_mac or pilot_mac,
+            ):
+                self._purge_device_cache(ip)
+
     def _claim_scan(self, *, explicit: bool) -> bool:
         with self._scan_state_lock:
             if self._scan_in_progress:
@@ -1043,6 +1075,7 @@ class LightController:
         return existed
 
     def get_bulbs_detailed(self) -> list[dict[str, Any]]:
+        self._prune_removed_protocol_cache()
         saved = self.bulbs_manager.get_bulbs()
         out: list[dict[str, Any]] = []
         target_cfg = self.get_target_config()
