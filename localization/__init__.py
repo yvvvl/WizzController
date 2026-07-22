@@ -16,6 +16,13 @@ from .manager import (
     tr,
     trn,
 )
+from .ui import (
+    language_choice_keys,
+    language_choices,
+    native_language_name,
+    translated_language_name,
+    translated_navigation,
+)
 
 __all__ = [
     "DEFAULT_LANGUAGE",
@@ -32,4 +39,9 @@ __all__ = [
     "normalize_language",
     "tr",
     "trn",
+    "language_choice_keys",
+    "language_choices",
+    "native_language_name",
+    "translated_language_name",
+    "translated_navigation",
 ]

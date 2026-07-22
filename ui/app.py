@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import flet as ft
 
+from config.app_runtime_manager import AppRuntimeManager
+from localization import RuntimeLanguagePreference, get_manager, translated_navigation
+
 from ui.components.color_panel import ColorPanel
 from ui.components.favorites_panel import FavoritesPanel
 from ui.components.home_panel import HomePanel
@@ -26,6 +29,10 @@ class WizzApp(ft.Container):
         self.page_ref = page
         self.wiz = wiz_controller
         self.hotkeys_manager = hotkeys_manager
+        self.runtime = AppRuntimeManager()
+        self.i18n = get_manager()
+        self.language_preference = RuntimeLanguagePreference(self.runtime)
+        self.i18n.set_preference(self.language_preference.load())
         self.expand = True
         self.gradient = Theme.GRADIENT
         self.selected_index = 0
@@ -40,7 +47,12 @@ class WizzApp(ft.Container):
             ScenesPanel(self.wiz),
             FavoritesPanel(self.wiz),
             RoutinesPanel(self.wiz),
-            SettingsPanel(self.wiz),
+            SettingsPanel(
+                self.wiz,
+                i18n=self.i18n,
+                on_language_change=self.set_language_preference,
+                runtime=self.runtime,
+            ),
             HotkeysPanel(self.wiz, manager=self.hotkeys_manager),
         ]
 
@@ -80,17 +92,17 @@ class WizzApp(ft.Container):
             leading=self.leading,
             scrollable=True,
             destinations=[
-                ft.NavigationRailDestination(icon=ft.Icons.HOME_OUTLINED, selected_icon=ft.Icons.HOME_ROUNDED, label="Inicio"),
-                ft.NavigationRailDestination(icon=ft.Icons.PALETTE_OUTLINED, selected_icon=ft.Icons.PALETTE, label="Color"),
-                ft.NavigationRailDestination(icon=ft.Icons.AUTO_AWESOME_OUTLINED, selected_icon=ft.Icons.AUTO_AWESOME, label="Escenas"),
-                ft.NavigationRailDestination(icon=ft.Icons.STAR_BORDER_ROUNDED, selected_icon=ft.Icons.STAR_ROUNDED, label="Favs"),
+                ft.NavigationRailDestination(icon=ft.Icons.HOME_OUTLINED, selected_icon=ft.Icons.HOME_ROUNDED, label=self._t("nav.home")),
+                ft.NavigationRailDestination(icon=ft.Icons.PALETTE_OUTLINED, selected_icon=ft.Icons.PALETTE, label=self._t("nav.color")),
+                ft.NavigationRailDestination(icon=ft.Icons.AUTO_AWESOME_OUTLINED, selected_icon=ft.Icons.AUTO_AWESOME, label=self._t("nav.scenes")),
+                ft.NavigationRailDestination(icon=ft.Icons.STAR_BORDER_ROUNDED, selected_icon=ft.Icons.STAR_ROUNDED, label=self._t("nav.favorites")),
                 ft.NavigationRailDestination(
                     icon=ft.Icons.ROCKET_LAUNCH_OUTLINED,
                     selected_icon=ft.Icons.ROCKET_LAUNCH_ROUNDED,
-                    label="Rutinas",
+                    label=self._t("nav.routines"),
                 ),
-                ft.NavigationRailDestination(icon=ft.Icons.SETTINGS_OUTLINED, selected_icon=ft.Icons.SETTINGS_ROUNDED, label="Ajustes"),
-                ft.NavigationRailDestination(icon=ft.Icons.KEYBOARD_OUTLINED, selected_icon=ft.Icons.KEYBOARD_ROUNDED, label="Hotkeys"),
+                ft.NavigationRailDestination(icon=ft.Icons.SETTINGS_OUTLINED, selected_icon=ft.Icons.SETTINGS_ROUNDED, label=self._t("nav.settings")),
+                ft.NavigationRailDestination(icon=ft.Icons.KEYBOARD_OUTLINED, selected_icon=ft.Icons.KEYBOARD_ROUNDED, label=self._t("nav.hotkeys")),
             ],
             on_change=self._on_nav,
         )
@@ -112,6 +124,38 @@ class WizzApp(ft.Container):
         initial_w = safe_number(getattr(page, "width", None), safe_number(getattr(page.window, "width", None), 1080))
         initial_h = safe_number(getattr(page, "height", None), safe_number(getattr(page.window, "height", None), 720))
         self.set_viewport(initial_w, initial_h, update=False)
+        self._language_unsubscribe = self.i18n.subscribe(self._on_language_changed)
+
+    def _t(self, key: str, **values) -> str:
+        return self.i18n.translate(key, **values)
+
+    def set_language_preference(self, preference: str) -> str:
+        normalized = self.language_preference.save(preference)
+        changed = self.i18n.set_preference(normalized)
+        if not changed:
+            self._on_language_changed(self.i18n.language)
+        return self.i18n.language
+
+    def _on_language_changed(self, language: str) -> None:
+        labels = translated_navigation(self.i18n)
+        for destination, label in zip(self.rail.destinations, labels):
+            destination.label = label
+
+        try:
+            self.page_ref.title = self._t("app.name")
+        except Exception:
+            pass
+
+        for panel in self.panels:
+            handler = getattr(panel, "set_language", None)
+            if callable(handler):
+                try:
+                    handler(language)
+                except Exception:
+                    pass
+
+        supdate(self.rail)
+        supdate(self.content_area)
 
     # ------------------------------------------------------------------ #
     # Responsive shell

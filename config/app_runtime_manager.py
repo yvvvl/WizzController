@@ -26,6 +26,7 @@ class AppRuntimeManager:
         "minimize_to_tray": True,
         "open_minimized": False,
         "startup_with_windows": False,
+        "language": "system",
     }
 
     def __init__(self) -> None:

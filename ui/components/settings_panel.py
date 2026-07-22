@@ -3,6 +3,14 @@ from __future__ import annotations
 import os
 
 import flet as ft
+from localization import (
+    RuntimeLanguagePreference,
+    detect_system_language,
+    get_manager,
+    language_choices,
+    normalize_language,
+    translated_language_name,
+)
 from app_meta import APP_PRODUCT, display_version
 from config.app_runtime_manager import AppRuntimeManager
 from config.paths import config_dir, logs_dir
@@ -15,24 +23,62 @@ class SettingsPanel(ft.Column):
     # estado luminoso permanezca igual. WizzApp usa esta marca para no
     # descartar el callback final de una búsqueda.
     refresh_on_equal_state = True
-    def __init__(self, wiz):
+    def __init__(self, wiz, *, i18n=None, on_language_change=None, runtime=None):
         super().__init__(scroll=ft.ScrollMode.AUTO, spacing=18, expand=True)
         self.wiz = wiz
-        self.runtime = AppRuntimeManager()
+        self.i18n = i18n or get_manager()
+        self._on_language_change = on_language_change
+        self.runtime = runtime or AppRuntimeManager()
+        self.language_preference = RuntimeLanguagePreference(self.runtime)
+        if i18n is None:
+            self.i18n.set_preference(self.language_preference.load())
         self._viewport = Viewport(900, 720)
         self._build()
 
     # ------------------------------------------------------------------ #
+    def _t(self, key: str, **values) -> str:
+        return self.i18n.translate(key, **values)
+
+    def _language_effective_text(self) -> str:
+        return self._t(
+            "language.effective",
+            language=translated_language_name(self.i18n, self.i18n.language),
+        )
+
+    def _language_detected_text(self) -> str:
+        detected = detect_system_language()
+        return self._t(
+            "language.detected",
+            language=translated_language_name(self.i18n, detected),
+        )
+
+    def _language_changed(self, e=None) -> None:
+        preference = normalize_language(self.language_dropdown.value)
+        if callable(self._on_language_change):
+            self._on_language_change(preference)
+            return
+
+        self.language_preference.save(preference)
+        self.i18n.set_preference(preference)
+        self.set_language(self.i18n.language)
+
+    def set_language(self, language: str | None = None) -> None:
+        # Rebuild is intentional: language changes are rare and rebuilding this
+        # panel avoids stale labels inside dropdowns, cards, dialogs and tooltips.
+        self._build()
+        if mounted(self):
+            supdate(self)
+
     def _build(self):
         self.btn_scan = ft.ElevatedButton(
-            "Buscar ampolletas",
+            self._t("bulbs.search"),
             icon=ft.Icons.WIFI_FIND_ROUNDED,
             bgcolor=Theme.PRIMARY,
             color="white",
             on_click=self._scan,
         )
         self.btn_add = ft.OutlinedButton(
-            "Agregar por IP",
+            self._t("bulbs.add_by_ip"),
             icon=ft.Icons.ADD_ROUNDED,
             style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)),
             on_click=lambda e: self._add_dialog(),
@@ -64,8 +110,8 @@ class SettingsPanel(ft.Column):
                 ft.Container(
                     content=ft.Column(
                         [
-                            ft.Text("Ajustes", style=Theme.H1),
-                            ft.Text("Target, discovery y gestión de ampolletas", color=Theme.MUTED, size=13),
+                            ft.Text(self._t("settings.title"), style=Theme.H1),
+                            ft.Text(self._t("settings.subtitle"), color=Theme.MUTED, size=13),
                         ],
                         spacing=2,
                     ),
@@ -84,11 +130,11 @@ class SettingsPanel(ft.Column):
         )
 
         self.mode_dropdown = ft.Dropdown(
-            label="Modo de control",
+            label=self._t("settings.target.mode"),
             value="single",
             options=[
-                ft.DropdownOption(key="single", text="Una ampolleta"),
-                ft.DropdownOption(key="all", text="Todas las detectadas"),
+                ft.DropdownOption(key="single", text=self._t("bulbs.mode.single")),
+                ft.DropdownOption(key="all", text=self._t("bulbs.mode.all")),
             ],
             border_color=Theme.STROKE,
             bgcolor=Theme.BG,
@@ -97,7 +143,7 @@ class SettingsPanel(ft.Column):
             dense=True,
         )
         self.active_dropdown = ft.Dropdown(
-            label="Ampolleta activa",
+            label=self._t("bulbs.active"),
             options=[],
             border_color=Theme.STROKE,
             bgcolor=Theme.BG,
@@ -106,13 +152,13 @@ class SettingsPanel(ft.Column):
             dense=True,
         )
         self.interval_dropdown = ft.Dropdown(
-            label="Rendimiento sliders",
+            label=self._t("settings.slider_performance"),
             value="65",
             options=[
-                ft.DropdownOption(key="35", text="35 ms · ultra rápido / más CPU"),
-                ft.DropdownOption(key="65", text="65 ms · recomendado"),
-                ft.DropdownOption(key="90", text="90 ms · suave / menos CPU"),
-                ft.DropdownOption(key="130", text="130 ms · ahorro CPU"),
+                ft.DropdownOption(key="35", text=self._t("settings.slider.35")),
+                ft.DropdownOption(key="65", text=self._t("settings.slider.65")),
+                ft.DropdownOption(key="90", text=self._t("settings.slider.90")),
+                ft.DropdownOption(key="130", text=self._t("settings.slider.130")),
             ],
             border_color=Theme.STROKE,
             bgcolor=Theme.BG,
@@ -121,7 +167,7 @@ class SettingsPanel(ft.Column):
             on_select=self._interval_select,
         )
         self.btn_cleanup = ft.OutlinedButton(
-            "Limpiar offline",
+            self._t("settings.cleanup_offline"),
             icon=ft.Icons.CLEANING_SERVICES_ROUNDED,
             style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)),
             on_click=self._cleanup,
@@ -130,7 +176,7 @@ class SettingsPanel(ft.Column):
         target_card = self._card(
             ft.Column(
                 [
-                    ft.Text("DESTINO", style=Theme.LABEL),
+                    ft.Text(self._t("settings.target.section"), style=Theme.LABEL),
                     ft.ResponsiveRow(
                         breakpoints=PANEL_BREAKPOINTS,
                         spacing=14,
@@ -143,9 +189,54 @@ class SettingsPanel(ft.Column):
                             ft.Container(content=self.btn_cleanup, col={"xs": 12, "sm": 4, "lg": 3}, alignment=ft.Alignment.CENTER_RIGHT),
                         ],
                     ),
-                    ft.Text("Sin paneles vacíos: el destino solo controla a qué IP se mandan los comandos.", color=Theme.FAINT, size=11),
+                    ft.Text(self._t("settings.target.help"), color=Theme.FAINT, size=11),
                 ],
                 spacing=10,
+            )
+        )
+
+        self.language_dropdown = ft.Dropdown(
+            label=self._t("language.selector"),
+            value=self.i18n.preference,
+            options=[
+                ft.DropdownOption(key=key, text=label)
+                for key, label in language_choices()
+            ],
+            border_color=Theme.STROKE,
+            bgcolor=Theme.BG,
+            color=Theme.TEXT,
+            dense=True,
+            on_select=self._language_changed,
+        )
+        self.language_effective = ft.Text(
+            self._language_effective_text(),
+            color=Theme.MUTED,
+            size=11,
+        )
+        self.language_detected = ft.Text(
+            self._language_detected_text(),
+            color=Theme.FAINT,
+            size=10,
+        )
+        language_card = self._card(
+            ft.Column(
+                [
+                    ft.Text(self._t("language.section"), style=Theme.LABEL),
+                    ft.Text(
+                        self._t("language.description"),
+                        color=Theme.MUTED,
+                        size=11,
+                    ),
+                    self.language_dropdown,
+                    self.language_effective,
+                    self.language_detected,
+                    ft.Text(
+                        self._t("language.restart_not_required"),
+                        color=Theme.FAINT,
+                        size=10,
+                    ),
+                ],
+                spacing=8,
             )
         )
 
@@ -177,19 +268,19 @@ class SettingsPanel(ft.Column):
             spacing=12,
             run_spacing=12,
             controls=[
-                self._runtime_option("Bandeja activa", "Mantiene WizZ disponible junto al reloj.", self.tray_enabled_switch),
-                self._runtime_option("Cerrar a bandeja", "La X oculta la ventana en vez de salir.", self.minimize_to_tray_switch),
-                self._runtime_option("Abrir minimizado", "Inicia oculto cuando la bandeja está activa.", self.open_minimized_switch),
-                self._runtime_option("Iniciar con Windows", "Registra o quita el inicio automático.", self.startup_switch),
+                self._runtime_option(self._t("runtime.tray_enabled"), self._t("runtime.tray_enabled.description"), self.tray_enabled_switch),
+                self._runtime_option(self._t("runtime.close_to_tray"), self._t("runtime.close_to_tray.description"), self.minimize_to_tray_switch),
+                self._runtime_option(self._t("runtime.open_minimized"), self._t("runtime.open_minimized.description"), self.open_minimized_switch),
+                self._runtime_option(self._t("runtime.start_with_windows"), self._t("runtime.start_with_windows.description"), self.startup_switch),
             ],
         )
         runtime_card = self._card(
             ft.Column(
                 [
-                    ft.Text("INICIO Y SEGUNDO PLANO", style=Theme.LABEL),
+                    ft.Text(self._t("runtime.background"), style=Theme.LABEL),
                     runtime_options,
                     ft.Text(
-                        "Los cambios de bandeja se aplican mejor al reiniciar la app. No fuerza restaurar ventanas en modo dev de Flet.",
+                        self._t("runtime.restart_hint"),
                         color=Theme.FAINT,
                         size=11,
                     ),
@@ -202,7 +293,7 @@ class SettingsPanel(ft.Column):
         release_card = self._card(
             ft.Column(
                 [
-                    ft.Text("ACERCA DE", style=Theme.LABEL),
+                    ft.Text(self._t("about.title"), style=Theme.LABEL),
                     ft.ResponsiveRow(
                         breakpoints=PANEL_BREAKPOINTS,
                         spacing=12,
@@ -225,7 +316,7 @@ class SettingsPanel(ft.Column):
                                             [
                                                 ft.Text(APP_PRODUCT, color=Theme.TEXT, weight=ft.FontWeight.W_700, size=14),
                                                 ft.Text(display_version(), color=Theme.MUTED, size=11),
-                                                ft.Text("Control WiZ local · sin nube obligatoria", color=Theme.FAINT, size=10),
+                                                ft.Text(self._t("about.local_control"), color=Theme.FAINT, size=10),
                                             ],
                                             spacing=1,
                                             expand=True,
@@ -240,13 +331,13 @@ class SettingsPanel(ft.Column):
                                 content=ft.Row(
                                     [
                                         ft.OutlinedButton(
-                                            "Datos",
+                                            self._t("about.data"),
                                             icon=ft.Icons.FOLDER_OPEN_ROUNDED,
                                             style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)),
                                             on_click=lambda e: self._open_folder(config_dir()),
                                         ),
                                         ft.OutlinedButton(
-                                            "Logs",
+                                            self._t("about.logs"),
                                             icon=ft.Icons.DESCRIPTION_OUTLINED,
                                             style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)),
                                             on_click=lambda e: self._open_folder(logs_dir()),
@@ -261,7 +352,7 @@ class SettingsPanel(ft.Column):
                         ],
                     ),
                     ft.Text(
-                        "En el .exe, configuraciones y logs viven en el almacenamiento persistente de la app y se conservan entre actualizaciones.",
+                        self._t("about.storage_hint"),
                         color=Theme.FAINT,
                         size=11,
                     ),
@@ -274,9 +365,10 @@ class SettingsPanel(ft.Column):
         self.controls = [
             self.header,
             target_card,
+            language_card,
             runtime_card,
             release_card,
-            ft.Text("AMPOLLETAS", style=Theme.LABEL),
+            ft.Text(self._t("bulbs.section"), style=Theme.LABEL),
             self.list_view,
         ]
         self._render_all()
@@ -363,7 +455,7 @@ class SettingsPanel(ft.Column):
                     content=ft.Column(
                         [
                             ft.Icon(ft.Icons.LIGHTBULB_OUTLINE_ROUNDED, color=Theme.MUTED, size=36),
-                            ft.Text("No hay ampolletas. Pulsa «Buscar».", color=Theme.MUTED, size=13),
+                            ft.Text(self._t("bulbs.none"), color=Theme.MUTED, size=13),
                         ],
                         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                         spacing=8,
@@ -384,7 +476,7 @@ class SettingsPanel(ft.Column):
         targeted = bool(b.get("targeted"))
         badges = []
         if active:
-            badges.append(self._badge("ACTIVA", Theme.PRIMARY))
+            badges.append(self._badge(self._t("bulbs.active_badge"), Theme.PRIMARY))
         if targeted:
             badges.append(self._badge("TARGET", Theme.ACCENT))
         if b.get("rgb"):
@@ -454,28 +546,28 @@ class SettingsPanel(ft.Column):
                     ft.Icons.RADIO_BUTTON_CHECKED_ROUNDED,
                     icon_color=Theme.PRIMARY,
                     icon_size=20,
-                    tooltip="Usar como activa",
+                    tooltip=self._t("bulbs.use_as_active"),
                     on_click=lambda e, ip=b["ip"]: self._select_ip(ip),
                 ),
                 ft.IconButton(
                     ft.Icons.INFO_OUTLINE_ROUNDED,
                     icon_color=Theme.MUTED,
                     icon_size=20,
-                    tooltip="Información",
+                    tooltip=self._t("common.information"),
                     on_click=lambda e, ip=b["ip"]: self._info_dialog(ip),
                 ),
                 ft.IconButton(
                     ft.Icons.EDIT_ROUNDED,
                     icon_color=Theme.PRIMARY,
                     icon_size=20,
-                    tooltip="Renombrar",
+                    tooltip=self._t("common.rename"),
                     on_click=lambda e, x=b: self._rename_dialog(x),
                 ),
                 ft.IconButton(
                     ft.Icons.DELETE_OUTLINE_ROUNDED,
                     icon_color=Theme.ERROR,
                     icon_size=20,
-                    tooltip="Quitar",
+                    tooltip=self._t("common.remove"),
                     on_click=lambda e, ip=b["ip"]: self._remove(ip),
                 ),
             ],
@@ -577,7 +669,7 @@ class SettingsPanel(ft.Column):
 
         dialog_w, dialog_h = dialog_dimensions(self, 560, 590)
         dlg = ft.AlertDialog(
-            title=ft.Text("Información de ampolleta", color=Theme.TEXT),
+            title=ft.Text(self._t("bulbs.info"), color=Theme.TEXT),
             bgcolor=Theme.SURFACE,
             content=ft.Container(
                 width=dialog_w,
@@ -585,8 +677,8 @@ class SettingsPanel(ft.Column):
                 content=ft.Column(rows, spacing=7, tight=True, scroll=ft.ScrollMode.AUTO),
             ),
             actions=[
-                ft.TextButton("Cerrar", on_click=lambda e: self.page.pop_dialog()),
-                ft.ElevatedButton("Usar como activa", bgcolor=Theme.PRIMARY, color="white", on_click=lambda e: (self._select_ip(ip), self.page.pop_dialog())),
+                ft.TextButton(self._t("common.close"), on_click=lambda e: self.page.pop_dialog()),
+                ft.ElevatedButton(self._t("bulbs.use_as_active"), bgcolor=Theme.PRIMARY, color="white", on_click=lambda e: (self._select_ip(ip), self.page.pop_dialog())),
             ],
         )
         self.page.show_dialog(dlg)
@@ -600,7 +692,7 @@ class SettingsPanel(ft.Column):
             if not bool(status.get("running")):
                 self.scan_message.value = str(
                     status.get("error")
-                    or "No se pudo iniciar la búsqueda todavía."
+                    or self._t("bulbs.search_not_started")
                 )
                 self.scan_message.color = Theme.ERROR
         supdate(self.scan_ring)
@@ -630,16 +722,15 @@ class SettingsPanel(ft.Column):
         self.btn_scan.disabled = running
 
         if running:
-            self.scan_message.value = "Buscando ampolletas en la red local…"
+            self.scan_message.value = self._t("bulbs.searching")
             self.scan_message.color = Theme.PRIMARY
         elif error:
-            self.scan_message.value = f"Búsqueda finalizada con error: {error[:120]}"
+            self.scan_message.value = self._t("bulbs.search_error", error=error[:120])
             self.scan_message.color = Theme.ERROR
             self._last_scan_finished_at = max(self._last_scan_finished_at, finished_at)
         elif finished_at > self._last_scan_finished_at:
             found = int(status.get("found") or 0)
-            noun = "ampolleta" if found == 1 else "ampolletas"
-            self.scan_message.value = f"Búsqueda lista · {found} {noun} disponibles."
+            self.scan_message.value = self.i18n.translate_count("bulbs.search_done", found)
             self.scan_message.color = Theme.SUCCESS
             self._last_scan_finished_at = finished_at
 
@@ -648,10 +739,10 @@ class SettingsPanel(ft.Column):
         self._render_all()
         if mounted(self):
             dlg = ft.AlertDialog(
-                title=ft.Text("Limpieza lista", color=Theme.TEXT),
+                title=ft.Text(self._t("settings.cleanup_title"), color=Theme.TEXT),
                 bgcolor=Theme.SURFACE,
-                content=ft.Text(f"Se quitaron {removed} IP offline.", color=Theme.MUTED),
-                actions=[ft.TextButton("OK", on_click=lambda e: self.page.pop_dialog())],
+                content=ft.Text(self._t("settings.cleanup_result", count=removed), color=Theme.MUTED),
+                actions=[ft.TextButton(self._t("common.ok"), on_click=lambda e: self.page.pop_dialog())],
             )
             self.page.show_dialog(dlg)
 
@@ -695,7 +786,7 @@ class SettingsPanel(ft.Column):
             open_minimized=open_minimized,
         )
 
-        message = "Configuración de segundo plano guardada."
+        message = self._t("runtime.saved")
         if getattr(e, "control", None) is self.startup_switch:
             ok, startup_msg = self.runtime.set_startup_with_windows(startup)
             if startup or ok:
@@ -713,9 +804,9 @@ class SettingsPanel(ft.Column):
         removed = bool(self.wiz.remove_bulb(ip))
         self._render_all()
         self.scan_message.value = (
-            "Ampolleta quitada. «Buscar ampolletas» puede detectarla nuevamente."
+            self._t("bulbs.removed")
             if removed
-            else "La ampolleta ya no estaba registrada."
+            else self._t("bulbs.already_removed")
         )
         self.scan_message.color = Theme.SUCCESS if removed else Theme.FAINT
         supdate(self.scan_message)
@@ -723,7 +814,7 @@ class SettingsPanel(ft.Column):
     def _rename_dialog(self, b):
         if not mounted(self):
             return
-        field = ft.TextField(label="Nombre", value=b["name"], autofocus=True, color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
+        field = ft.TextField(label=self._t("common.name"), value=b["name"], autofocus=True, color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
 
         def save(e):
             self.wiz.rename_bulb(b["ip"], (field.value or "").strip() or b["ip"])
@@ -731,12 +822,12 @@ class SettingsPanel(ft.Column):
             self._render_all()
 
         dlg = ft.AlertDialog(
-            title=ft.Text("Renombrar ampolleta", color=Theme.TEXT),
+            title=ft.Text(self._t("bulbs.rename_title"), color=Theme.TEXT),
             bgcolor=Theme.SURFACE,
             content=field,
             actions=[
-                ft.TextButton("Cancelar", on_click=lambda e: self.page.pop_dialog()),
-                ft.ElevatedButton("Guardar", bgcolor=Theme.PRIMARY, color="white", on_click=save),
+                ft.TextButton(self._t("common.cancel"), on_click=lambda e: self.page.pop_dialog()),
+                ft.ElevatedButton(self._t("common.save"), bgcolor=Theme.PRIMARY, color="white", on_click=save),
             ],
         )
         self.page.show_dialog(dlg)
@@ -744,7 +835,7 @@ class SettingsPanel(ft.Column):
     def _add_dialog(self):
         if not mounted(self):
             return
-        field = ft.TextField(label="Dirección IP", hint_text="192.168.1.20", autofocus=True, color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
+        field = ft.TextField(label=self._t("bulbs.ip_address"), hint_text="192.168.1.20", autofocus=True, color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
 
         def save(e):
             ip = (field.value or "").strip()
@@ -754,12 +845,12 @@ class SettingsPanel(ft.Column):
                 self._render_all()
 
         dlg = ft.AlertDialog(
-            title=ft.Text("Agregar por IP", color=Theme.TEXT),
+            title=ft.Text(self._t("bulbs.add_by_ip"), color=Theme.TEXT),
             bgcolor=Theme.SURFACE,
             content=field,
             actions=[
-                ft.TextButton("Cancelar", on_click=lambda e: self.page.pop_dialog()),
-                ft.ElevatedButton("Agregar", bgcolor=Theme.PRIMARY, color="white", on_click=save),
+                ft.TextButton(self._t("common.cancel"), on_click=lambda e: self.page.pop_dialog()),
+                ft.ElevatedButton(self._t("common.add"), bgcolor=Theme.PRIMARY, color="white", on_click=save),
             ],
         )
         self.page.show_dialog(dlg)
@@ -771,7 +862,7 @@ class SettingsPanel(ft.Column):
         if mode_changed:
             card_padding = 14 if viewport.compact else 18
             # Las tres cards superiores son controles directos del panel.
-            for control in self.controls[:3]:
+            for control in self.controls[:4]:
                 if isinstance(control, ft.Container):
                     control.padding = card_padding
             if update:
