@@ -274,10 +274,44 @@ if ($FletExitCode -ne 0) {
     Write-Host "Recovered the Windows package after the VC runtime install error." -ForegroundColor Yellow
 }
 
+# Flet 0.85.x / serious_python 1.x can load desktop dependencies from
+# app.zip/__pypackages__. Keep an unpacked copy too for layouts that use
+# <exe>/site-packages.
+$CertifiEmbedTool = Join-Path $Root "tools\embed_certifi_runtime.py"
+& $Python $CertifiEmbedTool "--output" $ResolvedOutput
+if ($LASTEXITCODE -ne 0) {
+    throw "Could not embed certifi into the packaged Windows runtime."
+}
+
 $Exe = Get-ChildItem -Path $ResolvedOutput -Filter "$Artifact.exe" -File -Recurse | Select-Object -First 1
 if (-not $Exe) {
     throw "Build completed without finding $Artifact.exe in $ResolvedOutput"
 }
+
+# Verify critical Python runtime data before producing a distributable ZIP.
+# serious_python may omit data-only transitive packages unless they are declared
+# directly; certifi is required by Flet/httpx during application startup.
+$CertifiPackage = Get-ChildItem `
+    -Path $ResolvedOutput `
+    -Directory `
+    -Recurse `
+    -Filter "certifi" `
+    -ErrorAction SilentlyContinue |
+    Where-Object {
+        Test-Path (Join-Path $_.FullName "__init__.py")
+    } |
+    Select-Object -First 1
+
+if ($null -eq $CertifiPackage) {
+    throw "Packaged runtime is missing certifi. Declare it as a direct dependency."
+}
+
+$CertifiBundle = Join-Path $CertifiPackage.FullName "cacert.pem"
+if (-not (Test-Path $CertifiBundle)) {
+    throw "Packaged certifi is missing cacert.pem: $CertifiBundle"
+}
+
+Write-Host "Packaged certifi: $($CertifiPackage.FullName)" -ForegroundColor DarkCyan
 
 $Commit = "no-git"
 $Dirty = $false

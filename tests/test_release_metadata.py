@@ -34,6 +34,7 @@ def test_windows_brand_assets_exist():
 def test_runtime_dependencies_are_declared_for_flet_build():
     data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     dependencies = "\n".join(data["project"]["dependencies"]).casefold()
+    requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8").casefold()
     for package in (
         "flet",
         "pywizlight",
@@ -41,8 +42,10 @@ def test_runtime_dependencies_are_declared_for_flet_build():
         "keyboard",
         "pystray",
         "pillow",
+        "certifi",
     ):
         assert package in dependencies
+        assert package in requirements
 
     for removed in ("faster-whisper", "sounddevice", "numpy"):
         assert removed not in dependencies
@@ -73,6 +76,8 @@ def test_windows_build_and_smoke_scripts_are_present():
     assert "BUILD_INFO.json" in build_script
     assert "WizZDesktop.exe" in smoke_script
     assert "LaunchSecondInstance" in smoke_script
+    assert "Packaged runtime is missing certifi" in build_script
+    assert "cacert.pem" in build_script
 
 
 def test_windows_build_recovers_vc_runtime_install_and_cleans_cache():
@@ -96,3 +101,22 @@ def test_windows_workflow_uses_stable_runner_and_keeps_failure_logs():
     assert 'python-version: "3.13"' in workflow
     assert "Upload build diagnostics" in workflow
     assert "build-windows.log" in workflow
+
+
+def test_windows_build_embeds_certifi_in_runtime_archive():
+    build_script = (ROOT / "scripts" / "build_windows.ps1").read_text(encoding="utf-8")
+    embed_tool = ROOT / "tools" / "embed_certifi_runtime.py"
+
+    assert embed_tool.is_file()
+    assert "embed_certifi_runtime.py" in build_script
+    assert "__pypackages__/certifi/cacert.pem" in embed_tool.read_text(encoding="utf-8")
+
+
+def test_certifi_embedder_refreshes_app_archive_hash():
+    source = (
+        ROOT / "tools" / "embed_certifi_runtime.py"
+    ).read_text(encoding="utf-8")
+
+    assert "hashlib.sha256" in source
+    assert 'f"{app_zip.name}.hash"' in source
+    assert "archive_hash" in source
