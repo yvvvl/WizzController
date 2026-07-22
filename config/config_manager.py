@@ -3,10 +3,14 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 from pathlib import Path
 from typing import Any
 
 from .paths import config_dir
+
+
+_CONFIG_IO_LOCK = threading.RLock()
 
 
 def default_config_path() -> Path:
@@ -59,7 +63,15 @@ class ConfigManager:
         if changed:
             self.save()
 
-    def save(self) -> None:
+    def _read_current(self) -> dict[str, Any]:
+        try:
+            with open(self.file_path, "r", encoding="utf-8") as f:
+                loaded = json.load(f)
+            return loaded if isinstance(loaded, dict) else {}
+        except Exception:
+            return {}
+
+    def _save_unlocked(self) -> None:
         path = Path(self.file_path)
         temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
         try:
@@ -76,15 +88,27 @@ class ConfigManager:
                 pass
             logging.error("Error guardando config: %s", exc)
 
+    def save(self) -> None:
+        with _CONFIG_IO_LOCK:
+            self._save_unlocked()
+
     def _get_defaults(self) -> dict[str, Any]:
         return {
             "window": {"width": 1080, "height": 720, "top": -1, "left": -1, "maximized": False},
             "control": {"mode": "single", "active_ip": None, "slider_interval_ms": 65},
+            "removed_bulbs": [],
         }
 
     def set(self, key: str, value: Any) -> None:
-        self.config[key] = value
-        self.save()
+        # Hay varias instancias de ConfigManager (core y ColorPanel). Fusionar
+        # la última versión en disco evita que una preferencia sobrescriba otra
+        # guardada milisegundos antes por un componente distinto.
+        with _CONFIG_IO_LOCK:
+            latest = self._read_current()
+            if latest:
+                self.config = latest
+            self.config[key] = value
+            self._save_unlocked()
 
     def get(self, key: str, default: Any = None) -> Any:
         return self.config.get(key, default)
@@ -95,11 +119,13 @@ class ConfigManager:
     def set_window_geometry(self, width, height, top, left, maximized):
         width = max(400, int(width))
         height = max(500, int(height))
-        self.config["window"] = {
-            "width": width,
-            "height": height,
-            "top": int(top) if top is not None else -1,
-            "left": int(left) if left is not None else -1,
-            "maximized": bool(maximized),
-        }
-        self.save()
+        self.set(
+            "window",
+            {
+                "width": width,
+                "height": height,
+                "top": int(top) if top is not None else -1,
+                "left": int(left) if left is not None else -1,
+                "maximized": bool(maximized),
+            },
+        )
