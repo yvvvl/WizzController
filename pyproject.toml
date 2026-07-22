@@ -14,6 +14,7 @@ dependencies = [
   "keyboard>=0.13.5",
   "pystray>=0.19.5",
   "Pillow>=10.0.0",
+  "certifi==2026.6.17",
 ]
 
 [tool.flet]
