@@ -11,6 +11,10 @@ from ui.theme import Theme, mounted, supdate
 
 
 class SettingsPanel(ft.Column):
+    # Discovery y gestión de dispositivos cambian metadata aunque el
+    # estado luminoso permanezca igual. WizzApp usa esta marca para no
+    # descartar el callback final de una búsqueda.
+    refresh_on_equal_state = True
     def __init__(self, wiz):
         super().__init__(scroll=ft.ScrollMode.AUTO, spacing=18, expand=True)
         self.wiz = wiz
