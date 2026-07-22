@@ -7,8 +7,8 @@
 ### Control local, rápido y privado para ampolletas WiZ en Windows
 
 [![Release](https://img.shields.io/github/v/release/yvvvl/WizzController?label=release)](https://github.com/yvvvl/WizzController/releases/latest)
-[![CI]()](https://github.com/yvvvl/WizzController/actions/workflows/ci.yml)
-[![Windows Build]()](https://github.com/yvvvl/WizzController/actions/workflows/build-windows.yml)
+[![CI](https://github.com/yvvvl/WizzController/actions/workflows/ci.yml/badge.svg)](https://github.com/yvvvl/WizzController/actions/workflows/ci.yml)
+[![Windows Build](https://github.com/yvvvl/WizzController/actions/workflows/build-windows.yml/badge.svg)](https://github.com/yvvvl/WizzController/actions/workflows/build-windows.yml)
 [![Python](https://img.shields.io/badge/Python-3.11%20%E2%80%93%203.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Flet](https://img.shields.io/badge/Flet-0.85.2-6C63FF)](https://flet.dev/)
 
