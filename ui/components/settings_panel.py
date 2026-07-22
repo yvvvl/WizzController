@@ -11,6 +11,10 @@ from ui.theme import Theme, mounted, supdate
 
 
 class SettingsPanel(ft.Column):
+    # Discovery y gestión de dispositivos cambian metadata aunque el
+    # estado luminoso permanezca igual. WizzApp usa esta marca para no
+    # descartar el callback final de una búsqueda.
+    refresh_on_equal_state = True
     def __init__(self, wiz):
         super().__init__(scroll=ft.ScrollMode.AUTO, spacing=18, expand=True)
         self.wiz = wiz
@@ -34,6 +38,15 @@ class SettingsPanel(ft.Column):
             on_click=lambda e: self._add_dialog(),
         )
         self.scan_ring = ft.ProgressRing(width=18, height=18, stroke_width=2, color=Theme.PRIMARY, visible=False)
+        self.scan_message = ft.Text(
+            "",
+            color=Theme.FAINT,
+            size=10,
+            text_align=ft.TextAlign.RIGHT,
+            max_lines=2,
+            overflow=ft.TextOverflow.ELLIPSIS,
+        )
+        self._last_scan_finished_at = 0.0
 
         self.header_actions = ft.Row(
             [self.scan_ring, self.btn_add, self.btn_scan],
@@ -58,7 +71,15 @@ class SettingsPanel(ft.Column):
                     ),
                     col={"xs": 12, "md": 7},
                 ),
-                ft.Container(content=self.header_actions, col={"xs": 12, "md": 5}, alignment=ft.Alignment.CENTER_RIGHT),
+                ft.Container(
+                    content=ft.Column(
+                        [self.header_actions, self.scan_message],
+                        spacing=3,
+                        horizontal_alignment=ft.CrossAxisAlignment.END,
+                    ),
+                    col={"xs": 12, "md": 5},
+                    alignment=ft.Alignment.CENTER_RIGHT,
+                ),
             ],
         )
 
@@ -324,8 +345,7 @@ class SettingsPanel(ft.Column):
             for b in bulbs
         ]
         active = cfg.get("active_ip")
-        if active:
-            self.active_dropdown.value = active
+        self.active_dropdown.value = active if active else None
         ms = str(int(cfg.get("slider_interval_ms", 65)))
         allowed = {"35", "65", "90", "130"}
         self.interval_dropdown.value = ms if ms in allowed else "65"
@@ -470,15 +490,19 @@ class SettingsPanel(ft.Column):
             border_radius=Theme.R_MD,
             bgcolor=Theme.CARD if not active else ft.Colors.with_opacity(0.22, Theme.PRIMARY),
             border=ft.Border.all(1, Theme.PRIMARY if active else Theme.STROKE),
-            on_click=lambda e, ip=b["ip"]: self._select_ip(ip),
-            ink=True,
             content=ft.ResponsiveRow(
                 breakpoints=PANEL_BREAKPOINTS,
                 spacing=12,
                 run_spacing=8,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 controls=[
-                    ft.Container(content=identity, col={"xs": 12, "md": 8, "lg": 9}),
+                    ft.Container(
+                        content=identity,
+                        col={"xs": 12, "md": 8, "lg": 9},
+                        border_radius=Theme.R_SM,
+                        ink=True,
+                        on_click=lambda e, ip=b["ip"]: self._select_ip(ip),
+                    ),
                     ft.Container(content=actions, col={"xs": 12, "md": 4, "lg": 3}, alignment=ft.Alignment.CENTER_RIGHT),
                 ],
             ),
@@ -569,10 +593,55 @@ class SettingsPanel(ft.Column):
 
     # ------------------------------------------------------------------ #
     def _scan(self, e):
-        self.scan_ring.visible = True
-        self.btn_scan.disabled = True
-        supdate(self)
-        self.wiz.rescan()
+        started = bool(self.wiz.rescan())
+        self._sync_scan_status()
+        if not started:
+            status = self.wiz.get_scan_status()
+            if not bool(status.get("running")):
+                self.scan_message.value = str(
+                    status.get("error")
+                    or "No se pudo iniciar la búsqueda todavía."
+                )
+                self.scan_message.color = Theme.ERROR
+        supdate(self.scan_ring)
+        supdate(self.btn_scan)
+        supdate(self.scan_message)
+
+    def _sync_scan_status(self, state: dict | None = None) -> None:
+        status = None
+        if isinstance(state, dict):
+            candidate = state.get("_scan")
+            if isinstance(candidate, dict):
+                status = candidate
+        if status is None:
+            try:
+                status = self.wiz.get_scan_status()
+            except Exception:
+                status = {}
+
+        running = bool(status.get("running"))
+        error = str(status.get("error") or "").strip()
+        try:
+            finished_at = float(status.get("finished_at") or 0.0)
+        except Exception:
+            finished_at = 0.0
+
+        self.scan_ring.visible = running
+        self.btn_scan.disabled = running
+
+        if running:
+            self.scan_message.value = "Buscando ampolletas en la red local…"
+            self.scan_message.color = Theme.PRIMARY
+        elif error:
+            self.scan_message.value = f"Búsqueda finalizada con error: {error[:120]}"
+            self.scan_message.color = Theme.ERROR
+            self._last_scan_finished_at = max(self._last_scan_finished_at, finished_at)
+        elif finished_at > self._last_scan_finished_at:
+            found = int(status.get("found") or 0)
+            noun = "ampolleta" if found == 1 else "ampolletas"
+            self.scan_message.value = f"Búsqueda lista · {found} {noun} disponibles."
+            self.scan_message.color = Theme.SUCCESS
+            self._last_scan_finished_at = finished_at
 
     def _cleanup(self, e):
         removed = self.wiz.cleanup_offline_bulbs()
@@ -641,8 +710,15 @@ class SettingsPanel(ft.Column):
         supdate(self.open_minimized_switch)
 
     def _remove(self, ip):
-        self.wiz.remove_bulb(ip)
+        removed = bool(self.wiz.remove_bulb(ip))
         self._render_all()
+        self.scan_message.value = (
+            "Ampolleta quitada. «Buscar ampolletas» puede detectarla nuevamente."
+            if removed
+            else "La ampolleta ya no estaba registrada."
+        )
+        self.scan_message.color = Theme.SUCCESS if removed else Theme.FAINT
+        supdate(self.scan_message)
 
     def _rename_dialog(self, b):
         if not mounted(self):
@@ -705,7 +781,9 @@ class SettingsPanel(ft.Column):
     def sync_state(self, state: dict):
         if not mounted(self):
             return
-        self.scan_ring.visible = False
-        self.btn_scan.disabled = False
+        self._sync_scan_status(state)
         self._render_all()
+        supdate(self.scan_ring)
+        supdate(self.btn_scan)
+        supdate(self.scan_message)
         supdate(self)

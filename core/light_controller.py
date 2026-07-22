@@ -19,6 +19,12 @@ from typing import Any
 from config.bulbs_manager import BulbsManager
 from config.config_manager import ConfigManager
 from core.wiz_capabilities import Capabilities, from_wiz_config
+from core.wiz_color import (
+    display_rgb_to_wiz_channels,
+    logical_rgb_from_state,
+    normalize_rgb,
+    wiz_channels_signature,
+)
 from core.wiz_protocol import (
     WIZ_PORT,
     WizProtocol,
@@ -50,6 +56,8 @@ class LightController:
     STATE_SYNC_TIMEOUT = 0.18
     POST_ACTION_VERIFY_DELAYS = (0.12, 0.40)
     SCAN_TIMEOUT = 0.22
+    PYWIZ_DISCOVERY_TIMEOUT = 3.5
+    SUBNET_SCAN_TIMEOUT = 7.0
     DISCOVERY_ROUNDS = 4
     DISCOVERY_INTERVAL = 0.25
     PROBE_CONCURRENCY = 48
@@ -67,6 +75,18 @@ class LightController:
         self.loop = asyncio.new_event_loop()
         self.proto: WizProtocol | None = None
         self._scan_lock: asyncio.Lock | None = None
+        self._scan_state_lock = threading.RLock()
+        self._scan_in_progress = False
+        self._scan_started_at = 0.0
+        self._scan_finished_at = 0.0
+        self._scan_last_error: str | None = None
+        self._scan_last_found = 0
+
+        # Una eliminación explícita crea una pequeña lápida persistente. Así la
+        # ampolleta no reaparece por caches UDP o por el discovery automático al
+        # reiniciar. «Buscar ampolletas» limpia estas lápidas deliberadamente.
+        self._removed_lock = threading.RLock()
+        self._removed_bulbs = self._load_removed_bulbs()
 
         control_cfg = self.config.get("control", {}) or {}
         self._target_mode = self._normalise_mode(control_cfg.get("mode", "single"))
@@ -130,13 +150,217 @@ class LightController:
         self._scan_lock = asyncio.Lock()
         self.loop.create_task(self._pump())
         self.loop.create_task(self._state_sync_loop())
-        self.loop.create_task(self._discover(aggressive=not bool(self.bulb_ips)))
+        if self._claim_scan(explicit=False):
+            self.loop.create_task(
+                self._discover(
+                    aggressive=not bool(self.bulb_ips),
+                    scan_claimed=True,
+                )
+            )
         _LOG.info("[Light] Listo. Bombillas guardadas: %s", self.bulb_ips or "(ninguna)")
 
     def _run_coro(self, coro):
         if self.loop.is_running():
             return asyncio.run_coroutine_threadsafe(coro, self.loop)
+        # Evita warnings de «coroutine was never awaited» si una acción llega
+        # durante el cierre o antes de que el loop haya arrancado.
+        try:
+            coro.close()
+        except Exception:
+            pass
         return None
+
+    # ------------------------------------------------------------------ #
+    # Eliminación persistente + estado de discovery
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _normalise_mac(value: Any) -> str | None:
+        clean = "".join(
+            ch for ch in str(value or "").lower()
+            if ch in "0123456789abcdef"
+        )
+        return clean or None
+
+    def _load_removed_bulbs(self) -> list[dict[str, str]]:
+        raw = self.config.get("removed_bulbs", [])
+        if isinstance(raw, dict):
+            raw = list(raw.values())
+        if not isinstance(raw, list):
+            return []
+
+        out: list[dict[str, str]] = []
+        seen: set[tuple[str, str]] = set()
+        for item in raw:
+            if isinstance(item, str):
+                item = {"ip": item}
+            if not isinstance(item, dict):
+                continue
+            ip = str(item.get("ip") or "").strip()
+            mac = self._normalise_mac(item.get("mac")) or ""
+            if not ip and not mac:
+                continue
+            key = (ip, mac)
+            if key in seen:
+                continue
+            seen.add(key)
+            entry: dict[str, str] = {}
+            if ip:
+                entry["ip"] = ip
+            if mac:
+                entry["mac"] = mac
+            out.append(entry)
+        return out[-64:]
+
+    def _save_removed_bulbs(self) -> None:
+        with self._removed_lock:
+            payload = [dict(item) for item in self._removed_bulbs[-64:]]
+        self.config.set("removed_bulbs", payload)
+
+    def _is_removed_bulb(self, ip: str | None, mac: Any = None) -> bool:
+        clean_ip = str(ip or "").strip()
+        clean_mac = self._normalise_mac(mac)
+        with self._removed_lock:
+            for entry in self._removed_bulbs:
+                if clean_ip and entry.get("ip") == clean_ip:
+                    return True
+                if clean_mac and entry.get("mac") == clean_mac:
+                    return True
+        return False
+
+    def _remember_removed_bulb(self, ip: str, mac: Any = None) -> None:
+        clean_ip = str(ip or "").strip()
+        clean_mac = self._normalise_mac(mac)
+        if not clean_ip and not clean_mac:
+            return
+        with self._removed_lock:
+            self._removed_bulbs = [
+                entry
+                for entry in self._removed_bulbs
+                if not (
+                    (clean_ip and entry.get("ip") == clean_ip)
+                    or (clean_mac and entry.get("mac") == clean_mac)
+                )
+            ]
+            entry: dict[str, str] = {}
+            if clean_ip:
+                entry["ip"] = clean_ip
+            if clean_mac:
+                entry["mac"] = clean_mac
+            self._removed_bulbs.append(entry)
+        self._save_removed_bulbs()
+
+    def _forget_removed_bulb(self, ip: str | None = None, mac: Any = None) -> bool:
+        clean_ip = str(ip or "").strip()
+        clean_mac = self._normalise_mac(mac)
+        with self._removed_lock:
+            before = len(self._removed_bulbs)
+            self._removed_bulbs = [
+                entry
+                for entry in self._removed_bulbs
+                if not (
+                    (clean_ip and entry.get("ip") == clean_ip)
+                    or (clean_mac and entry.get("mac") == clean_mac)
+                )
+            ]
+            changed = len(self._removed_bulbs) != before
+        if changed:
+            self._save_removed_bulbs()
+        return changed
+
+    def _clear_removed_bulbs(self) -> bool:
+        with self._removed_lock:
+            if not self._removed_bulbs:
+                return False
+            self._removed_bulbs = []
+        self._save_removed_bulbs()
+        return True
+
+    def _device_mac(self, ip: str) -> Any:
+        live = self.bulbs.get(ip, {})
+        if live.get("mac"):
+            return live.get("mac")
+        if self.proto:
+            discovered = self.proto.discovered.get(ip, {})
+            if discovered.get("mac"):
+                return discovered.get("mac")
+        saved = self.bulbs_manager.get_bulbs()
+        if isinstance(saved, dict):
+            entry = saved.get(ip, {})
+            if isinstance(entry, dict):
+                return entry.get("mac")
+        return None
+
+    def _purge_device_cache(self, ip: str) -> None:
+        self.bulb_ips.discard(ip)
+        self.bulbs.pop(ip, None)
+        self._last_state_signature.pop(ip, None)
+        if self.proto:
+            self.proto.discovered.pop(ip, None)
+            self.proto.last_pilot.pop(ip, None)
+
+    def _prune_removed_protocol_cache(self) -> None:
+        """Purga respuestas tard?as de dispositivos expl?citamente quitados."""
+
+        if not self.proto:
+            return
+
+        candidates = (
+            set(self.proto.discovered.keys())
+            | set(self.proto.last_pilot.keys())
+        )
+
+        for ip in list(candidates):
+            discovered = self.proto.discovered.get(ip, {})
+            pilot = self.proto.last_pilot.get(ip, {})
+
+            discovered_mac = (
+                discovered.get("mac")
+                if isinstance(discovered, dict)
+                else None
+            )
+            pilot_mac = (
+                pilot.get("mac")
+                if isinstance(pilot, dict)
+                else None
+            )
+
+            if self._is_removed_bulb(
+                ip,
+                discovered_mac or pilot_mac,
+            ):
+                self._purge_device_cache(ip)
+
+    def _claim_scan(self, *, explicit: bool) -> bool:
+        with self._scan_state_lock:
+            if self._scan_in_progress:
+                return False
+            self._scan_in_progress = True
+            self._scan_started_at = time.time()
+            self._scan_last_error = None
+        if explicit:
+            # Una búsqueda explícita significa «quiero volver a detectar todo»,
+            # incluyendo dispositivos que antes quité de la lista.
+            self._clear_removed_bulbs()
+        self._fire_callback()
+        return True
+
+    def _finish_scan(self, error: str | None = None) -> None:
+        with self._scan_state_lock:
+            self._scan_in_progress = False
+            self._scan_finished_at = time.time()
+            self._scan_last_error = str(error) if error else None
+            self._scan_last_found = len(self.bulbs)
+        self._fire_callback()
+
+    def get_scan_status(self) -> dict[str, Any]:
+        with self._scan_state_lock:
+            return {
+                "running": self._scan_in_progress,
+                "started_at": self._scan_started_at,
+                "finished_at": self._scan_finished_at,
+                "error": self._scan_last_error,
+                "found": self._scan_last_found,
+            }
 
     # ------------------------------------------------------------------ #
     # Targeting: una ampolleta / todas
@@ -198,10 +422,18 @@ class LightController:
         if self.proto:
             targets |= set(self.proto.discovered.keys())
             targets |= set(self.proto.last_pilot.keys())
-        return self._valid_ips(targets)
+        return {
+            ip
+            for ip in self._valid_ips(targets)
+            if not self._is_removed_bulb(ip, self._device_mac(ip))
+        }
 
     def _saved_targets(self) -> set[str]:
-        return self._valid_ips(self.bulb_ips)
+        return {
+            ip
+            for ip in self._valid_ips(self.bulb_ips)
+            if not self._is_removed_bulb(ip, self._device_mac(ip))
+        }
 
     def _ensure_active_ip(self) -> str | None:
         reachable = self._reachable_targets()
@@ -210,7 +442,10 @@ class LightController:
 
         # Si la IP activa no existe, o quedó vieja/offline y hay una viva, cambia a una viva.
         if self._active_ip not in all_known or (reachable and self._active_ip not in reachable):
-            preferred = sorted(self.bulbs.keys()) or sorted(reachable) or sorted(saved)
+            preferred = sorted(
+                ip for ip in self.bulbs.keys()
+                if not self._is_removed_bulb(ip, self._device_mac(ip))
+            ) or sorted(reachable) or sorted(saved)
             self._active_ip = preferred[0] if preferred else None
             self._save_control_config()
         return self._active_ip
@@ -235,6 +470,8 @@ class LightController:
         try:
             ipaddress.ip_address(ip)
         except ValueError:
+            return
+        if self._is_removed_bulb(ip, self._device_mac(ip)):
             return
         self._active_ip = ip
         self.bulb_ips.add(ip)
@@ -366,14 +603,25 @@ class LightController:
     # ------------------------------------------------------------------ #
     # Discovery + probing
     # ------------------------------------------------------------------ #
-    async def _discover(self, *, aggressive: bool = False) -> None:
-        if not self.proto:
-            return
-        if self._scan_lock is None:
-            self._scan_lock = asyncio.Lock()
+    async def _discover(
+        self,
+        *,
+        aggressive: bool = False,
+        scan_claimed: bool = False,
+    ) -> bool:
+        if not scan_claimed and not self._claim_scan(explicit=False):
+            return False
 
-        async with self._scan_lock:
-            try:
+        error: str | None = None
+        pywiz_task: asyncio.Task | None = None
+        try:
+            if not self.proto:
+                error = "El transporte UDP todavía no está disponible"
+                return False
+            if self._scan_lock is None:
+                self._scan_lock = asyncio.Lock()
+
+            async with self._scan_lock:
                 broadcasts = get_broadcast_addresses()
                 local_ip = get_local_ip()
                 self.proto.discovered.clear()
@@ -389,19 +637,55 @@ class LightController:
 
                 await asyncio.sleep(0.25)
 
-                for item in await pywiz_task:
+                try:
+                    pywiz_items = await asyncio.wait_for(
+                        pywiz_task,
+                        timeout=self.PYWIZ_DISCOVERY_TIMEOUT,
+                    )
+                except asyncio.TimeoutError:
+                    pywiz_items = []
+                    _LOG.warning("[Light] pywizlight excedió el timeout de discovery")
+
+                for item in pywiz_items:
                     ip = item.get("ip")
-                    if ip:
-                        prev = self.proto.discovered.get(ip, {})
-                        self.proto.discovered[ip] = {**prev, **item, "seen_at": time.time()}
+                    if not ip or self._is_removed_bulb(ip, item.get("mac")):
+                        continue
+                    prev = self.proto.discovered.get(ip, {})
+                    self.proto.discovered[ip] = {
+                        **prev,
+                        **item,
+                        "seen_at": time.time(),
+                    }
+
+                # Descarta respuestas UDP tardías de dispositivos quitados.
+                for ip, info in list(self.proto.discovered.items()):
+                    if self._is_removed_bulb(ip, info.get("mac")):
+                        self.proto.discovered.pop(ip, None)
+                        self.proto.last_pilot.pop(ip, None)
 
                 candidates = set(self.bulb_ips) | set(self.proto.discovered.keys())
+                candidates = {
+                    ip
+                    for ip in candidates
+                    if not self._is_removed_bulb(ip, self._device_mac(ip))
+                }
 
                 if aggressive or not candidates:
-                    candidates |= await self._scan_subnet()
+                    try:
+                        candidates |= await asyncio.wait_for(
+                            self._scan_subnet(),
+                            timeout=self.SUBNET_SCAN_TIMEOUT,
+                        )
+                    except asyncio.TimeoutError:
+                        _LOG.warning("[Light] El escaneo de subred alcanzó su timeout")
 
                 self._remember_discovered_targets()
-                candidates |= set(self.bulb_ips)
+                candidates |= self._saved_targets()
+                candidates = {
+                    ip
+                    for ip in candidates
+                    if not self._is_removed_bulb(ip, self._device_mac(ip))
+                }
 
                 await self._probe_many(candidates)
                 self._ensure_active_ip()
@@ -409,27 +693,50 @@ class LightController:
 
                 _LOG.info(
                     "[Light] Discovery listo. Guardadas=%d, online=%d, modo=%s, activa=%s",
-                    len(self.bulb_ips),
+                    len(self._saved_targets()),
                     len(self.bulbs),
                     self._target_mode,
                     self._active_ip,
                 )
-                self._fire_callback()
-            except Exception:
-                _LOG.debug("[Light] discovery falló", exc_info=True)
+                return True
+        except asyncio.CancelledError:
+            error = "Búsqueda cancelada"
+            raise
+        except Exception as exc:
+            error = str(exc) or exc.__class__.__name__
+            _LOG.warning("[Light] discovery falló: %s", error, exc_info=True)
+            return False
+        finally:
+            if pywiz_task is not None and not pywiz_task.done():
+                pywiz_task.cancel()
+            self._finish_scan(error)
 
     async def _scan_subnet(self) -> set[str]:
         if not self.proto:
             return set()
 
-        ips = [ip for ip in get_lan_scan_ips(limit=512) if ip not in self.bulb_ips]
+        ips = [
+            ip
+            for ip in get_lan_scan_ips(limit=512)
+            if ip not in self.bulb_ips and not self._is_removed_bulb(ip)
+        ]
         found: set[str] = set()
         sem = asyncio.Semaphore(self.SCAN_CONCURRENCY)
 
         async def check(ip: str) -> None:
             async with sem:
-                res = await self.proto.query(ip, "getSystemConfig", self.loop, self.SCAN_TIMEOUT)
-                if res and (res.get("mac") or res.get("moduleName") or res.get("fwVersion")):
+                res = await self.proto.query(
+                    ip,
+                    "getSystemConfig",
+                    self.loop,
+                    timeout=self.SCAN_TIMEOUT,
+                    retries=0,
+                )
+                if (
+                    res
+                    and not self._is_removed_bulb(ip, res.get("mac"))
+                    and (res.get("mac") or res.get("moduleName") or res.get("fwVersion"))
+                ):
                     found.add(ip)
                     prev = self.proto.discovered.get(ip, {})
                     self.proto.discovered[ip] = {
@@ -457,6 +764,10 @@ class LightController:
 
             mac = info.get("mac")
             module = info.get("moduleName") or info.get("module")
+            if self._is_removed_bulb(ip, mac):
+                self.proto.discovered.pop(ip, None)
+                self.proto.last_pilot.pop(ip, None)
+                continue
             self.bulb_ips.add(ip)
 
             payload: dict[str, Any] = {"ip": ip, "mac": mac, "port": WIZ_PORT}
@@ -468,15 +779,21 @@ class LightController:
 
     async def _probe_many(self, ips: set[str]) -> None:
         sem = asyncio.Semaphore(self.PROBE_CONCURRENCY)
+        allowed = {
+            ip
+            for ip in ips
+            if not self._is_removed_bulb(ip, self._device_mac(ip))
+        }
 
         async def one(ip: str) -> None:
             async with sem:
                 await self._probe(ip)
 
-        await asyncio.gather(*(one(ip) for ip in sorted(ips)), return_exceptions=True)
+        await asyncio.gather(*(one(ip) for ip in sorted(allowed)), return_exceptions=True)
 
     async def _probe(self, ip: str) -> bool:
-        if not self.proto:
+        if not self.proto or self._is_removed_bulb(ip, self._device_mac(ip)):
+            self._purge_device_cache(ip)
             return False
 
         sys_task = asyncio.create_task(
@@ -506,6 +823,9 @@ class LightController:
             or discovered.get("mac")
             or saved_entry.get("mac")
         )
+        if self._is_removed_bulb(ip, mac):
+            self._purge_device_cache(ip)
+            return False
         caps = from_wiz_config(sysc, model, pilot)
         name = saved_entry.get("name")
 
@@ -542,16 +862,16 @@ class LightController:
 
         for ip in order:
             info = self.bulbs.get(ip)
-            if not info:
+            if not info or self._is_removed_bulb(ip, info.get("mac")):
                 continue
             st = info.get("state") or {}
-            for key in ("state", "dimming", "temp", "sceneId", "speed", "r", "g", "b", "ratio"):
+            for key in ("state", "dimming", "temp", "sceneId", "speed", "r", "g", "b", "c", "w", "ratio"):
                 if key in st:
                     self._mirror[key] = st[key]
             break
 
     async def _refresh_async(self) -> None:
-        await self._probe_many(set(self.bulb_ips))
+        await self._probe_many(self._saved_targets())
         self._ensure_active_ip()
         self._seed_mirror_from_first_live_bulb()
         self._fire_callback()
@@ -573,13 +893,21 @@ class LightController:
         ordered: list[str] = []
         if active:
             ordered.append(active)
-        for ip in sorted(self._control_targets() | set(self.bulbs.keys())):
+        live = {
+            ip
+            for ip in self.bulbs.keys()
+            if not self._is_removed_bulb(ip, self._device_mac(ip))
+        }
+        for ip in sorted(self._control_targets() | live):
             if ip and ip not in ordered:
                 ordered.append(ip)
         return ordered[: self._state_sync_max_targets]
 
     def _merge_pilot_state(self, ip: str, pilot: dict[str, Any]) -> bool:
         if not pilot:
+            return False
+        if self._is_removed_bulb(ip, pilot.get("mac") or self._device_mac(ip)):
+            self._purge_device_cache(ip)
             return False
 
         before = self._last_state_signature.get(ip)
@@ -601,17 +929,17 @@ class LightController:
 
         active = self._ensure_active_ip()
         if ip == active or (self._target_mode == "all" and active is None):
-            for key in ("state", "dimming", "temp", "sceneId", "speed", "r", "g", "b", "ratio"):
+            for key in ("state", "dimming", "temp", "sceneId", "speed", "r", "g", "b", "c", "w", "ratio"):
                 if key in pilot:
                     self._mirror[key] = pilot[key]
 
             # Limpiar modos mutuamente excluyentes para que la UI no quede mezclada.
             if "sceneId" in pilot:
-                for k in ("r", "g", "b", "temp"):
+                for k in ("r", "g", "b", "c", "w", "temp"):
                     if k not in pilot:
                         self._mirror.pop(k, None)
             elif "temp" in pilot:
-                for k in ("r", "g", "b", "sceneId", "speed"):
+                for k in ("r", "g", "b", "c", "w", "sceneId", "speed"):
                     if k not in pilot:
                         self._mirror.pop(k, None)
             elif all(k in pilot for k in ("r", "g", "b")):
@@ -665,17 +993,27 @@ class LightController:
     # ------------------------------------------------------------------ #
     # Gestión de ampolletas para Ajustes
     # ------------------------------------------------------------------ #
-    def rescan(self) -> None:
-        self._run_coro(self._discover(aggressive=True))
+    def rescan(self) -> bool:
+        """Inicia una búsqueda explícita sin encolar scans duplicados."""
+        if not self._claim_scan(explicit=True):
+            return False
+        future = self._run_coro(
+            self._discover(aggressive=True, scan_claimed=True)
+        )
+        if future is None:
+            self._finish_scan("El servicio de red todavía no está listo")
+            return False
+        return True
 
-    def add_bulb_manual(self, ip: str) -> None:
+    def add_bulb_manual(self, ip: str) -> bool:
         ip = (ip or "").strip()
         try:
             ipaddress.ip_address(ip)
         except ValueError:
             _LOG.warning("IP inválida: %s", ip)
-            return
+            return False
 
+        self._forget_removed_bulb(ip=ip)
         self.bulb_ips.add(ip)
         self.bulbs_manager.add_bulb({"ip": ip, "mac": None, "port": WIZ_PORT})
         if not self._active_ip:
@@ -684,6 +1022,7 @@ class LightController:
         fut = self._run_coro(self._probe_then_notify(ip))
         if fut is None:
             self._fire_callback()
+        return True
 
     async def _probe_then_notify(self, ip: str) -> None:
         await self._probe(ip)
@@ -696,33 +1035,68 @@ class LightController:
             self.bulbs[ip]["name"] = name
         self._fire_callback()
 
-    def remove_bulb(self, ip: str) -> None:
-        self.bulb_ips.discard(ip)
-        self.bulbs.pop(ip, None)
+    def remove_bulb(self, ip: str) -> bool:
+        """Quita una ampolleta y evita que caches/discovery la revivan.
+
+        La lápida se mantiene entre reinicios. Una búsqueda explícita la limpia,
+        porque «Buscar ampolletas» significa volver a admitir dispositivos LAN.
+        """
+        ip = str(ip or "").strip()
+        try:
+            ipaddress.ip_address(ip)
+        except ValueError:
+            return False
+
+        saved = self.bulbs_manager.get_bulbs()
+        saved_entry = saved.get(ip, {}) if isinstance(saved, dict) else {}
+        live_entry = self.bulbs.get(ip, {})
+        discovered = self.proto.discovered.get(ip, {}) if self.proto else {}
+        mac = (
+            live_entry.get("mac")
+            or discovered.get("mac")
+            or (saved_entry.get("mac") if isinstance(saved_entry, dict) else None)
+        )
+        existed = bool(
+            ip in self.bulb_ips
+            or ip in self.bulbs
+            or (self.proto and (ip in self.proto.discovered or ip in self.proto.last_pilot))
+            or (isinstance(saved, dict) and ip in saved)
+        )
+
+        self._remember_removed_bulb(ip, mac)
+        self._purge_device_cache(ip)
         self.bulbs_manager.remove_bulb(ip)
+
         if self._active_ip == ip:
             self._active_ip = None
             self._ensure_active_ip()
             self._save_control_config()
         self._fire_callback()
+        return existed
 
     def get_bulbs_detailed(self) -> list[dict[str, Any]]:
+        self._prune_removed_protocol_cache()
         saved = self.bulbs_manager.get_bulbs()
         out: list[dict[str, Any]] = []
         target_cfg = self.get_target_config()
+        reachable = self._reachable_targets()
+        candidates = self._saved_targets() | reachable
 
-        for ip in sorted(self.bulb_ips | self._reachable_targets()):
+        for ip in sorted(candidates):
             info = self.bulbs.get(ip, {})
             saved_entry = saved.get(ip, {}) if isinstance(saved, dict) else {}
+            mac = info.get("mac") or saved_entry.get("mac")
+            if self._is_removed_bulb(ip, mac):
+                continue
             caps: Capabilities | None = info.get("caps")
             state = info.get("state") or {}
             out.append(
                 {
                     "ip": ip,
                     "name": info.get("name") or saved_entry.get("name") or ip,
-                    "mac": info.get("mac") or saved_entry.get("mac"),
+                    "mac": mac,
                     "label": caps.label if caps else "—",
-                    "online": ip in self.bulbs or ip in self._reachable_targets(),
+                    "online": ip in self.bulbs or ip in reachable,
                     "active": ip == target_cfg.get("active_ip"),
                     "targeted": ip in set(target_cfg.get("targets", [])),
                     "module": info.get("module") or saved_entry.get("module"),
@@ -810,15 +1184,20 @@ class LightController:
         self._dirty = True
 
     def set_rgb(self, r: int, g: int, b: int) -> None:
-        self._target.update(
-            {
-                "state": True,
-                "r": max(0, min(255, int(r))),
-                "g": max(0, min(255, int(g))),
-                "b": max(0, min(255, int(b))),
-            }
-        )
-        self._drop_mode_keys("temp", "sceneId", "speed", "c", "w", "cw", "ww", "temperature")
+        """Set a logical display sRGB colour using WiZ RGBTW emitters.
+
+        Pastel/near-white colours cannot be reproduced faithfully by driving
+        only the RGB LEDs of an RGBTW bulb.  The WiZ-aware conversion adds the
+        warm-white contribution while the public state preserves the exact sRGB
+        requested by the UI, routines, favourites and tray.
+        """
+
+        logical = normalize_rgb((r, g, b))
+        device = display_rgb_to_wiz_channels(logical)
+        self._logical_rgb = logical
+        self._logical_rgb_device = wiz_channels_signature(device)
+        self._target.update({"state": True, **device})
+        self._drop_mode_keys("temp", "sceneId", "speed", "c", "cw", "ww", "temperature")
         self._mark()
 
     def set_white(self, kelvin: int) -> None:
@@ -869,8 +1248,26 @@ class LightController:
         self._dirty = True
 
     def get_state(self) -> dict[str, Any]:
-        return dict(self._mirror)
+        """Return logical UI state while retaining raw WiZ RGBTW diagnostics."""
 
+        state = dict(self._mirror)
+        if all(key in state for key in ("r", "g", "b")):
+            raw_signature = wiz_channels_signature(state)
+            logical = logical_rgb_from_state(
+                state,
+                last_logical_rgb=getattr(self, "_logical_rgb", None),
+                last_device_signature=getattr(self, "_logical_rgb_device", None),
+            )
+            if logical is not None:
+                state["device_color"] = {
+                    "r": raw_signature[0],
+                    "g": raw_signature[1],
+                    "b": raw_signature[2],
+                    "c": raw_signature[3],
+                    "w": raw_signature[4],
+                }
+                state["r"], state["g"], state["b"] = logical
+        return state
 
     def apply_custom_scene(self, scene: dict[str, Any]) -> None:
         """Aplica una escena personalizada local de la app.
@@ -999,10 +1396,10 @@ class LightController:
         else:
             label = ""
 
-        discovered = len(self.proto.discovered) if self.proto else 0
+        discovered = len(self._reachable_targets()) if self.proto else 0
         target_cfg = self.get_target_config()
         return {
-            "count": len(self.bulb_ips),
+            "count": len(self._saved_targets()),
             "active": len(self.bulbs),
             "discovered": discovered,
             "targets": len(target_cfg.get("targets", [])),

@@ -228,8 +228,20 @@ class WizzApp(ft.Container):
 
     def update_ui(self, state: dict):
         next_state = dict(state or {})
+
+        # Los callbacks de discovery pueden cambiar la lista de dispositivos sin
+        # cambiar el estado luminoso (state/dimming/RGB). Antes se descartaban por
+        # igualdad y Ajustes quedaba con el spinner activo aunque discovery ya
+        # hubiera terminado. Los paneles que dependan de metadata pueden optar a
+        # refrescarse aun cuando el estado de luz sea idéntico.
         if next_state == self._last_state:
+            idx = int(self.selected_index)
+            if 0 <= idx < len(self.panels):
+                panel = self.panels[idx]
+                if bool(getattr(panel, "refresh_on_equal_state", False)):
+                    self._sync_panel(idx, next_state)
             return
+
         self._last_state = next_state
         indices = {0, self.selected_index}
         for idx in indices:

@@ -67,3 +67,30 @@ def test_drag_tracker_rejects_opposite_edge_wrap_without_delta_sources():
     # Sin delta/global no hay evidencia de un recorrido real completo; mantener
     # el último punto evita el flash al borde contrario.
     assert tracker.move(_event(local=(0, 120))) == (290.0, 120.0)
+
+
+def test_drag_tracker_locks_to_edge_outside_and_reenters_smoothly():
+    tracker = DragPositionTracker(300, 300)
+    tracker.begin(_event(local=(150, 150), global_pos=(500, 500)))
+
+    # Fuera por la derecha: local puede envolver, global conserva trayectoria.
+    assert tracker.move(_event(local=(0, 150), global_pos=(900, 500))) == (299.0, 150.0)
+    assert tracker.move(_event(local=(0, 150), global_pos=(980, 500))) == (299.0, 150.0)
+
+    # Al volver a entrar no salta al ancla ni al borde opuesto.
+    assert tracker.move(_event(local=(270, 150), global_pos=(620, 500))) == (270.0, 150.0)
+
+
+def test_drag_tracker_supports_incremental_delta_fallback():
+    tracker = DragPositionTracker(100, 80)
+    tracker.begin(_event(local=(20, 30)))
+    assert tracker.move(_event(local=None, local_delta=(10, 0))) == (30.0, 30.0)
+    assert tracker.move(_event(local=None, local_delta=(10, 0))) == (40.0, 30.0)
+
+
+def test_drag_tracker_cancel_only_finishes_active_gesture_once():
+    tracker = DragPositionTracker(100, 80)
+    tracker.begin(_event(local=(20, 30), global_pos=(200, 300)))
+    tracker.move(_event(local=(99, 30), global_pos=(500, 300)))
+    assert tracker.cancel() == (99.0, 30.0)
+    assert tracker.cancel() is None

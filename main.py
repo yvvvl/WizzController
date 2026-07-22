@@ -31,6 +31,45 @@ _RUNTIME_SHUTDOWN_CALLBACK: Callable[[], None] | None = None
 configure_logging()
 
 
+
+def _dispatch_wiz_state(
+    page: ft.Page,
+    update_ui: Callable[[dict], None],
+    state: dict,
+) -> bool:
+    """Entrega callbacks del hilo WiZ al loop de la sesi?n Flet."""
+
+    snapshot = dict(state or {})
+
+    def apply_state() -> None:
+        _safe(update_ui, snapshot)
+
+        # El callback puede no coincidir con un evento visual de Flet.
+        # Forzamos el env?o del patch desde el propio loop de la p?gina.
+        try:
+            page.update()
+        except Exception:
+            pass
+
+    loop = getattr(page, "loop", None)
+
+    if loop is None:
+        return False
+
+    try:
+        if loop.is_closed():
+            return False
+
+        loop.call_soon_threadsafe(apply_state)
+        return True
+
+    except RuntimeError:
+        # La sesi?n puede estar cerr?ndose.
+        return False
+
+    except Exception:
+        return False
+
 def main(page: ft.Page):
     wiz = None
     hotkeys = None
@@ -116,7 +155,13 @@ def main(page: ft.Page):
             page._wizz_hotkeys = hotkeys
         except Exception:
             pass
-        wiz.set_callback(lambda state: _safe(app.update_ui, state))
+        wiz.set_callback(
+            lambda state: _dispatch_wiz_state(
+                page,
+                app.update_ui,
+                state,
+            )
+        )
 
         page.add(app)
         page.update()

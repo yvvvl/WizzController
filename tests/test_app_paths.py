@@ -57,3 +57,23 @@ def test_json_manager_uses_override_and_atomic_save(monkeypatch, tmp_path):
     assert Path(manager.filepath) == tmp_path / "sample.json"
     assert json.loads((tmp_path / "sample.json").read_text(encoding="utf-8")) == {"value": 2}
     assert not list(tmp_path.glob("*.tmp"))
+
+
+def test_config_managers_merge_independent_keys(monkeypatch, tmp_path):
+    from config.config_manager import ConfigManager
+
+    monkeypatch.setenv("WIZZ_CONFIG_DIR", str(tmp_path))
+    monkeypatch.delenv("FLET_APP_STORAGE_DATA", raising=False)
+    _reset_paths()
+
+    core_config = ConfigManager()
+    color_config = ConfigManager()
+
+    core_config.set("removed_bulbs", [{"ip": "192.168.1.44", "mac": "aabbccddeeff"}])
+    color_config.set("color_picker", {"apply_live": False})
+
+    saved = json.loads((tmp_path / "config.json").read_text(encoding="utf-8"))
+    assert saved["removed_bulbs"] == [
+        {"ip": "192.168.1.44", "mac": "aabbccddeeff"}
+    ]
+    assert saved["color_picker"] == {"apply_live": False}
