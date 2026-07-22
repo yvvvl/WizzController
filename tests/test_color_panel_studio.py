@@ -208,7 +208,7 @@ def test_live_palette_is_throttled_but_final_value_is_forced(panel: ColorPanel) 
     panel._pending = False
     panel.wiz.calls.clear()
     panel._color_gate.interval = 60.0
-    panel._color_gate.last = 0.0
+    panel._color_gate.last = float("-inf")
     geo = panel._palette_geometry
     red = (geo.radius, geo.image_height - geo.radius)
     panel._apply_palette_point(red, emit_live=True, interactive=True, update=False)
