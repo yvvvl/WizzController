@@ -1,69 +1,196 @@
-# WizZ Controller / WizZ Desktop
+<div align="center">
 
-Aplicación de escritorio en **Python + Flet 0.85.2** para controlar ampolletas
-WiZ directamente por LAN, sin depender de la nube para las acciones normales.
+<img src="assets/icon_windows.png" alt="WizZ Desktop" width="112" />
 
-**Versión preparada:** `1.0.0` · build `1`
+# WizZ Desktop
+
+### Control local, rápido y privado para ampolletas WiZ en Windows
+
+[![Release](https://img.shields.io/github/v/release/yvvvl/WizzController?label=release)](https://github.com/yvvvl/WizzController/releases/latest)
+[![CI](https://github.com/yvvvl/WizzController/actions/workflows/ci.yml/badge.svg)](https://github.com/yvvvl/WizzController/actions/workflows/ci.yml)
+[![Windows Build](https://github.com/yvvvl/WizzController/actions/workflows/build-windows.yml/badge.svg)](https://github.com/yvvvl/WizzController/actions/workflows/build-windows.yml)
+[![Python](https://img.shields.io/badge/Python-3.11%20%E2%80%93%203.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Flet](https://img.shields.io/badge/Flet-0.85.2-6C63FF)](https://flet.dev/)
+
+[Descargar última versión](https://github.com/yvvvl/WizzController/releases/latest) · [Reportar un problema](https://github.com/yvvvl/WizzController/issues)
+
+</div>
+
+---
+
+## Qué es WizZ Desktop a
+
+**WizZ Desktop** es una aplicación de escritorio para controlar ampolletas WiZ directamente dentro de la red local.
+
+Las acciones normales se envían por **UDP LAN nativo**, por lo que el control no depende de la nube de WiZ y mantiene una respuesta rápida incluso cuando la conexión a Internet no está disponible.
+
+La aplicación está diseñada para Windows y combina control de iluminación, automatizaciones, hotkeys globales y una interfaz moderna en un único programa portable.
+
+> Versión actual: **v1.0.0 · build 1**
+
+---
 
 ## Funciones principales
 
-- Control WiZ local por UDP (`setPilot`, `getPilot`, `getSystemConfig`).
-- Discovery híbrido: UDP local + `pywizlight` como apoyo.
-- Modo **una ampolleta** o **todas**.
-- Sincronización de estado con cambios externos y la app móvil.
-- Paneles: Inicio, Color Studio, Escenas, Favoritos, Rutinas, Ajustes y Hotkeys.
-- Color Studio con picker HSV, HEX/RGB, recientes, armonías y blancos Kelvin.
-- Rutinas compuestas con color, blanco, brillo, escenas y espera.
-- Hotkeys globales con `RegisterHotKey` nativo y fallback selectivo `keyboard`.
-- Bandeja con encendido, brillo, colores, escenas, favoritos y rutinas.
-- Instancia única con recuperación de ventana y reemplazo de sesión dev zombie.
-- UI responsive desde `720 × 540` hasta pantalla maximizada.
+### Control local WiZ
+
+- Encendido, apagado y alternancia.
+- Brillo independiente mediante `dimming`.
+- Colores RGB.
+- Blancos configurables por temperatura Kelvin.
+- Escenas oficiales WiZ.
+- Sincronización con cambios realizados desde la aplicación móvil.
+- Control de una ampolleta específica o de todas las detectadas.
+
+### Color Studio
+
+- Paleta perceptual de matiz y pureza.
+- Color visible y valor enviado calculados desde la misma fuente.
+- Brillo separado del RGB.
+- Blancos Kelvin separados del modo color.
+- Edición precisa mediante HEX, RGB, H y S.
+- Aplicación en vivo o manual.
+- Colores recientes, favoritos y presets.
+- Conversión del color lógico hacia los canales físicos RGBTW de WiZ.
+- Arrastre fluido con protección de bordes y coordenadas fuera del picker.
+
+### Automatización
+
+- Favoritos para acciones rápidas.
+- Rutinas con múltiples pasos.
+- Acciones compatibles:
+  - color;
+  - blanco;
+  - brillo;
+  - escena;
+  - espera.
+- Ejecución centralizada mediante `ActionSequenceExecutor`.
+
+### Integración con Windows
+
+- Hotkeys globales nativas mediante `RegisterHotKey`.
+- Fallback selectivo usando `keyboard` cuando una combinación está ocupada.
+- System tray con acciones rápidas.
+- Doble clic en el icono de bandeja para mostrar u ocultar la ventana.
+- Cierre a bandeja.
+- Inicio minimizado.
+- Inicio automático con Windows.
+- Instancia única con restauración de la ventana existente.
+
+### Gestión de ampolletas
+
+- Discovery híbrido mediante UDP local y `pywizlight` como apoyo.
+- Búsqueda por broadcast e interfaces de red.
+- Adición manual por IP.
+- Renombrado de dispositivos.
+- Eliminación persistente.
+- Redescubrimiento explícito mediante **Buscar ampolletas**.
+- Protección contra respuestas tardías que puedan volver a registrar un dispositivo eliminado.
+
+---
+
+## Instalación para usuarios
+
+### Requisitos
+
+- Windows 10 u 11 de 64 bits.
+- Una ampolleta WiZ conectada a la misma red local que el PC.
+
+### Pasos
+
+1. Abre la [última release](https://github.com/yvvvl/WizzController/releases/latest).
+2. Descarga `WizZDesktop-v1.0.0-windows-x64.zip`.
+3. Extrae todo el contenido del ZIP.
+4. Ejecuta `WizZDesktop.exe`.
+
+> No ejecutes el programa directamente dentro del ZIP y no separes el `.exe` de las DLL ni de la carpeta `data`.
+
+La descarga incluye un archivo `.sha256` para comprobar la integridad del paquete.
+
+### Verificar SHA-256 en PowerShell
+
+```powershell
+Get-FileHash .\WizZDesktop-v1.0.0-windows-x64.zip -Algorithm SHA256
+```
+
+Compara el resultado con el contenido de:
+
+```text
+WizZDesktop-v1.0.0-windows-x64.zip.sha256
+```
+
+---
+
+## Uso básico
+
+1. Abre **Ajustes**.
+2. Pulsa **Buscar ampolletas**.
+3. Selecciona la ampolleta activa.
+4. Controla la luz desde **Inicio**, **Color** o **Escenas**.
+5. Configura favoritos, rutinas y hotkeys según tu flujo.
+
+Si eliminas una ampolleta, permanecerá fuera de la lista hasta que realices una búsqueda explícita o la agregues nuevamente por IP.
+
+---
 
 ## Desarrollo
+
+### Requisitos
+
+- Python `>=3.11,<3.14`.
+- Flet `0.85.2`.
+- Windows para tray, hotkeys nativas y build final.
+
+### Preparar el entorno
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 python -m pip install -r requirements.txt -r requirements-dev.txt
+```
+
+### Ejecutar en modo desarrollo
+
+```powershell
 python main.py
 ```
 
-Verificación:
+> El modo `python main.py` es útil para desarrollo, pero tray, taskbar, restauración de ventana, iconos y comportamiento final deben validarse también en la build nativa.
+
+### Validar el repositorio
 
 ```powershell
 python -m compileall -q main.py app_meta.py core config ui tests tools
 python -m pytest -q
 ```
 
-O:
+También puedes usar:
 
 ```powershell
 .\scripts\verify_repo.ps1
 ```
 
-> `python main.py` sigue siendo modo de desarrollo. Tray, taskbar, restore,
-> icono y FPS finales deben validarse con la build nativa.
+---
 
-## Build `.exe` de Windows
+## Build nativa para Windows
 
-La build oficial usa `flet build windows`, no PyInstaller. Flet genera una
-aplicación Windows nativa con el runtime Python y los assets empaquetados.
+WizZ Desktop utiliza `flet build windows`; no usa PyInstaller.
 
-Requisitos principales:
+### Requisitos adicionales
 
-- Windows 10/11 x64;
-- Python 3.11 recomendado;
-- Visual Studio 2022 con **Desktop development with C++**;
-- Developer Mode cuando Flutter necesite symlinks.
+- Visual Studio con **Desktop development with C++**.
+- SDK de Windows.
+- Developer Mode cuando Flutter requiera crear enlaces simbólicos.
 
-Comando:
+### Generar la build
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 .\scripts\build_windows.ps1 -Clean
 ```
 
-Salidas:
+### Salidas
 
 ```text
 dist/windows/WizZDesktop.exe
@@ -72,133 +199,131 @@ dist/release/WizZDesktop-v1.0.0-windows-x64.zip
 dist/release/WizZDesktop-v1.0.0-windows-x64.zip.sha256
 ```
 
-El EXE necesita los archivos que Flet genera junto a él. La primera distribución
-se entrega como ZIP completo.
-
-Prueba rápida de la build:
+### Smoke test
 
 ```powershell
 .\scripts\test_windows_build.ps1 -LaunchSecondInstance
 ```
 
-Guía detallada:
+La guía completa está en [`docs/WINDOWS_BUILD.md`](docs/WINDOWS_BUILD.md).
 
-```text
-docs/WINDOWS_BUILD.md
-```
+---
 
-El workflow **Build Windows** genera el artifact desde un runner Windows al
-subir una rama `release/**`, al ejecutar manualmente el workflow o al crear un
-tag `v*`.
+## Datos y privacidad
 
-## Datos persistentes
+WizZ Desktop no necesita una cuenta propia ni una base de datos remota para controlar las luces por LAN.
 
-En desarrollo, los JSON reales viven en:
+En desarrollo, los archivos locales viven en:
 
 ```text
 config/json/
 ```
 
-En el ejecutable, WizZ usa `FLET_APP_STORAGE_DATA`, el directorio persistente que
-Flet conserva entre actualizaciones. Allí se guardan:
+En el ejecutable, configuraciones y logs se guardan en el almacenamiento persistente asignado por Flet.
+
+Puedes abrir las ubicaciones reales desde:
 
 ```text
-config/*.json
-logs/wizz.log
+Ajustes → Acerca de → Datos
+Ajustes → Acerca de → Logs
 ```
 
-La ubicación exacta se abre desde **Ajustes → Acerca de → Datos/Logs**. Al primer
-arranque empaquetado, WizZ puede migrar los JSON de desarrollo si encuentra el
-repositorio y el storage nuevo está vacío.
+Los JSON personales no se versionan porque pueden contener:
 
-Los JSON reales no se versionan porque pueden contener IP, MAC y hotkeys. Los
-archivos `config/json/*.example.json` son ejemplos seguros.
+- direcciones IP;
+- direcciones MAC;
+- hotkeys;
+- preferencias locales.
 
-## Color Studio
+El repositorio conserva únicamente archivos `*.example.json` seguros.
 
-El panel Color incluye:
+---
+
+## Arquitectura
 
 ```text
-picker HSV visual calibrado
-barra de matiz
-HEX/RGB exacto
-modo aplicar en vivo
-recientes persistentes
-armonías y paletas inteligentes
-moods visuales
-blancos por Kelvin
-favoritos rápidos
+UI / Tray / Hotkeys / Favoritos / Rutinas
+                    │
+                    ▼
+         ActionSequenceExecutor
+                    │
+                    ▼
+             LightController
+                    │
+                    ▼
+          UDP LAN nativo WiZ :38899
 ```
 
-El brillo se mantiene separado del color RGB porque WiZ usa `dimming` como canal
-propio. Los arrastres usan throttle y protección de coordenadas para alcanzar
-0%/100% sin saltar al borde opuesto.
+Principios del proyecto:
 
-Checklist responsive y visual:
+- control local como camino principal;
+- `setPilot` fire-and-forget para baja latencia;
+- lectura y verificación fuera del hot path;
+- una sola capa de ejecución para acciones;
+- configuración persistente y segura ante escrituras concurrentes;
+- UI optimizada para evitar repaints innecesarios.
+
+---
+
+## Estructura del repositorio
 
 ```text
-docs/RESPONSIVE_UI_TEST.md
+app_meta.py   Metadatos, versión e identificadores del producto
+core/         WiZ, acciones, hotkeys, tray, instancia única y logging
+config/       Configuración persistente y managers JSON
+ui/           Aplicación y componentes Flet
+assets/       Iconos y recursos visuales
+docs/         Guías y checklists
+scripts/      Verificación y build de Windows
+tools/        Diagnósticos y probes
+tests/        Pruebas de core, UI, runtime y packaging
 ```
 
-## Hotkeys
+---
 
-En Windows se usa primero `RegisterHotKey`. Si solo una combinación está ocupada,
-las demás permanecen nativas y únicamente esa combinación usa el fallback.
+## Diagnóstico
 
-Ejemplos recomendados:
-
-```text
-ctrl+alt+l
-ctrl+alt+up
-ctrl+alt+down
-shift+f8
-```
-
-Combinaciones bloqueadas:
-
-```text
-alt+tab
-alt+f4
-win+l
-ctrl+alt+del
-ctrl+shift+esc
-```
-
-Diagnóstico sin abrir la UI:
+### Hotkeys y runtime de escritorio
 
 ```powershell
 python tools/desktop_selftest.py
-python tools/desktop_selftest.py --register-test ctrl+alt+shift+f12 --seconds 10
-python tools/desktop_selftest.py --listen-current --seconds 15
 python tools/desktop_runtime_probe.py
 ```
 
-## Git y release
+### Pipeline de color WiZ
 
-La fase v1 debe trabajarse en una rama de release con commits pequeños, tests
-verdes y un smoke test del artifact antes de crear el tag final. La guía segura para conectar el repositorio, crear rama, hacer commits,
-push y tag está en:
-
-```text
-docs/GIT_RELEASE_WORKFLOW.md
+```powershell
+python tools/wiz_color_probe.py --hex FFAD9E
 ```
 
-Repositorio:
+### Eliminación activa de ampolletas
 
-```text
-https://github.com/yvvvl/WizzController
+```powershell
+python tools/probe_remove_active_bulb.py --ip 192.168.1.4
 ```
 
-## Estructura
+---
 
-```text
-app_meta.py  nombre, versión e identificadores de producto
-core/        WiZ, secuencias, hotkeys, instancia única, tray y logging
-config/      managers JSON y rutas persistentes
-ui/          aplicación y paneles Flet
-assets/      iconos y recursos visuales
-docs/        checklists y guías de release
-scripts/     verificación y build Windows
-tools/       utilidades de diagnóstico
-tests/       regresiones del core, UI y packaging
-```
+## Estado del proyecto
+
+La versión `v1.0.0` representa la primera release estable y portable para Windows x64.
+
+El proyecto cuenta con pruebas automatizadas para:
+
+- control y targeting;
+- Color Studio;
+- pipeline RGBTW;
+- persistencia concurrente;
+- eliminación y redescubrimiento;
+- responsive UI;
+- hotkeys;
+- tray e instancia única;
+- packaging de Windows.
+
+---
+
+## Autor
+
+Desarrollado por **Ignacio** (`yvvvl`).
+
+Proyecto construido como una aplicación personal de escritorio para control local de iluminación WiZ.
