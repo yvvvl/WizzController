@@ -14,6 +14,7 @@ import time
 from typing import Any, Callable
 
 import flet as ft
+from localization import LocalizationManager
 
 from config.config_manager import ConfigManager
 from config.controller_settings_manager import ControllerSettingsManager
@@ -103,6 +104,7 @@ class ColorPanel(ft.Column):
     def __init__(self, wiz: Any, *args: Any, **kwargs: Any) -> None:
         super().__init__(scroll=ft.ScrollMode.AUTO, spacing=18, expand=True)
         self.wiz = wiz
+        self.i18n = kwargs.pop("i18n", None) or LocalizationManager(preference="es")
         self.executor = ActionSequenceExecutor(wiz)
         self.favorites = FavoritesManager()
         self._navigate: Callable[..., Any] | None = (
@@ -180,15 +182,37 @@ class ColorPanel(ft.Column):
         self._install_compatibility_aliases()
         self._refresh_all(update=False)
 
+    def _t(self, key: str, **values) -> str:
+        return self.i18n.translate(key, **values)
+
+    def _white_name(self, kelvin: int) -> str:
+        raw = white_label(kelvin)
+        key = {
+            "Vela": "white.name.candle",
+            "Cálido": "white.name.warm",
+            "Hogar": "white.name.home",
+            "Neutro": "white.name.neutral",
+            "Día": "white.name.daylight",
+            "Frío": "white.name.cool",
+        }.get(raw)
+        return self._t(key) if key else raw
+
+    def set_language(self, language: str | None = None) -> None:
+        self._build()
+        self._install_compatibility_aliases()
+        self._refresh_all(update=False)
+        if mounted(self):
+            supdate(self)
+
     # ------------------------------------------------------------------
     # Construction
     # ------------------------------------------------------------------
     def _build(self) -> None:
         header_copy = ft.Column(
             [
-                ft.Text("Color Studio", style=Theme.H1),
+                ft.Text(self._t("color_studio.title"), style=Theme.H1),
                 ft.Text(
-                    "Color puro, blancos Kelvin y brillo independiente",
+                    self._t("color_studio.subtitle"),
                     color=Theme.MUTED,
                     size=13,
                 ),
@@ -196,7 +220,7 @@ class ColorPanel(ft.Column):
             spacing=2,
         )
         header_save = ft.OutlinedButton(
-            "Guardar actual",
+            self._t("color_studio.save_current"),
             icon=ft.Icons.STAR_BORDER_ROUNDED,
             style=ft.ButtonStyle(
                 color=Theme.TEXT,
@@ -229,7 +253,7 @@ class ColorPanel(ft.Column):
         self.preview_title = ft.Text(size=20, weight=ft.FontWeight.BOLD)
         self.preview_subtitle = ft.Text(size=12, weight=ft.FontWeight.W_500)
         self.preview_mode = self._status_chip("RGB", ft.Icons.PALETTE_ROUNDED)
-        self.preview_pending = self._status_chip("En vivo", ft.Icons.BOLT_ROUNDED)
+        self.preview_pending = self._status_chip(self._t("color_studio.live"), ft.Icons.BOLT_ROUNDED)
         self.preview = ft.Container(
             height=126,
             padding=ft.Padding.symmetric(horizontal=22, vertical=18),
@@ -256,9 +280,9 @@ class ColorPanel(ft.Column):
         )
 
         self.mode_buttons: dict[str, ft.Container] = {
-            "color": self._mode_button("color", "Color", ft.Icons.PALETTE_ROUNDED),
-            "white": self._mode_button("white", "Blanco", ft.Icons.LIGHT_MODE_ROUNDED),
-            "precise": self._mode_button("precise", "Preciso", ft.Icons.TUNE_ROUNDED),
+            "color": self._mode_button("color", self._t("color_studio.color"), ft.Icons.PALETTE_ROUNDED),
+            "white": self._mode_button("white", self._t("color_studio.white"), ft.Icons.LIGHT_MODE_ROUNDED),
+            "precise": self._mode_button("precise", self._t("color_studio.precise"), ft.Icons.TUNE_ROUNDED),
         }
         self.mode_row = ft.Row(
             list(self.mode_buttons.values()),
@@ -303,7 +327,7 @@ class ColorPanel(ft.Column):
         self.recent_card = self._card(
             ft.Column(
                 [
-                    self._section_header("RECIENTES", "últimos colores y blancos aplicados"),
+                    self._section_header(self._t("color_studio.recent_section"), self._t("color_studio.recent_subtitle")),
                     self.recent_row,
                 ],
                 spacing=12,
@@ -315,8 +339,8 @@ class ColorPanel(ft.Column):
         favorite_header_controls: list[ft.Control] = [
             ft.Container(
                 content=self._section_header(
-                    "FAVORITOS RÁPIDOS",
-                    "accesos guardados en WizZ",
+                    self._t("color_studio.favorites_section"),
+                    self._t("color_studio.favorites_subtitle"),
                 ),
                 col={"xs": 12, "sm": 8} if self._navigate is not None else 12,
             )
@@ -325,7 +349,7 @@ class ColorPanel(ft.Column):
             favorite_header_controls.append(
                 ft.Container(
                     content=ft.TextButton(
-                        "Ver todos",
+                        self._t("color_studio.view_all"),
                         icon=ft.Icons.OPEN_IN_NEW_ROUNDED,
                         on_click=lambda e: self._go_favorites(),
                     ),
@@ -421,8 +445,8 @@ class ColorPanel(ft.Column):
             [
                 ft.Container(
                     content=self._section_header(
-                        "PALETA HUE / PUREZA",
-                        "horizontal: matiz · vertical: pureza perceptual · sin negro",
+                        self._t("color_studio.palette_section"),
+                        self._t("color_studio.palette_subtitle"),
                     ),
                     col={"xs": 12, "md": 9},
                 ),
@@ -440,7 +464,7 @@ class ColorPanel(ft.Column):
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
         )
         self.palette_axis_hint = ft.Text(
-            "↑ blanco / pastel   ·   ↓ color puro",
+            self._t("color_studio.palette_hint"),
             color=Theme.FAINT,
             size=10,
             text_align=ft.TextAlign.CENTER,
@@ -452,7 +476,7 @@ class ColorPanel(ft.Column):
                 self.palette_meta,
                 self.palette_axis_hint,
                 ft.Divider(height=1, color=Theme.STROKE),
-                self._section_header("COLORES RÁPIDOS", "colores limpios al 100%"),
+                self._section_header(self._t("color_studio.quick_colors"), self._t("color_studio.quick_subtitle")),
                 self.quick_color_row,
             ],
             spacing=13,
@@ -497,7 +521,7 @@ class ColorPanel(ft.Column):
         )
         self.cct_label = ft.Text(color=Theme.TEXT, weight=ft.FontWeight.BOLD, size=13)
         self.cct_range_label = ft.Text(
-            f"Rango detectado: {self._kelvin_min}K – {self._kelvin_max}K",
+            self._t("color_studio.detected_range", minimum=self._kelvin_min, maximum=self._kelvin_max),
             color=Theme.FAINT,
             size=11,
         )
@@ -509,8 +533,8 @@ class ColorPanel(ft.Column):
         self.white_section = ft.Column(
             [
                 self._section_header(
-                    "BLANCOS CCT",
-                    "temperatura real WiZ, independiente del RGB",
+                    self._t("color_studio.cct_section"),
+                    self._t("color_studio.cct_subtitle"),
                 ),
                 ft.Row([self.cct_stack], alignment=ft.MainAxisAlignment.CENTER),
                 ft.ResponsiveRow(
@@ -559,7 +583,7 @@ class ColorPanel(ft.Column):
         )
         self.precise_note = ft.Text(color=Theme.FAINT, size=11)
         self.precise_apply = ft.FilledButton(
-            "Usar valores",
+            self._t("color_studio.use_values"),
             icon=ft.Icons.CHECK_ROUNDED,
             style=ft.ButtonStyle(bgcolor=Theme.PRIMARY, color="white"),
             on_click=self._on_precise_submit,
@@ -567,8 +591,8 @@ class ColorPanel(ft.Column):
         self.precise_section = ft.Column(
             [
                 self._section_header(
-                    "CONTROL PRECISO",
-                    "RGB exacto se conserva hasta volver a tocar la paleta",
+                    self._t("color_studio.precise_section"),
+                    self._t("color_studio.precise_subtitle"),
                 ),
                 self.precise_fields,
                 self.precise_note,
@@ -601,7 +625,7 @@ class ColorPanel(ft.Column):
                 [
                     ft.Row(
                         [
-                            self._section_header("BRILLO", "dimming real de la ampolleta"),
+                            self._section_header(self._t("home.brightness_section"), self._t("color_studio.brightness_subtitle")),
                             ft.Container(expand=True),
                             self.brightness_value,
                         ],
@@ -637,7 +661,7 @@ class ColorPanel(ft.Column):
         )
         self.pending_text = ft.Text(color=Theme.FAINT, size=11)
         self.apply_button = ft.FilledButton(
-            "Aplicar",
+            self._t("common.apply"),
             icon=ft.Icons.CHECK_ROUNDED,
             style=ft.ButtonStyle(bgcolor=Theme.PRIMARY, color="white"),
             on_click=lambda e: self._apply_current(manual=True),
@@ -649,9 +673,9 @@ class ColorPanel(ft.Column):
         )
         apply_copy = ft.Column(
             [
-                ft.Text("APLICACIÓN", style=Theme.LABEL),
+                ft.Text(self._t("color_studio.apply_section"), style=Theme.LABEL),
                 ft.Text(
-                    "envío inmediato con throttle seguro",
+                    self._t("color_studio.apply_subtitle"),
                     color=Theme.FAINT,
                     size=11,
                 ),
@@ -660,7 +684,7 @@ class ColorPanel(ft.Column):
         )
         apply_toggle = ft.Row(
             [
-                ft.Text("Aplicar en vivo", color=Theme.TEXT, size=12),
+                ft.Text(self._t("color_studio.live_apply"), color=Theme.TEXT, size=12),
                 self.live_switch,
             ],
             spacing=8,
@@ -789,18 +813,50 @@ class ColorPanel(ft.Column):
         )
 
     def _quick_color(self, name: str, value: str) -> ft.Container:
+        key = {
+            "Rojo": "color.name.red",
+            "Naranjo": "color.name.orange",
+            "Amarillo": "color.name.yellow",
+            "Lima": "color.name.lime",
+            "Verde": "color.name.green",
+            "Cian": "color.name.cyan",
+            "Celeste": "color.name.sky",
+            "Azul": "color.name.blue",
+            "Violeta": "color.name.violet",
+            "Magenta": "color.name.magenta",
+            "Rosa": "color.name.pink",
+        }.get(name)
+        display_name = self._t(key) if key else name
         return ft.Container(
             col={"xs": 3, "sm": 2, "md": 1.5},
             height=46,
             border_radius=23,
             bgcolor=value,
             border=ft.Border.all(2, ft.Colors.with_opacity(0.25, "white")),
-            tooltip=f"{name} · {value.upper()}",
+            tooltip=f"{display_name} · {value.upper()}",
             ink=True,
             on_click=lambda e, color=value: self._select_exact_rgb(parse_hex_color(color), source="preset"),
         )
 
     def _white_preset(self, kelvin: int, label: str, subtitle: str) -> ft.Container:
+        label_key = {
+            "Vela": "white.name.candle",
+            "Cálido": "white.name.warm",
+            "Hogar": "white.name.home",
+            "Neutro": "white.name.neutral",
+            "Día": "white.name.daylight",
+            "Frío": "white.name.cool",
+        }.get(label)
+        subtitle_key = {
+            "muy cálido": "white.note.very_warm",
+            "relax": "white.note.relax",
+            "suave": "white.note.soft",
+            "diario": "white.note.daily",
+            "foco": "white.note.focus",
+            "energía": "white.note.energy",
+        }.get(subtitle)
+        display_label = self._t(label_key) if label_key else label
+        display_subtitle = self._t(subtitle_key) if subtitle_key else subtitle
         disabled = kelvin < self._kelvin_min or kelvin > self._kelvin_max
         color = rgb_to_hex(kelvin_to_rgb(kelvin))
         return ft.Container(
@@ -815,8 +871,8 @@ class ColorPanel(ft.Column):
             content=ft.Column(
                 [
                     ft.Icon(ft.Icons.LIGHT_MODE_ROUNDED, color=color, size=18),
-                    ft.Text(label, color=Theme.TEXT, size=11, weight=ft.FontWeight.BOLD),
-                    ft.Text(subtitle, color=Theme.FAINT, size=9),
+                    ft.Text(display_label, color=Theme.TEXT, size=11, weight=ft.FontWeight.BOLD),
+                    ft.Text(display_subtitle, color=Theme.FAINT, size=9),
                 ],
                 spacing=1,
                 alignment=ft.MainAxisAlignment.CENTER,
@@ -919,9 +975,9 @@ class ColorPanel(ft.Column):
                         child.color = foreground
 
         if self.mode == "white":
-            self.preview_title.value = f"Blanco {self.temp_kelvin}K"
-            self.preview_subtitle.value = f"{white_label(self.temp_kelvin)} · Brillo {self.dimming}%"
-            self._set_chip(self.preview_mode, "BLANCO", ft.Icons.LIGHT_MODE_ROUNDED)
+            self.preview_title.value = self._t("color_studio.white_value", kelvin=self.temp_kelvin)
+            self.preview_subtitle.value = f"{self._white_name(self.temp_kelvin)} · Brillo {self.dimming}%"
+            self._set_chip(self.preview_mode, self._t("color_studio.mode_white"), ft.Icons.LIGHT_MODE_ROUNDED)
         else:
             hue, saturation, value = rgb_to_hsv(self._current_rgb())
             self.preview_title.value = f"RGB {rgb_to_hex(self._current_rgb(), upper=True)}"
@@ -941,11 +997,11 @@ class ColorPanel(ft.Column):
             self._set_chip(self.preview_mode, "RGB", ft.Icons.PALETTE_ROUNDED)
 
         if self._live_enabled():
-            self._set_chip(self.preview_pending, "En vivo", ft.Icons.BOLT_ROUNDED)
+            self._set_chip(self.preview_pending, self._t("color_studio.live"), ft.Icons.BOLT_ROUNDED)
         elif self._pending:
-            self._set_chip(self.preview_pending, "Pendiente", ft.Icons.EDIT_ROUNDED)
+            self._set_chip(self.preview_pending, self._t("color_studio.pending"), ft.Icons.EDIT_ROUNDED)
         else:
-            self._set_chip(self.preview_pending, "Aplicado", ft.Icons.CHECK_ROUNDED)
+            self._set_chip(self.preview_pending, self._t("color_studio.applied"), ft.Icons.CHECK_ROUNDED)
 
     def _refresh_palette(self, *, interactive: bool) -> None:
         left, top = self._palette_geometry.hue_purity_to_thumb_left_top(
@@ -962,7 +1018,7 @@ class ColorPanel(ft.Column):
         self.palette_hex_label.value = rgb_to_hex(self._current_rgb(), upper=True)
         if not interactive:
             self.palette_hex_label.tooltip = (
-                "RGB exacto preservado" if self._exact_rgb is not None else "RGB directo · brillo separado"
+                self._t("color_studio.exact_preserved") if self._exact_rgb is not None else self._t("color_studio.direct_rgb")
             )
 
     def _refresh_cct(self) -> None:
@@ -970,7 +1026,7 @@ class ColorPanel(ft.Column):
         self.cct_thumb.left = self._cct_geometry.ratio_to_thumb_left(ratio)
         self.cct_thumb.top = self._cct_geometry.thumb_top
         self.cct_thumb.bgcolor = rgb_to_hex(kelvin_to_rgb(self.temp_kelvin))
-        self.cct_label.value = f"{self.temp_kelvin}K · {white_label(self.temp_kelvin)}"
+        self.cct_label.value = f"{self.temp_kelvin}K · {self._white_name(self.temp_kelvin)}"
 
     def _refresh_precise_fields(self) -> None:
         self._refreshing_fields = True
@@ -990,7 +1046,7 @@ class ColorPanel(ft.Column):
                 )
                 self.precise_note.color = Theme.WARNING
             else:
-                self.precise_note.value = "La paleta genera RGB directo con pureza perceptual; usa Brillo para la intensidad."
+                self.precise_note.value = self._t("color_studio.palette_note")
                 self.precise_note.color = Theme.FAINT
         finally:
             self._refreshing_fields = False
@@ -1004,14 +1060,14 @@ class ColorPanel(ft.Column):
         self.apply_row.visible = not live
         self.apply_button.disabled = not self._pending
         if live:
-            self.pending_text.value = "Los cambios visuales se envían con throttle; el drag no satura la LAN."
+            self.pending_text.value = self._t("color_studio.live_hint")
             self.pending_text.color = Theme.FAINT
         elif self._pending:
             suffix = f": {self._pending_reason}" if self._pending_reason else ""
             self.pending_text.value = f"Cambios pendientes{suffix}."
             self.pending_text.color = Theme.WARNING
         else:
-            self.pending_text.value = "No hay cambios pendientes."
+            self.pending_text.value = self._t("color_studio.no_pending_changes")
             self.pending_text.color = Theme.FAINT
 
     def _set_chip(self, chip: ft.Container, text: str, icon: Any) -> None:
@@ -1440,7 +1496,7 @@ class ColorPanel(ft.Column):
                 self._remember_current()
         except Exception as exc:
             self._last_error = str(exc)
-            self.precise_note.value = f"No se pudo aplicar: {exc}"
+            self.precise_note.value = self._t("color_studio.apply_error", error=exc)
             self.precise_note.color = Theme.ERROR
             self._batch_update(self.precise_note)
 
@@ -1493,7 +1549,7 @@ class ColorPanel(ft.Column):
             self._batch_update(self.apply_card, self.preview, self.recent_card)
         except Exception as exc:  # pragma: no cover - hardware/runtime failure
             self._last_error = str(exc)
-            self.pending_text.value = f"No se pudo aplicar: {exc}"
+            self.pending_text.value = self._t("color_studio.apply_error", error=exc)
             self.pending_text.color = Theme.ERROR
             self._batch_update(self.pending_text)
 
@@ -1590,7 +1646,7 @@ class ColorPanel(ft.Column):
                 ft.Container(
                     col=12,
                     content=ft.Text(
-                        "Aún no hay colores recientes. Aplica uno para guardarlo aquí.",
+                        self._t("color_studio.recents_empty"),
                         color=Theme.FAINT,
                         size=11,
                     ),
@@ -1603,7 +1659,7 @@ class ColorPanel(ft.Column):
         try:
             if self.mode == "white":
                 self.favorites.add_favorite(
-                    f"Blanco {self.temp_kelvin}K",
+                    self._t("color_studio.white_value", kelvin=self.temp_kelvin),
                     "white",
                     int(self.temp_kelvin),
                     "LIGHT_MODE",
@@ -1625,7 +1681,7 @@ class ColorPanel(ft.Column):
         for favorite in favorites:
             kind = str(favorite.get("type") or "")
             value = favorite.get("value")
-            name = str(favorite.get("name") or "Favorito")
+            name = str(favorite.get("name") or self._t("color_studio.favorite_default"))
             if kind == "rgb":
                 try:
                     rgb = parse_hex_color(str(value))
@@ -1657,7 +1713,7 @@ class ColorPanel(ft.Column):
                 ft.Container(
                     col=12,
                     content=ft.Text(
-                        "Guarda el color actual para crear accesos rápidos.",
+                        self._t("color_studio.favorites_empty"),
                         color=Theme.FAINT,
                         size=11,
                     ),
@@ -1719,7 +1775,7 @@ class ColorPanel(ft.Column):
         return rgb_to_hex(hue_saturation_to_rgb(self.hue, 1.0))
 
     def _white_label(self) -> str:
-        return f"{self.temp_kelvin}K · {white_label(self.temp_kelvin)}"
+        return f"{self.temp_kelvin}K · {self._white_name(self.temp_kelvin)}"
 
     def _kelvin_to_pct(self, kelvin: int) -> float:
         return kelvin_to_ratio(kelvin, self._kelvin_min, self._kelvin_max) * 100.0

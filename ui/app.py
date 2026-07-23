@@ -42,8 +42,8 @@ class WizzApp(ft.Container):
         self._rail_width = 92.0
 
         self.panels = [
-            HomePanel(self.wiz),
-            ColorPanel(self.wiz),
+            HomePanel(self.wiz, i18n=self.i18n),
+            ColorPanel(self.wiz, i18n=self.i18n),
             ScenesPanel(self.wiz),
             FavoritesPanel(self.wiz),
             RoutinesPanel(self.wiz),
