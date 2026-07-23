@@ -327,3 +327,22 @@ El proyecto cuenta con pruebas automatizadas para:
 Desarrollado por **Ignacio** (`yvvvl`).
 
 Proyecto construido como una aplicación personal de escritorio para control local de iluminación WiZ.
+
+
+---
+
+## Acknowledgements
+
+WizZ Desktop uses:
+
+- `pywizlight` by Stephan Traub and contributors.
+
+See:
+
+- `THIRD_PARTY_NOTICES.md`
+- `licenses/pywizlight-LICENSE.txt`
+
+for license information.
+
+WizZ Desktop is an independent community project and is not
+affiliated with WiZ Connected or Signify.
