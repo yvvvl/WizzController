@@ -125,11 +125,11 @@ def test_scene_speed_is_only_visible_for_dynamic_wiz_scenes(
         {"type": "scene", "value": {"sceneId": 18, "speed": 100}}
     )
     panel._render_editor_mode(editor, "scene", state, lambda: None)
-    assert _control(editor, "favorites-scene-speed-section").visible is False
+    assert "favorites-scene-speed-section" not in _keys(editor)
 
     state["scene_source"] = "wiz:1"
     panel._render_editor_mode(editor, "scene", state, lambda: None)
-    assert _control(editor, "favorites-scene-speed-section").visible is True
+    assert "favorites-scene-speed-section" in _keys(editor)
 
 
 def test_custom_scene_is_listed_and_saved_as_a_compatible_favorite(
