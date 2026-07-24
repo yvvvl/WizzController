@@ -14,7 +14,7 @@ import time
 from typing import Any, Callable
 
 import flet as ft
-from localization import LocalizationManager
+from localization import LocalizationManager, translated_favorite_name
 
 from config.config_manager import ConfigManager
 from config.controller_settings_manager import ControllerSettingsManager
@@ -603,7 +603,7 @@ class ColorPanel(ft.Column):
 
     def _build_brightness_controls(self) -> None:
         self.brightness_value = ft.Text(
-            f"{self.dimming}%",
+            self._t("common.percent_value", value=self.dimming),
             color=Theme.TEXT,
             size=18,
             weight=ft.FontWeight.BOLD,
@@ -833,7 +833,7 @@ class ColorPanel(ft.Column):
             border_radius=23,
             bgcolor=value,
             border=ft.Border.all(2, ft.Colors.with_opacity(0.25, "white")),
-            tooltip=f"{display_name} · {value.upper()}",
+            tooltip=self._t("color_studio.preset_tooltip", name=display_name, value=value.upper()),
             ink=True,
             on_click=lambda e, color=value: self._select_exact_rgb(parse_hex_color(color), source="preset"),
         )
@@ -867,7 +867,7 @@ class ColorPanel(ft.Column):
             bgcolor=ft.Colors.with_opacity(0.12, color),
             border=ft.Border.all(1, ft.Colors.with_opacity(0.45, color)),
             opacity=0.42 if disabled else 1.0,
-            tooltip=f"{kelvin}K",
+            tooltip=self._t("common.kelvin_value", value=kelvin),
             content=ft.Column(
                 [
                     ft.Icon(ft.Icons.LIGHT_MODE_ROUNDED, color=color, size=18),
@@ -976,20 +976,31 @@ class ColorPanel(ft.Column):
 
         if self.mode == "white":
             self.preview_title.value = self._t("color_studio.white_value", kelvin=self.temp_kelvin)
-            self.preview_subtitle.value = f"{self._white_name(self.temp_kelvin)} · Brillo {self.dimming}%"
+            self.preview_subtitle.value = self._t(
+                "color_studio.white_detail",
+                name=self._white_name(self.temp_kelvin),
+                brightness=self.dimming,
+            )
             self._set_chip(self.preview_mode, self._t("color_studio.mode_white"), ft.Icons.LIGHT_MODE_ROUNDED)
         else:
             hue, saturation, value = rgb_to_hsv(self._current_rgb())
             self.preview_title.value = f"RGB {rgb_to_hex(self._current_rgb(), upper=True)}"
             if self._exact_rgb is None:
-                detail = (
-                    f"H {round(self.hue % 360)}° · Pureza {round(self.purity * 100)}% "
-                    f"· Brillo {self.dimming}%"
+                detail = self._t(
+                    "color_studio.hue_purity",
+                    hue=round(self.hue % 360),
+                    purity=round(self.purity * 100),
+                    brightness=self.dimming,
                 )
             else:
                 detail = (
-                    f"H {round(hue)}° · S {round(saturation * 100)}% "
-                    f"· Brillo {self.dimming}% · RGB exacto"
+                    self._t(
+                        "color_studio.hue_saturation",
+                        hue=round(hue),
+                        saturation=round(saturation * 100),
+                    )
+                    + " · "
+                    + self._t("color_studio.brightness_value", value=self.dimming)
                 )
                 if value < 0.995:
                     detail += f" · V {round(value * 100)}%"
@@ -1012,8 +1023,10 @@ class ColorPanel(ft.Column):
         self.palette_thumb.top = top
         pure_rgb = hue_purity_to_rgb(self.hue, self.purity)
         self.palette_thumb.bgcolor = rgb_to_hex(pure_rgb)
-        self.palette_hs_label.value = (
-            f"H {round(self.hue % 360)}° · Pureza {round(self.purity * 100)}%"
+        self.palette_hs_label.value = self._t(
+            "color_studio.hue_purity_short",
+            hue=round(self.hue % 360),
+            purity=round(self.purity * 100),
         )
         self.palette_hex_label.value = rgb_to_hex(self._current_rgb(), upper=True)
         if not interactive:
@@ -1026,7 +1039,11 @@ class ColorPanel(ft.Column):
         self.cct_thumb.left = self._cct_geometry.ratio_to_thumb_left(ratio)
         self.cct_thumb.top = self._cct_geometry.thumb_top
         self.cct_thumb.bgcolor = rgb_to_hex(kelvin_to_rgb(self.temp_kelvin))
-        self.cct_label.value = f"{self.temp_kelvin}K · {self._white_name(self.temp_kelvin)}"
+        self.cct_label.value = self._t(
+            "color_studio.cct_detail",
+            kelvin=self.temp_kelvin,
+            name=self._white_name(self.temp_kelvin),
+        )
 
     def _refresh_precise_fields(self) -> None:
         self._refreshing_fields = True
@@ -1040,9 +1057,9 @@ class ColorPanel(ft.Column):
             self.h_field.value = str(round(hue, 1)).rstrip("0").rstrip(".")
             self.s_field.value = str(round(saturation * 100, 1)).rstrip("0").rstrip(".")
             if self._exact_rgb is not None and value < 0.995:
-                self.precise_note.value = (
-                    f"RGB exacto conservado (valor {round(value * 100)}%). "
-                    "Al tocar la paleta volverá al modelo perceptual con brillo separado."
+                self.precise_note.value = self._t(
+                    "color_studio.exact_note",
+                    value=round(value * 100),
                 )
                 self.precise_note.color = Theme.WARNING
             else:
@@ -1063,8 +1080,7 @@ class ColorPanel(ft.Column):
             self.pending_text.value = self._t("color_studio.live_hint")
             self.pending_text.color = Theme.FAINT
         elif self._pending:
-            suffix = f": {self._pending_reason}" if self._pending_reason else ""
-            self.pending_text.value = f"Cambios pendientes{suffix}."
+            self.pending_text.value = self._t("color_studio.pending_changes")
             self.pending_text.color = Theme.WARNING
         else:
             self.pending_text.value = self._t("color_studio.no_pending_changes")
@@ -1636,7 +1652,7 @@ class ColorPanel(ft.Column):
                     bgcolor=ft.Colors.with_opacity(0.14, color),
                     border=ft.Border.all(1, ft.Colors.with_opacity(0.5, color)),
                     alignment=ft.Alignment.CENTER,
-                    content=ft.Text(f"{kelvin}K", color=Theme.TEXT, size=10, weight=ft.FontWeight.BOLD),
+                    content=ft.Text(self._t("common.kelvin_value", value=kelvin), color=Theme.TEXT, size=10, weight=ft.FontWeight.BOLD),
                     ink=True,
                     on_click=lambda e, selected=kelvin: self._select_kelvin(selected, source="reciente"),
                 )
@@ -1681,7 +1697,7 @@ class ColorPanel(ft.Column):
         for favorite in favorites:
             kind = str(favorite.get("type") or "")
             value = favorite.get("value")
-            name = str(favorite.get("name") or self._t("color_studio.favorite_default"))
+            name = translated_favorite_name(self.i18n, favorite) or self._t("color_studio.favorite_default")
             if kind == "rgb":
                 try:
                     rgb = parse_hex_color(str(value))

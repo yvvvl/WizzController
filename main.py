@@ -21,6 +21,7 @@ from core.single_instance import SingleInstanceGuard
 from core.windows_window import restore_window
 from core.logging_setup import configure_logging
 from config.paths import assets_dir, config_dir, logs_dir
+from localization import RuntimeLanguagePreference, get_manager
 
 _APP_TITLE = APP_NAME
 _INSTANCE_GUARD = SingleInstanceGuard(APP_ID)
@@ -85,8 +86,12 @@ def main(page: ft.Page):
         page.window.min_width = 720
         page.window.min_height = 540
 
+        runtime = AppRuntimeManager()
+        i18n = get_manager()
+        i18n.set_preference(RuntimeLanguagePreference(runtime).load())
+
         wiz = LightController()
-        hotkeys = HotkeysManager(wiz)
+        hotkeys = HotkeysManager(wiz, i18n=i18n)
         logging.info("[Hotkeys] %s", hotkeys.backend_status())
 
         shutdown_lock = threading.Lock()
@@ -105,12 +110,11 @@ def main(page: ft.Page):
         app = WizzApp(page, wiz, hotkeys_manager=hotkeys)
         page.on_resize = app.handle_page_resize
         # PHASE32_RUNTIME_TRAY_SAFE
-        runtime = AppRuntimeManager()
         tray = None
         tray_started = False
         if runtime.get('tray_enabled', True):
             try:
-                tray = TrayService(page, wiz, runtime, hotkeys_manager=hotkeys, on_shutdown=shutdown_services)
+                tray = TrayService(page, wiz, runtime, hotkeys_manager=hotkeys, on_shutdown=shutdown_services, i18n=i18n)
                 tray_started = tray.start()
                 if tray_started:
                     logging.info('[Tray] Icono de bandeja iniciado. X => ocultar a bandeja. Salir real desde menú de bandeja.')  # PHASE33_TRAY_NOTE
@@ -257,7 +261,10 @@ def _acquire_or_activate_instance() -> bool:
                 return True
             time.sleep(0.12)
 
-    _INSTANCE_GUARD.show_already_running_message()
+    runtime = AppRuntimeManager()
+    i18n = get_manager()
+    i18n.set_preference(RuntimeLanguagePreference(runtime).load())
+    _INSTANCE_GUARD.show_already_running_message(i18n)
     return False
 
 

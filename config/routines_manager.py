@@ -4,6 +4,10 @@ import copy
 import uuid
 from typing import Any
 
+from localization import (
+    LocalizationManager,
+    translated_default_routine_name,
+)
 from .base_manager import JsonManager
 
 
@@ -90,7 +94,8 @@ class RoutinesManager(JsonManager):
     reutilizables para UI y hotkeys.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, i18n=None) -> None:
+        self.i18n = i18n or LocalizationManager(preference="es")
         super().__init__("routines.json", default_data={"routines": copy.deepcopy(DEFAULT_ROUTINES)})
         if isinstance(self.data, list):
             self.data = {"routines": self.data}
@@ -99,6 +104,9 @@ class RoutinesManager(JsonManager):
         if not isinstance(self.data.get("routines"), list):
             self.data["routines"] = copy.deepcopy(DEFAULT_ROUTINES)
         self._ensure_defaults()
+
+    def _t(self, key: str, **values) -> str:
+        return self.i18n.translate(key, **values)
 
     def _ensure_defaults(self) -> None:
         routines = self.data.get("routines", [])
@@ -132,7 +140,7 @@ class RoutinesManager(JsonManager):
     ) -> dict[str, Any]:
         routine = {
             "id": str(uuid.uuid4()),
-            "name": (name or "Nueva rutina").strip(),
+            "name": (name or self._t("routines.default_name")).strip(),
             "description": (description or "").strip(),
             "color": color or "#5b8cff",
             "icon": icon or "AUTO_AWESOME_ROUNDED",
@@ -168,7 +176,8 @@ class RoutinesManager(JsonManager):
             return None
         new = copy.deepcopy(routine)
         new["id"] = str(uuid.uuid4())
-        new["name"] = f"{new.get('name', 'Rutina')} copia"
+        source_name = translated_default_routine_name(self.i18n, new) or self._t("routines.fallback_name")
+        new["name"] = f"{source_name} {self._t('routines.copy_suffix')}"
         self.data.setdefault("routines", []).append(new)
         self.save()
         return new

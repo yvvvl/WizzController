@@ -7,7 +7,11 @@ import flet as ft
 
 from config.favorites_manager import FavoritesManager
 from core import wiz_scenes
-from localization import LocalizationManager
+from localization import (
+    LocalizationManager,
+    translated_favorite_name,
+    translated_scene_name,
+)
 from ui.scene_visuals import scene_color, scene_icon
 from ui.responsive import PANEL_BREAKPOINTS, Viewport, dialog_dimensions
 from ui.theme import Theme, mounted, supdate
@@ -131,7 +135,7 @@ class FavoritesPanel(ft.Column):
             sid = int(value.get("sceneId", 18) if isinstance(value, dict) else value)
             sc = wiz_scenes.get(sid)
             fallback = f"{self._t('favorites.scene')} {sid}"
-            return scene_color(sid, "#8b5cf6"), scene_icon(sid), sc.name if sc else fallback
+            return scene_color(sid, "#8b5cf6"), scene_icon(sid), translated_scene_name(self.i18n, sid, sc.name if sc else fallback)
         if ftype == "brightness":
             return Theme.ACCENT, ft.Icons.BRIGHTNESS_6_ROUNDED, f"{value}%"
         return Theme.PRIMARY, ft.Icons.STAR_ROUNDED, str(value)
@@ -168,7 +172,7 @@ class FavoritesPanel(ft.Column):
                     ),
                     ft.Column(
                         [
-                            ft.Text(fav.get("name", "Favorito"), color=Theme.TEXT, weight=ft.FontWeight.W_600, size=14, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
+                            ft.Text(translated_favorite_name(self.i18n, fav) or self._t("color_studio.favorite_default"), color=Theme.TEXT, weight=ft.FontWeight.W_600, size=14, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
                             ft.Text(subtitle, color=Theme.MUTED, size=11, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
                         ],
                         spacing=2,
@@ -241,7 +245,7 @@ class FavoritesPanel(ft.Column):
         h, s, v = _hsv_from_hex(state["rgb"])
         state.update({"h": h, "s": s, "v": v})
 
-        name = ft.TextField(label=self._t("favorites.name"), value=fav.get("name", self._t("favorites.default_name")), color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
+        name = ft.TextField(label=self._t("favorites.name"), value=translated_favorite_name(self.i18n, fav) or self._t("favorites.default_name"), color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
         kind = ft.Dropdown(
             label=self._t("favorites.type"),
             value=state["type"],
@@ -279,7 +283,7 @@ class FavoritesPanel(ft.Column):
                 preview.bgcolor = scene_color(sid, "#8b5cf6")
                 preview.content = ft.Icon(scene_icon(sid), color="white")
                 sc = wiz_scenes.get(sid)
-                scene_name = sc.name if sc else self._t("favorites.scene")
+                scene_name = translated_scene_name(self.i18n, sid, sc.name if sc else self._t("favorites.scene"))
                 summary.value = self._t(
                     "favorites.scene_summary",
                     scene=scene_name,
@@ -352,7 +356,7 @@ class FavoritesPanel(ft.Column):
                 dd = ft.Dropdown(
                     label=self._t("favorites.scene"),
                     value=str(state["scene"]),
-                    options=[ft.DropdownOption(key=str(sid), text=f"{sid} · {sc.name}") for sid, sc in wiz_scenes.CATALOG.items()],
+                    options=[ft.DropdownOption(key=str(sid), text=f"{sid} · {translated_scene_name(self.i18n, sid, sc.name)}") for sid, sc in wiz_scenes.CATALOG.items()],
                     color=Theme.TEXT,
                     bgcolor=Theme.BG,
                     border_color=Theme.STROKE,

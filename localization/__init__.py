@@ -20,8 +20,13 @@ from .ui import (
     language_choice_keys,
     language_choices,
     native_language_name,
+    translated_default_routine_description,
+    translated_default_routine_name,
+    translated_favorite_name,
     translated_language_name,
     translated_navigation,
+    translated_scene_group,
+    translated_scene_name,
 )
 
 __all__ = [
@@ -42,6 +47,11 @@ __all__ = [
     "language_choice_keys",
     "language_choices",
     "native_language_name",
+    "translated_default_routine_description",
+    "translated_default_routine_name",
+    "translated_favorite_name",
     "translated_language_name",
     "translated_navigation",
+    "translated_scene_group",
+    "translated_scene_name",
 ]

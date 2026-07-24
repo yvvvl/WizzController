@@ -1142,7 +1142,7 @@ class LightController:
             except Exception:
                 age = None
         return {
-            "name": info.get("name") or summary.get("active_ip") or "Ampolleta",
+            "name": info.get("name") or summary.get("active_ip"),
             "ip": summary.get("active_ip"),
             "online": bool(summary.get("active", 0) > 0),
             "mode": summary.get("target_mode", "single"),

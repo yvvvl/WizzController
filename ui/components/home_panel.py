@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 
 import flet as ft
-from localization import LocalizationManager
+from localization import LocalizationManager, translated_favorite_name
 from config.favorites_manager import FavoritesManager
 from ui.responsive import PANEL_BREAKPOINTS, Viewport
 from ui.theme import Theme, mounted, supdate
@@ -140,7 +140,7 @@ class HomePanel(ft.Column):
         )
 
         # --- Brillo ---
-        self.bri_value = ft.Text("100%", size=14, weight=ft.FontWeight.BOLD, color=Theme.TEXT)
+        self.bri_value = ft.Text(self._t("common.percent_value", value=100), size=14, weight=ft.FontWeight.BOLD, color=Theme.TEXT)
         self.bri_slider = ft.Slider(
             min=10,
             max=100,
@@ -267,7 +267,7 @@ class HomePanel(ft.Column):
     def _apply_power_visual(self, is_on: bool):
         self.is_on = bool(is_on)
         if self.is_on:
-            self.master_label.value = "ENCENDIDO"
+            self.master_label.value = self._t("home.on")
             self.master_icon.icon = ft.Icons.POWER_SETTINGS_NEW_ROUNDED
             self.master_card.gradient = ft.LinearGradient(
                 begin=ft.Alignment(-1, -1),
@@ -276,7 +276,7 @@ class HomePanel(ft.Column):
             )
             self.master_card.shadow = Theme.GLOW(Theme.PRIMARY)
         else:
-            self.master_label.value = "APAGADO"
+            self.master_label.value = self._t("home.off")
             self.master_icon.icon = ft.Icons.POWER_OFF_ROUNDED
             self.master_card.gradient = ft.LinearGradient(
                 begin=ft.Alignment(-1, -1),
@@ -319,7 +319,7 @@ class HomePanel(ft.Column):
     def _reset_all(self):
         self.wiz.reset_light()
         self.bri_slider.value = 100
-        self.bri_value.value = "100%"
+        self.bri_value.value = self._t("common.percent_value", value=100)
         self._apply_power_visual(True)
         supdate(self)
 
@@ -348,7 +348,7 @@ class HomePanel(ft.Column):
             content=ft.Row(
                 [
                     ft.Container(width=16, height=16, border_radius=8, bgcolor=color),
-                    ft.Text(fav.get("name", "Favorito"), color=Theme.TEXT, size=12, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS, expand=True),
+                    ft.Text(translated_favorite_name(self.i18n, fav) or self._t("color_studio.favorite_default"), color=Theme.TEXT, size=12, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS, expand=True),
                 ],
                 spacing=8,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -393,7 +393,7 @@ class HomePanel(ft.Column):
             return
         if "dimming" in state and not self._bri_guard.blocks(state["dimming"], tolerance=1):
             self.bri_slider.value = state["dimming"]
-            self.bri_value.value = f"{int(state['dimming'])}%"
+            self.bri_value.value = self._t("common.percent_value", value=int(state["dimming"]))
         if "state" in state:
             self._apply_power_visual(bool(state["state"]))
 
@@ -401,19 +401,19 @@ class HomePanel(ft.Column):
         count = int(s.get("count", 0) or 0)
         active = int(s.get("active", 0) or 0)
         extra = f" · {s['label']}" if s.get("label") else ""
-        mode = "1 luz" if s.get("target_mode") == "single" else "todas"
+        mode = self._t("routines.target.single") if s.get("target_mode") == "single" else self._t("routines.target.all")
         active_ip = s.get("active_ip") or "—"
 
         if active > 0:
             self.status_dot.bgcolor = Theme.SUCCESS
-            self.status_text.value = f"{active}/{count} online{extra}"
+            self.status_text.value = self._t("home.status.active", active=active, count=count, extra=extra)
         elif count > 0:
             self.status_dot.bgcolor = Theme.MUTED
-            self.status_text.value = f"{count} guardada{'s' if count != 1 else ''} · sin respuesta"
+            self.status_text.value = self.i18n.translate_count("home.status.saved", count)
         else:
             self.status_dot.bgcolor = Theme.ERROR
-            self.status_text.value = "Sin bombillas"
-        self.target_text.value = f"target: {mode} · {active_ip}"
+            self.status_text.value = self._t("home.status.no_bulbs")
+        self.target_text.value = self._t("home.target_summary", mode=mode, ip=active_ip)
         # No re-renderizar favoritos en cada tick de sync: evita repintados caros
         # mientras se arrastran sliders. El panel Favoritos refresca su propia vista.
 

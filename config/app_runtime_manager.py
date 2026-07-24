@@ -11,6 +11,7 @@ from typing import Any, Iterable
 
 from app_meta import APP_REGISTRY_NAME
 from config.paths import config_dir, project_root
+from localization import LocalizationManager
 
 
 class AppRuntimeManager:
@@ -29,7 +30,8 @@ class AppRuntimeManager:
         "language": "system",
     }
 
-    def __init__(self) -> None:
+    def __init__(self, i18n=None) -> None:
+        self.i18n = i18n or LocalizationManager(preference="es")
         self.base_dir = config_dir()
         self.json_dir = self.base_dir
         self.path = self.json_dir / "app_runtime.json"
@@ -37,6 +39,10 @@ class AppRuntimeManager:
         self._lock = threading.RLock()
         self.data = self._load()
         self._sync_startup_registration()
+
+    def _t(self, key: str, **values) -> str:
+        manager = getattr(self, "i18n", None) or LocalizationManager(preference="es")
+        return manager.translate(key, **values)
 
     def _load(self) -> dict[str, Any]:
         if not self.path.exists():
@@ -135,7 +141,7 @@ class AppRuntimeManager:
             with self._lock:
                 self.data["startup_with_windows"] = False
                 self._save_dict(self.data)
-            return False, "Inicio con Windows solo aplica en Windows."
+            return False, self._t("runtime.startup.windows_only")
 
         try:
             if enabled:
@@ -143,12 +149,13 @@ class AppRuntimeManager:
             else:
                 _delete_startup_value()
         except Exception as exc:
-            return False, f"No se pudo modificar inicio con Windows: {exc}"
+            return False, self._t("runtime.startup.update_error", error=exc)
 
         with self._lock:
             self.data["startup_with_windows"] = bool(enabled)
             self._save_dict(self.data)
-        return True, "Inicio con Windows actualizado."
+        key = "runtime.startup.updated" if enabled else "runtime.startup.disabled"
+        return True, self._t(key)
 
 
 def _registry_key_path() -> str:

@@ -95,6 +95,20 @@ def test_home_panel_switches_between_spanish_and_english() -> None:
     assert "QUICK ACTIONS" in _texts(panel)
 
 
+def test_home_master_power_state_uses_active_language() -> None:
+    manager = LocalizationManager(preference="en")
+    panel = HomePanel(FakeWiz(), i18n=manager)
+
+    panel._apply_power_visual(False)
+    assert panel.master_label.value == "OFF"
+    panel._apply_power_visual(True)
+    assert panel.master_label.value == "ON"
+
+    manager.set_preference("es")
+    panel._apply_power_visual(False)
+    assert panel.master_label.value == "APAGADO"
+
+
 def test_color_panel_switches_between_spanish_and_english() -> None:
     manager = LocalizationManager(preference="es")
     panel = ColorPanel(FakeWiz(), i18n=manager)

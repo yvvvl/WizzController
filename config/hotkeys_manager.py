@@ -12,6 +12,12 @@ from .base_manager import JsonManager
 from .custom_scenes_manager import CustomScenesManager
 from .favorites_manager import FavoritesManager
 from core.global_hotkeys import WindowsNativeHotkeyBackend
+from localization import (
+    LocalizationManager,
+    translated_default_routine_name,
+    translated_favorite_name,
+    translated_scene_name,
+)
 
 try:
     import keyboard as _keyboard  # type: ignore
@@ -73,7 +79,8 @@ class HotkeysManager(JsonManager):
 
     MODIFIERS = {"ctrl", "alt", "shift", "win"}
 
-    def __init__(self, wiz_controller, auto_apply: bool = True):
+    def __init__(self, wiz_controller, auto_apply: bool = True, i18n=None):
+        self.i18n = i18n or LocalizationManager(preference="es")
         super().__init__("hotkeys.json", default_data=dict(self.DEFAULT_DATA))
         self.wiz = wiz_controller
         self._handles: list[Any] = []
@@ -95,6 +102,9 @@ class HotkeysManager(JsonManager):
         self._migrate()
         if auto_apply:
             self.apply_hooks()
+
+    def _t(self, key: str, **values) -> str:
+        return self.i18n.translate(key, **values)
 
     # ------------------------------------------------------------------ #
     # Estado/config
@@ -139,11 +149,11 @@ class HotkeysManager(JsonManager):
     def dependency_message(self) -> str:
         if os.name == "nt":
             if _keyboard is None:
-                return f"Hotkeys nativas Windows disponibles. Grabación requiere keyboard: {_IMPORT_ERROR}"
-            return "Hotkeys nativas Windows + grabación keyboard disponibles"
+                return self._t("hotkeys.dependency.native_recording_missing", error=_IMPORT_ERROR)
+            return self._t("hotkeys.dependency.native_ready")
         if _keyboard is not None:
-            return "keyboard disponible"
-        return f"keyboard no disponible: {_IMPORT_ERROR}"
+            return self._t("hotkeys.dependency.keyboard_ready")
+        return self._t("hotkeys.dependency.keyboard_missing", error=_IMPORT_ERROR)
 
     def backend_preference(self) -> str:
         value = str(self.data.get("backend", "auto") or "auto").lower().strip()
@@ -151,7 +161,7 @@ class HotkeysManager(JsonManager):
 
     def backend_status(self) -> str:
         if not self.is_enabled():
-            return "desactivado"
+            return self._t("hotkeys.status.disabled")
         report = self.registration_report()
         total = int(report.get("total", 0) or 0)
         native = int(report.get("native", 0) or 0)
@@ -159,14 +169,14 @@ class HotkeysManager(JsonManager):
         active = native + keyboard
         suffix = f" · {active}/{total}" if total else ""
         if self.last_backend == "windows":
-            return f"Windows nativo activo{suffix}"
+            return self._t("hotkeys.status.native", suffix=suffix)
         if self.last_backend == "hybrid":
-            return f"Windows + fallback activo{suffix}"
+            return self._t("hotkeys.status.hybrid", suffix=suffix)
         if self.last_backend == "keyboard":
-            return f"keyboard global activo{suffix}"
+            return self._t("hotkeys.status.keyboard", suffix=suffix)
         if self.last_error:
-            return "sin registrar"
-        return "sin atajos" if not total else "sin registrar"
+            return self._t("hotkeys.status.unregistered")
+        return self._t("hotkeys.status.empty") if not total else self._t("hotkeys.status.unregistered")
 
     def registration_report(self) -> dict[str, Any]:
         report = dict(self._registration_report)
@@ -262,25 +272,26 @@ class HotkeysManager(JsonManager):
         return "+".join(mods + unique_keys)
 
     @classmethod
-    def validate_hotkey(cls, combo: str) -> tuple[bool, str]:
+    def validate_hotkey(cls, combo: str, i18n=None) -> tuple[bool, str]:
+        manager = i18n or LocalizationManager(preference="es")
         combo = cls.normalize_hotkey(combo)
         if not combo:
-            return False, "El atajo está vacío."
+            return False, manager.translate("hotkeys.validation.empty")
         if combo in cls.RESERVED_COMBOS:
-            return False, f"{combo} es del sistema o demasiado peligroso."
+            return False, manager.translate("hotkeys.validation.reserved", combo=combo)
         parts = combo.split("+")
         mods = [p for p in parts if p in cls.MODIFIERS]
         keys = [p for p in parts if p not in cls.MODIFIERS]
         if not keys:
-            return False, "Falta una tecla principal además de ctrl/alt/shift/win."
+            return False, manager.translate("hotkeys.validation.main_key")
         if len(keys) > 1:
-            return False, "Usa solo una tecla principal. Ejemplo: ctrl+alt+l."
+            return False, manager.translate("hotkeys.validation.one_key")
         key = keys[0]
         if not mods:
             if re.fullmatch(r"[a-z0-9]", key):
-                return False, "No uses letras/números sueltos: se activaría al escribir."
+                return False, manager.translate("hotkeys.validation.bare_key")
             if key in {"space", "enter", "tab", "backspace", "delete"}:
-                return False, "Esa tecla sola es demasiado invasiva. Agrega ctrl/alt/shift."
+                return False, manager.translate("hotkeys.validation.invasive")
         return True, "OK"
 
     def combo_conflict(self, combo: str, *, ignore_action: str | None = None) -> tuple[str, str] | None:
@@ -305,8 +316,8 @@ class HotkeysManager(JsonManager):
         action_id = str(action_id or "").strip()
         combo = self.normalize_hotkey(key_combination)
         if not action_id:
-            return {"ok": False, "message": "Acción inválida."}
-        ok, msg = self.validate_hotkey(combo)
+            return {"ok": False, "message": self._t("hotkeys.assign.invalid_action")}
+        ok, msg = self.validate_hotkey(combo, self.i18n)
         if not ok:
             self.last_warning = msg
             return {"ok": False, "message": msg}
@@ -323,9 +334,9 @@ class HotkeysManager(JsonManager):
         self.data["hotkeys"] = hotkeys
         self.save()
         self.apply_hooks()
-        msg = f"Atajo guardado: {combo}."
+        msg = self._t("hotkeys.assign.saved", combo=combo)
         if removed:
-            msg += f" Reemplazó a {removed[1]}."
+            msg += self._t("hotkeys.assign.replaced", action=removed[1])
         self.last_warning = None
         return {"ok": True, "message": msg, "replaced": removed}
 
@@ -357,55 +368,60 @@ class HotkeysManager(JsonManager):
         def add(aid: str, name: str, group: str, action: dict[str, Any] | None = None, icon: str = "KEYBOARD_ROUNDED") -> None:
             actions.append({"id": aid, "name": name, "group": group, "action": action or self._static_action_payload(aid), "icon": icon})
 
-        add("toggle", "Alternar encendido", "General", {"type": "toggle"}, "POWER_SETTINGS_NEW_ROUNDED")
-        add("on", "Encender", "General", {"type": "turn_on"}, "LIGHT_MODE_ROUNDED")
-        add("off", "Apagar", "General", {"type": "turn_off"}, "POWER_OFF_ROUNDED")
-        add("reset", "Restaurar luz", "General", {"type": "method", "method": "reset_light"}, "RESTART_ALT_ROUNDED")
-        add("target_single", "Modo una ampolleta", "Destino", {"type": "target_mode", "value": "single"}, "FILTER_1_ROUNDED")
-        add("target_all", "Modo todas", "Destino", {"type": "target_mode", "value": "all"}, "SELECT_ALL_ROUNDED")
+        general = self._t("hotkeys.group.general")
+        target = self._t("hotkeys.group.target")
+        brightness = self._t("hotkeys.group.brightness")
+        whites = self._t("hotkeys.group.whites")
+        colors_group = self._t("hotkeys.group.colors")
+        add("toggle", self._t("hotkeys.action.toggle"), general, {"type": "toggle"}, "POWER_SETTINGS_NEW_ROUNDED")
+        add("on", self._t("hotkeys.action.on"), general, {"type": "turn_on"}, "LIGHT_MODE_ROUNDED")
+        add("off", self._t("hotkeys.action.off"), general, {"type": "turn_off"}, "POWER_OFF_ROUNDED")
+        add("reset", self._t("hotkeys.action.reset"), general, {"type": "method", "method": "reset_light"}, "RESTART_ALT_ROUNDED")
+        add("target_single", self._t("hotkeys.action.target_single"), target, {"type": "target_mode", "value": "single"}, "FILTER_1_ROUNDED")
+        add("target_all", self._t("hotkeys.action.target_all"), target, {"type": "target_mode", "value": "all"}, "SELECT_ALL_ROUNDED")
 
-        for aid, name, value in (
-            ("bri_up", "Brillo +10%", 10),
-            ("bri_down", "Brillo -10%", -10),
+        for aid, key, value in (
+            ("bri_up", "hotkeys.action.bri_up", 10),
+            ("bri_down", "hotkeys.action.bri_down", -10),
         ):
-            add(aid, name, "Brillo", {"type": "brightness_delta", "value": value}, "BRIGHTNESS_6_ROUNDED")
+            add(aid, self._t(key), brightness, {"type": "brightness_delta", "value": value}, "BRIGHTNESS_6_ROUNDED")
         for pct in (10, 25, 50, 75, 100):
-            add(f"bri_{pct}", f"Brillo {pct}%", "Brillo", {"type": "brightness", "value": pct}, "BRIGHTNESS_6_ROUNDED")
+            add(f"bri_{pct}", self._t("hotkeys.action.brightness", value=pct), brightness, {"type": "brightness", "value": pct}, "BRIGHTNESS_6_ROUNDED")
 
-        for aid, name, pct in (
-            ("white_warm", "Blanco cálido", 10),
-            ("white_neutral", "Blanco neutro", 50),
-            ("white_cold", "Blanco frío", 100),
+        for aid, key, pct in (
+            ("white_warm", "hotkeys.action.white_warm", 10),
+            ("white_neutral", "hotkeys.action.white_neutral", 50),
+            ("white_cold", "hotkeys.action.white_cold", 100),
         ):
-            add(aid, name, "Blancos", {"type": "white_percent", "value": pct}, "WB_SUNNY_ROUNDED")
+            add(aid, self._t(key), whites, {"type": "white_percent", "value": pct}, "WB_SUNNY_ROUNDED")
         for pct in (0, 25, 50, 75, 100):
-            add(f"white_{pct}", f"Blanco {pct}% del rango", "Blancos", {"type": "white_percent", "value": pct}, "WB_SUNNY_ROUNDED")
+            add(f"white_{pct}", self._t("hotkeys.action.white_range", value=pct), whites, {"type": "white_percent", "value": pct}, "WB_SUNNY_ROUNDED")
 
         colors = {
-            "red": ("Rojo", "#ff0000"),
-            "green": ("Verde", "#00ff00"),
-            "blue": ("Azul", "#0000ff"),
-            "cyan": ("Cian", "#00ffff"),
-            "magenta": ("Magenta", "#ff00ff"),
-            "orange": ("Naranjo", "#ff7f00"),
-            "pink": ("Rosa", "#ff40a0"),
-            "yellow": ("Amarillo", "#ffd000"),
+            "red": "#ff0000",
+            "green": "#00ff00",
+            "blue": "#0000ff",
+            "cyan": "#00ffff",
+            "magenta": "#ff00ff",
+            "orange": "#ff7f00",
+            "pink": "#ff40a0",
+            "yellow": "#ffd000",
         }
-        for key, (name, hx) in colors.items():
-            add(f"color_{key}", name, "Colores", {"type": "rgb", "value": hx}, "PALETTE_ROUNDED")
-        add("color_custom", "Color personalizado", "Colores", None, "COLOR_LENS_ROUNDED")
+        for key, hx in colors.items():
+            add(f"color_{key}", self._t(f"color.name.{key}"), colors_group, {"type": "rgb", "value": hx}, "PALETTE_ROUNDED")
+        add("color_custom", self._t("hotkeys.action.color_custom"), colors_group, None, "COLOR_LENS_ROUNDED")
 
         # Colores personalizados ya guardados.
         for aid in self.get_hotkeys().keys():
             if isinstance(aid, str) and aid.startswith("color_hex_"):
                 raw = aid.removeprefix("color_hex_")[:6]
                 if re.fullmatch(r"[0-9a-fA-F]{6}", raw):
-                    add(aid, f"Color #{raw.upper()}", "Colores personalizados", {"type": "rgb", "value": f"#{raw}"}, "COLOR_LENS_ROUNDED")
+                    add(aid, self._t("hotkeys.action.color_hex", value=raw.upper()), self._t("hotkeys.group.custom_colors"), {"type": "rgb", "value": f"#{raw}"}, "COLOR_LENS_ROUNDED")
 
         try:
             from core import wiz_scenes
             for scene in wiz_scenes.CATALOG.values():
-                add(f"scene_{scene.id}", scene.name, "Escenas WiZ", {"type": "scene", "value": {"sceneId": scene.id, "speed": 100}}, "AUTO_AWESOME_ROUNDED")
+                add(f"scene_{scene.id}", translated_scene_name(self.i18n, scene.id, scene.name), self._t("hotkeys.group.wiz_scenes"), {"type": "scene", "value": {"sceneId": scene.id, "speed": 100}}, "AUTO_AWESOME_ROUNDED")
         except Exception:
             pass
 
@@ -413,7 +429,7 @@ class HotkeysManager(JsonManager):
             for fav in FavoritesManager().get_favorites():
                 uid = fav.get("id")
                 if uid:
-                    add(f"fav_{uid}", str(fav.get("name") or "Favorito"), "Favoritos", {"type": "favorite", "value": uid}, "STAR_ROUNDED")
+                    add(f"fav_{uid}", translated_favorite_name(self.i18n, fav) or self._t("color_studio.favorite_default"), self._t("hotkeys.group.favorites"), {"type": "favorite", "value": uid}, "STAR_ROUNDED")
         except Exception:
             pass
 
@@ -421,16 +437,16 @@ class HotkeysManager(JsonManager):
             for scene in CustomScenesManager().get_scenes():
                 uid = scene.get("id")
                 if uid:
-                    add(f"custom_{uid}", str(scene.get("name") or "Mi escena"), "Mis escenas", {"type": "custom_scene", "value": uid}, "AUTO_FIX_HIGH_ROUNDED")
+                    add(f"custom_{uid}", str(scene.get("name") or self._t("scenes.custom_fallback")), self._t("hotkeys.group.my_scenes"), {"type": "custom_scene", "value": uid}, "AUTO_FIX_HIGH_ROUNDED")
         except Exception:
             pass
 
         try:
             from config.routines_manager import RoutinesManager
-            for routine in RoutinesManager().get_routines():
+            for routine in RoutinesManager(i18n=self.i18n).get_routines():
                 uid = routine.get("id")
                 if uid:
-                    add(f"routine_{uid}", str(routine.get("name") or "Rutina"), "Rutinas", {"type": "routine", "value": uid}, "ROCKET_LAUNCH_ROUNDED")
+                    add(f"routine_{uid}", translated_default_routine_name(self.i18n, routine) or self._t("routines.fallback_name"), self._t("hotkeys.group.routines"), {"type": "routine", "value": uid}, "ROCKET_LAUNCH_ROUNDED")
         except Exception:
             pass
 
@@ -444,7 +460,7 @@ class HotkeysManager(JsonManager):
         # Fallback para IDs dinámicos no listados todavía.
         payload = self._static_action_payload(action_id)
         if payload:
-            return {"id": action_id, "name": self._fallback_label(action_id), "group": "Personalizado", "action": payload}
+            return {"id": action_id, "name": self._fallback_label(action_id), "group": self._t("hotkeys.group.custom"), "action": payload}
         return None
 
     def action_label(self, action_id: str) -> str:
@@ -456,9 +472,9 @@ class HotkeysManager(JsonManager):
 
     def _fallback_label(self, action_id: str) -> str:
         if str(action_id).startswith("color_hex_"):
-            return "Color #" + str(action_id).removeprefix("color_hex_")[:6].upper()
+            return self._t("hotkeys.action.color_hex", value=str(action_id).removeprefix("color_hex_")[:6].upper())
         if str(action_id).startswith("routine_"):
-            return "Rutina " + str(action_id).split("_", 1)[1]
+            return self._t("routines.fallback_name") + " " + str(action_id).split("_", 1)[1]
         return str(action_id)
 
     def _static_action_payload(self, action_id: str) -> dict[str, Any] | None:
@@ -554,7 +570,7 @@ class HotkeysManager(JsonManager):
             if not self.is_enabled():
                 return
             if not entries:
-                self.last_warning = "No hay hotkeys configuradas."
+                self.last_warning = self._t("hotkeys.warning.none_configured")
                 return
 
             preference = self.backend_preference()
@@ -608,8 +624,10 @@ class HotkeysManager(JsonManager):
                             self.last_warning = self._failure_message(keyboard_failed)
                         else:
                             count = len(keyboard_success)
-                            noun = "atajo usa" if count == 1 else "atajos usan"
-                            self.last_warning = f"{count} {noun} fallback keyboard; los demás usan Windows nativo."
+                            self.last_warning = self.i18n.translate_count(
+                                "hotkeys.warning.hybrid_fallback",
+                                count,
+                            )
                     else:
                         self.last_backend = "windows"
                         self._registration_report["backend"] = "windows"
@@ -619,7 +637,7 @@ class HotkeysManager(JsonManager):
             # Si Windows no registró ninguno, o se forzó keyboard, registramos
             # el conjunto completo mediante el fallback histórico.
             if _keyboard is None:
-                detail = f"keyboard no disponible: {_IMPORT_ERROR}"
+                detail = self._t("hotkeys.dependency.keyboard_missing", error=_IMPORT_ERROR)
                 if native_failed:
                     detail = f"{self._failure_message(native_failed)} {detail}"
                 self.last_error = detail
@@ -635,7 +653,7 @@ class HotkeysManager(JsonManager):
                 if keyboard_failed:
                     self.last_warning = self._failure_message(keyboard_failed)
                 elif native_failed and preference == "auto":
-                    self.last_warning = "Fallback keyboard activo; Windows no pudo reservar las combinaciones."
+                    self.last_warning = self._t("hotkeys.warning.keyboard_fallback")
             else:
                 self.last_error = self._failure_message(keyboard_failed or native_failed)
 
@@ -647,7 +665,7 @@ class HotkeysManager(JsonManager):
         failed: list[dict[str, Any]] = []
         if _keyboard is None:
             return successful, [
-                {**entry, "error": f"keyboard no disponible: {_IMPORT_ERROR}"}
+                {**entry, "error": self._t("hotkeys.dependency.keyboard_missing", error=_IMPORT_ERROR)}
                 for entry in entries
             ]
 
@@ -671,51 +689,53 @@ class HotkeysManager(JsonManager):
                 _LOG.warning("No pude registrar hotkey %s=%s: %s", action_id, combo, exc)
         return successful, failed
 
-    @staticmethod
-    def _public_failures(entries: list[dict[str, Any]]) -> list[dict[str, str]]:
+    def _public_failures(self, entries: list[dict[str, Any]]) -> list[dict[str, str]]:
         return [
             {
                 "id": str(row.get("id") or ""),
                 "combo": str(row.get("combo") or ""),
-                "error": HotkeysManager._friendly_hotkey_error(row),
+                "error": self._friendly_hotkey_error(row, self.i18n),
             }
             for row in entries
         ]
 
     @staticmethod
-    def _friendly_hotkey_error(row: dict[str, Any]) -> str:
-        error = str(row.get("error") or "No se pudo registrar").strip()
+    def _friendly_hotkey_error(row: dict[str, Any], i18n=None) -> str:
+        manager = i18n or LocalizationManager(preference="es")
+        error = str(row.get("error") or manager.translate("hotkeys.error.registration_default")).strip()
         code = row.get("error_code")
         lowered = error.lower()
         if code == 1409 or "already registered" in lowered or "ya se ha registrado" in lowered or "acceso rápido" in lowered:
-            return "ya está en uso por otra aplicación"
+            return manager.translate("hotkeys.error.already_used")
         if code == 5 or "access is denied" in lowered or "acceso denegado" in lowered:
-            return "Windows denegó el registro"
+            return manager.translate("hotkeys.error.windows_denied")
         if "no soportada" in lowered or "no soportado" in lowered:
-            return "no es compatible con el backend nativo"
+            return manager.translate("hotkeys.error.native_unsupported")
         return error.rstrip(".;")
 
-    @classmethod
-    def _failure_message(cls, entries: list[dict[str, Any]]) -> str:
+    def _failure_message(self, entries: list[dict[str, Any]]) -> str:
         if not entries:
-            return "No se pudieron registrar las hotkeys."
+            return self._t("hotkeys.error.registration_failed")
         visible = entries[:2]
         details = "; ".join(
-            f"{str(row.get('combo') or 'atajo')}: {cls._friendly_hotkey_error(row)}"
+            f"{str(row.get('combo') or 'hotkey')}: {self._friendly_hotkey_error(row, self.i18n)}"
             for row in visible
         )
         remaining = len(entries) - len(visible)
         if remaining > 0:
-            details += f"; y {remaining} más"
-        noun = "atajo no pudo" if len(entries) == 1 else "atajos no pudieron"
-        return f"{len(entries)} {noun} registrarse. {details}."
+            details += "; " + self._t("hotkeys.error.more", count=remaining)
+        return self.i18n.translate_count(
+            "hotkeys.error.registration_detail",
+            len(entries),
+            details=details,
+        )
 
     def _create_callback(self, action_id: str) -> Callable[[], None] | None:
         return lambda: self.execute_action(action_id)
 
     def read_hotkey_blocking(self) -> str | None:
         if _keyboard is None:
-            self.last_error = f"Grabación no disponible: instala/activa keyboard. Hotkeys globales pueden seguir funcionando con Windows nativo. Detalle: {_IMPORT_ERROR}"
+            self.last_error = self._t("hotkeys.error.recording_unavailable", error=_IMPORT_ERROR)
             return None
         # Mientras se graba, quitamos hooks propios para que la combinación no dispare acciones.
         was_enabled = self.is_enabled()
@@ -754,11 +774,11 @@ class HotkeysManager(JsonManager):
         if not isinstance(payload, dict):
             action = self.action_by_id(action_id)
             if not action:
-                self.last_error = f"Acción no encontrada: {action_id}"
+                self.last_error = self._t("hotkeys.error.action_not_found", action_id=action_id)
                 return
             payload = action.get("action")
         if not isinstance(payload, dict):
-            self.last_error = f"Acción sin payload: {action_id}"
+            self.last_error = self._t("hotkeys.error.action_no_payload", action_id=action_id)
             return
         try:
             executor = self._executor_instance()
@@ -785,7 +805,7 @@ class HotkeysManager(JsonManager):
     def configured_rows(self) -> list[dict[str, Any]]:
         rows = []
         for aid, combo in sorted(self.get_hotkeys().items()):
-            action = self.action_by_id(aid) or {"id": aid, "name": self.action_label(aid), "group": "Personalizado"}
+            action = self.action_by_id(aid) or {"id": aid, "name": self.action_label(aid), "group": self._t("hotkeys.group.custom")}
             rows.append({"id": aid, "combo": combo, "name": action.get("name", aid), "group": action.get("group", "")})
         return rows
 

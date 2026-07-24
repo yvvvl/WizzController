@@ -44,16 +44,16 @@ class WizzApp(ft.Container):
         self.panels = [
             HomePanel(self.wiz, i18n=self.i18n),
             ColorPanel(self.wiz, i18n=self.i18n),
-            ScenesPanel(self.wiz),
+            ScenesPanel(self.wiz, i18n=self.i18n),
             FavoritesPanel(self.wiz, i18n=self.i18n),
-            RoutinesPanel(self.wiz),
+            RoutinesPanel(self.wiz, i18n=self.i18n),
             SettingsPanel(
                 self.wiz,
                 i18n=self.i18n,
                 on_language_change=self.set_language_preference,
                 runtime=self.runtime,
             ),
-            HotkeysPanel(self.wiz, manager=self.hotkeys_manager),
+            HotkeysPanel(self.wiz, manager=self.hotkeys_manager, i18n=self.i18n),
         ]
 
         self.content_area = ft.Container(

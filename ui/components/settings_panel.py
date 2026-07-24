@@ -28,7 +28,8 @@ class SettingsPanel(ft.Column):
         self.wiz = wiz
         self.i18n = i18n or get_manager()
         self._on_language_change = on_language_change
-        self.runtime = runtime or AppRuntimeManager()
+        self.runtime = runtime or AppRuntimeManager(i18n=self.i18n)
+        self.runtime.i18n = self.i18n
         self.language_preference = RuntimeLanguagePreference(self.runtime)
         if i18n is None:
             self.i18n.set_preference(self.language_preference.load())
@@ -417,7 +418,7 @@ class SettingsPanel(ft.Column):
                 self.runtime_status.value = folder
                 supdate(self.runtime_status)
         except Exception as exc:
-            self.runtime_status.value = f"No se pudo abrir la carpeta: {exc}"
+            self.runtime_status.value = self._t("settings.open_folder_error", error=exc)
             self.runtime_status.color = Theme.WARNING
             supdate(self.runtime_status)
 
@@ -478,13 +479,13 @@ class SettingsPanel(ft.Column):
         if active:
             badges.append(self._badge(self._t("bulbs.active_badge"), Theme.PRIMARY))
         if targeted:
-            badges.append(self._badge("TARGET", Theme.ACCENT))
+            badges.append(self._badge(self._t("bulbs.target_badge"), Theme.ACCENT))
         if b.get("rgb"):
             badges.append(self._badge("RGB", "#ec4899"))
         if b.get("tunable_white"):
             badges.append(self._badge("K", "#f59e0b"))
 
-        details = f"{b['ip']} · {b.get('mac') or 'sin MAC'}"
+        details = f"{b['ip']} · {b.get('mac') or self._t('bulbs.no_mac')}"
         if b.get("module"):
             details += f" · {b['module']}"
         kr = ""
@@ -525,7 +526,9 @@ class SettingsPanel(ft.Column):
                         ),
                         ft.Text(details, color=Theme.MUTED, size=11, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS),
                         ft.Text(
-                            ("● en línea · " + b.get("label", "") + kr) if online else "○ sin respuesta",
+                            self._t("bulbs.online_detail", label=b.get("label", ""), range=kr)
+                            if online
+                            else self._t("bulbs.offline_detail"),
                             color=Theme.SUCCESS if online else Theme.FAINT,
                             size=11,
                             max_lines=2,
@@ -642,30 +645,30 @@ class SettingsPanel(ft.Column):
         model = info.get("model_config") or {}
 
         rows = [
-            self._info_line("Nombre", info.get("name")),
+            self._info_line(self._t("settings.info.name"), info.get("name")),
             self._info_line("IP", info.get("ip") or ip),
             self._info_line("MAC", info.get("mac")),
-            self._info_line("Online", "sí" if info.get("online") else "no"),
-            self._info_line("Activa", "sí" if info.get("active") else "no"),
-            self._info_line("Target", "sí" if info.get("targeted") else "no"),
-            self._info_line("Módulo", info.get("module") or system.get("moduleName")),
-            self._info_line("Firmware", system.get("fwVersion")),
+            self._info_line(self._t("settings.info.online"), self._t("common.yes") if info.get("online") else self._t("common.no")),
+            self._info_line(self._t("settings.info.active"), self._t("common.yes") if info.get("active") else self._t("common.no")),
+            self._info_line(self._t("settings.info.target"), self._t("common.yes") if info.get("targeted") else self._t("common.no")),
+            self._info_line(self._t("settings.info.module"), info.get("module") or system.get("moduleName")),
+            self._info_line(self._t("settings.info.firmware"), system.get("fwVersion")),
             self._info_line("RSSI", info.get("rssi") or raw.get("rssi")),
-            self._info_line("Estado", raw.get("state") if raw else info.get("state")),
-            self._info_line("Brillo", raw.get("dimming") if raw else info.get("dimming")),
-            self._info_line("Temp", raw.get("temp") if raw else info.get("temp")),
-            self._info_line("Escena", raw.get("sceneId") if raw else info.get("sceneId")),
+            self._info_line(self._t("settings.info.state"), raw.get("state") if raw else info.get("state")),
+            self._info_line(self._t("settings.info.brightness"), raw.get("dimming") if raw else info.get("dimming")),
+            self._info_line(self._t("settings.info.temperature"), raw.get("temp") if raw else info.get("temp")),
+            self._info_line(self._t("settings.info.scene"), raw.get("sceneId") if raw else info.get("sceneId")),
             self._info_line("RGB", caps.get("rgb") if caps else info.get("rgb")),
-            self._info_line("Blancos", caps.get("tunable_white") if caps else info.get("tunable_white")),
+            self._info_line(self._t("settings.info.whites"), caps.get("tunable_white") if caps else info.get("tunable_white")),
             self._info_line("Kelvin", f"{info.get('kelvin_min') or caps.get('kelvin_min') or '—'}–{info.get('kelvin_max') or caps.get('kelvin_max') or '—'}K"),
             self._info_line("Ratio", caps.get("ratio")),
-            self._info_line("Medidor W", caps.get("power_meter")),
+            self._info_line(self._t("settings.info.power_meter"), caps.get("power_meter")),
         ]
 
         if model:
             visible_model = {k: model.get(k) for k in ("cctRange", "extRange", "whiteRange", "nowc", "wcr", "fanSpeed") if k in model}
             if visible_model:
-                rows.append(self._info_line("Modelo", visible_model))
+                rows.append(self._info_line(self._t("settings.info.model"), visible_model))
 
         dialog_w, dialog_h = dialog_dimensions(self, 560, 590)
         dlg = ft.AlertDialog(
@@ -792,7 +795,7 @@ class SettingsPanel(ft.Column):
             if startup or ok:
                 message = startup_msg
             else:
-                message = "Inicio con Windows desactivado."
+                message = self._t("runtime.startup.disabled")
 
         self.runtime_status.value = message
         self._sync_runtime_controls()
@@ -835,7 +838,7 @@ class SettingsPanel(ft.Column):
     def _add_dialog(self):
         if not mounted(self):
             return
-        field = ft.TextField(label=self._t("bulbs.ip_address"), hint_text="192.168.1.20", autofocus=True, color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
+        field = ft.TextField(label=self._t("bulbs.ip_address"), hint_text=self._t("bulbs.ip_example"), autofocus=True, color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
 
         def save(e):
             ip = (field.value or "").strip()

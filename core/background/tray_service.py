@@ -10,6 +10,12 @@ from typing import Any, Callable
 from app_meta import APP_ID, APP_PRODUCT, display_version
 from config.paths import assets_dir
 from core.windows_window import restore_window
+from localization import (
+    LocalizationManager,
+    translated_default_routine_name,
+    translated_favorite_name,
+    translated_scene_name,
+)
 
 
 class TrayService:
@@ -27,12 +33,14 @@ class TrayService:
         runtime: Any,
         hotkeys_manager: Any | None = None,
         on_shutdown: Callable[[], Any] | None = None,
+        i18n=None,
     ) -> None:
         self.page = page
         self.wiz = wiz
         self.runtime = runtime
         self.hotkeys_manager = hotkeys_manager
         self.on_shutdown = on_shutdown
+        self.i18n = i18n or LocalizationManager(preference="es")
         self.icon = None
         self._thread: threading.Thread | None = None
         self.available = False
@@ -50,6 +58,7 @@ class TrayService:
         self._tray_click_lock = threading.Lock()
         self._last_tray_click = 0.0
         self._double_click_seconds = self._system_double_click_seconds()
+        self._unsubscribe_i18n = self.i18n.subscribe(lambda language: self.refresh_menu())
         try:
             import pystray  # type: ignore
             from PIL import Image, ImageDraw  # type: ignore
@@ -61,6 +70,9 @@ class TrayService:
         except Exception as exc:
             self.available = False
             self.last_error = f"pystray/Pillow no disponible: {exc}"
+
+    def _t(self, key: str, **values) -> str:
+        return self.i18n.translate(key, **values)
 
     # ------------------------------------------------------------------ #
     # Helpers Flet async/sync
@@ -176,9 +188,9 @@ class TrayService:
         sep = pystray.Menu.SEPARATOR
 
         control_items = [
-            item("Encender", lambda icon, it: self._execute({"type": "turn_on"})),
-            item("Apagar", lambda icon, it: self._execute({"type": "turn_off"})),
-            item("Alternar", lambda icon, it: self._execute({"type": "toggle"})),
+            item(self._t("tray.turn_on"), lambda icon, it: self._execute({"type": "turn_on"})),
+            item(self._t("tray.turn_off"), lambda icon, it: self._execute({"type": "turn_off"})),
+            item(self._t("tray.toggle"), lambda icon, it: self._execute({"type": "toggle"})),
         ]
 
         brightness_menu = menu(
@@ -192,38 +204,38 @@ class TrayService:
         )
 
         colors_menu = menu(
-            item("Rojo", lambda icon, it: self._execute({"type": "rgb", "value": "#ff0000"})),
-            item("Naranjo", lambda icon, it: self._execute({"type": "rgb", "value": "#ff7f00"})),
-            item("Amarillo", lambda icon, it: self._execute({"type": "rgb", "value": "#ffd000"})),
-            item("Verde", lambda icon, it: self._execute({"type": "rgb", "value": "#00ff40"})),
-            item("Cian", lambda icon, it: self._execute({"type": "rgb", "value": "#00d5ff"})),
-            item("Azul", lambda icon, it: self._execute({"type": "rgb", "value": "#0055ff"})),
-            item("Morado", lambda icon, it: self._execute({"type": "rgb", "value": "#7f00ff"})),
-            item("Rosa", lambda icon, it: self._execute({"type": "rgb", "value": "#ff4fa3"})),
+            item(self._t("color.name.red"), lambda icon, it: self._execute({"type": "rgb", "value": "#ff0000"})),
+            item(self._t("color.name.orange"), lambda icon, it: self._execute({"type": "rgb", "value": "#ff7f00"})),
+            item(self._t("color.name.yellow"), lambda icon, it: self._execute({"type": "rgb", "value": "#ffd000"})),
+            item(self._t("color.name.green"), lambda icon, it: self._execute({"type": "rgb", "value": "#00ff40"})),
+            item(self._t("color.name.cyan"), lambda icon, it: self._execute({"type": "rgb", "value": "#00d5ff"})),
+            item(self._t("color.name.blue"), lambda icon, it: self._execute({"type": "rgb", "value": "#0055ff"})),
+            item(self._t("color.name.violet"), lambda icon, it: self._execute({"type": "rgb", "value": "#7f00ff"})),
+            item(self._t("color.name.pink"), lambda icon, it: self._execute({"type": "rgb", "value": "#ff4fa3"})),
             sep,
-            item("Blanco cálido", lambda icon, it: self._execute({"type": "white_percent", "value": 10})),
-            item("Blanco neutro", lambda icon, it: self._execute({"type": "white_percent", "value": 50})),
-            item("Blanco frío", lambda icon, it: self._execute({"type": "white_percent", "value": 100})),
+            item(self._t("hotkeys.action.white_warm"), lambda icon, it: self._execute({"type": "white_percent", "value": 10})),
+            item(self._t("hotkeys.action.white_neutral"), lambda icon, it: self._execute({"type": "white_percent", "value": 50})),
+            item(self._t("hotkeys.action.white_cold"), lambda icon, it: self._execute({"type": "white_percent", "value": 100})),
         )
 
         scenes_menu = menu(*self._scene_items(limit=9))
         favorites_items = self._favorite_items(limit=8)
         routines_items = self._routine_items(limit=8)
         target_menu = menu(
-            item("Una ampolleta", lambda icon, it: self._execute({"type": "target_mode", "value": "single"})),
-            item("Todas", lambda icon, it: self._execute({"type": "target_mode", "value": "all"})),
+            item(self._t("routines.target.single"), lambda icon, it: self._execute({"type": "target_mode", "value": "single"})),
+            item(self._t("routines.target.all"), lambda icon, it: self._execute({"type": "target_mode", "value": "all"})),
         )
 
         dynamic_sections = [
-            item("Brillo", brightness_menu),
-            item("Colores / blanco", colors_menu),
-            item("Escenas WiZ", scenes_menu),
+            item(self._t("tray.brightness"), brightness_menu),
+            item(self._t("tray.colors_white"), colors_menu),
+            item(self._t("tray.wiz_scenes"), scenes_menu),
         ]
         if favorites_items:
-            dynamic_sections.append(item("Favoritos", menu(*favorites_items)))
+            dynamic_sections.append(item(self._t("tray.favorites"), menu(*favorites_items)))
         if routines_items:
-            dynamic_sections.append(item("Rutinas", menu(*routines_items)))
-        dynamic_sections.append(item("Destino", target_menu))
+            dynamic_sections.append(item(self._t("tray.routines"), menu(*routines_items)))
+        dynamic_sections.append(item(self._t("tray.target"), target_menu))
 
         hotkey_items = self._hotkey_menu_items()
 
@@ -236,7 +248,7 @@ class TrayService:
         if os.name == "nt":
             primary_action_items.append(
                 item(
-                    "Alternar WizZ",
+                    self._t("tray.toggle_app"),
                     lambda icon, it: self._handle_tray_primary_click(),
                     default=True,
                     visible=False,
@@ -246,12 +258,12 @@ class TrayService:
         return menu(
             *primary_action_items,
             item(
-                "Mostrar WizZ",
+                self._t("tray.show_app"),
                 lambda icon, it: self.show_window(),
                 default=show_is_default,
             ),
-            item("Ocultar a bandeja", lambda icon, it: self.hide_window()),
-            item("Actualizar menú", lambda icon, it: self.refresh_menu()),
+            item(self._t("tray.hide_app"), lambda icon, it: self.hide_window()),
+            item(self._t("tray.update_menu"), lambda icon, it: self.refresh_menu()),
             sep,
             item(self._status_label(), self._noop, enabled=False),
             item(self._target_label(), self._noop, enabled=False),
@@ -262,7 +274,7 @@ class TrayService:
             *hotkey_items,
             sep,
             item(display_version(), self._noop, enabled=False),
-            item("Salir", lambda icon, it: self.exit_app()),
+            item(self._t("tray.exit"), lambda icon, it: self.exit_app()),
         )
 
     def _scene_items(self, limit: int = 9):
@@ -277,10 +289,10 @@ class TrayService:
             for scene_id in ids[:limit]:
                 scene = wiz_scenes.get(scene_id)
                 if scene:
-                    out.append(item(scene.name, lambda icon, it, sid=scene.id: self._execute({"type": "scene", "value": {"sceneId": sid, "speed": 100}})))
+                    out.append(item(translated_scene_name(self.i18n, scene.id, scene.name), lambda icon, it, sid=scene.id: self._execute({"type": "scene", "value": {"sceneId": sid, "speed": 100}})))
             return out
         except Exception:
-            return [item("TV / Cine", lambda icon, it: self._execute({"type": "scene", "value": {"sceneId": 18, "speed": 100}}))]
+            return [item(translated_scene_name(self.i18n, 18, "TV / Cinema"), lambda icon, it: self._execute({"type": "scene", "value": {"sceneId": 18, "speed": 100}}))]
 
     def _favorite_items(self, limit: int = 8):
         pystray = self._pystray
@@ -290,10 +302,10 @@ class TrayService:
             from config.favorites_manager import FavoritesManager
 
             out = []
-            for fav in FavoritesManager().get_favorites()[:limit]:
+            for index, fav in enumerate(FavoritesManager().get_favorites()[:limit], start=1):
                 uid = fav.get("id")
                 if uid:
-                    name = str(fav.get("name") or "Favorito")[:36]
+                    name = str(translated_favorite_name(self.i18n, fav) or self._t("tray.default_favorite", index=index))[:36]
                     out.append(item(name, lambda icon, it, x=str(uid): self._execute({"type": "favorite", "value": x})))
             return out
         except Exception:
@@ -307,10 +319,10 @@ class TrayService:
             from config.routines_manager import RoutinesManager
 
             out = []
-            for routine in RoutinesManager().get_routines()[:limit]:
+            for routine in RoutinesManager(i18n=self.i18n).get_routines()[:limit]:
                 uid = routine.get("id")
                 if uid:
-                    name = str(routine.get("name") or "Rutina")[:36]
+                    name = str(translated_default_routine_name(self.i18n, routine) or self._t("tray.default_routine"))[:36]
                     out.append(item(name, lambda icon, it, x=str(uid): self._execute({"type": "routine", "value": x})))
             return out
         except Exception:
@@ -322,10 +334,16 @@ class TrayService:
         item = pystray.MenuItem
         if self.hotkeys_manager is None:
             return []
-        status = "Hotkeys: " + self._safe_str(lambda: self.hotkeys_manager.backend_status(), "sin estado")
+        status = self._t(
+            "tray.hotkeys_status",
+            status=self._safe_str(
+                lambda: self.hotkeys_manager.backend_status(),
+                self._t("tray.no_status"),
+            ),
+        )
         return [
             item(status, self._noop, enabled=False),
-            item("Re-registrar hotkeys", lambda icon, it: self._rehook_hotkeys()),
+            item(self._t("tray.reregister_hotkeys"), lambda icon, it: self._rehook_hotkeys()),
         ]
 
     def refresh_menu(self) -> None:
@@ -417,18 +435,18 @@ class TrayService:
         status = self._tray_status()
         state = status.get("state") if isinstance(status.get("state"), dict) else {}
         online = bool(status.get("online"))
-        power = "encendida" if bool(state.get("state", True)) else "apagada"
+        power = self._t("tray.power_on") if bool(state.get("state", True)) else self._t("tray.power_off")
         dimming = state.get("dimming")
         bri = f" · {int(dimming)}%" if isinstance(dimming, (int, float)) else ""
-        name = str(status.get("name") or "Ampolleta")[:28]
-        conn = "online" if online else "sin respuesta"
-        return f"{name}: {power}{bri} · {conn}"
+        name = str(status.get("name") or self._t("tray.default_light"))[:28]
+        conn = self._t("tray.connection_online") if online else self._t("tray.connection_no_response")
+        return self._t("tray.status", name=name, power=power, brightness=bri, connection=conn)
 
     def _target_label(self) -> str:
         status = self._tray_status()
-        mode = "1 luz" if status.get("mode") == "single" else "todas"
+        mode = self._t("tray.one_light") if status.get("mode") == "single" else self._t("tray.all")
         ip = status.get("ip") or "—"
-        return f"Destino: {mode} · {ip}"
+        return self._t("tray.target_status", mode=mode, ip=ip)
 
     # ------------------------------------------------------------------ #
     # Activacion primaria del icono
@@ -557,7 +575,7 @@ class TrayService:
 
             scheduled = self._schedule_page_coroutine(
                 sync_flet_window,
-                label="No se pudo sincronizar la ventana",
+                label=self._t("tray.sync_window_error"),
             )
             self._hidden = False
             self._last_show_ok = bool(native.ok or scheduled)
@@ -591,7 +609,7 @@ class TrayService:
 
         if self._schedule_page_coroutine(
             sync_hidden_window,
-            label="No se pudo ocultar la ventana",
+            label=self._t("tray.hide_window_error"),
         ):
             self._hidden = True
             self._log("Ventana ocultada a bandeja")
@@ -651,7 +669,7 @@ class TrayService:
 
         if not self._schedule_page_coroutine(
             destroy_later,
-            label="No se pudo cerrar la ventana",
+            label=self._t("tray.close_window_error"),
         ):
             os._exit(0)
 
@@ -659,6 +677,12 @@ class TrayService:
     # Cierre
     # ------------------------------------------------------------------ #
     def stop(self) -> None:
+        if self._unsubscribe_i18n is not None:
+            try:
+                self._unsubscribe_i18n()
+            except Exception:
+                pass
+            self._unsubscribe_i18n = None
         try:
             if self.icon:
                 self.icon.stop()
