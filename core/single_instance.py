@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Callable
 
 from app_meta import APP_ID, APP_NAME
+from localization import LocalizationManager
 
 
 class SingleInstanceGuard:
@@ -328,9 +329,10 @@ class SingleInstanceGuard:
             pass
 
     @staticmethod
-    def show_already_running_message() -> None:
+    def show_already_running_message(i18n=None) -> None:
         """Fallback visual cuando no se pudo activar la ventana existente."""
-        message = f"{APP_NAME} ya se está ejecutando. Revisa el área de notificación de Windows."
+        manager = i18n or LocalizationManager(preference="es")
+        message = manager.translate("instance.already_running", app=APP_NAME)
         if os.name == "nt":
             try:
                 import ctypes

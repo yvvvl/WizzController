@@ -12,48 +12,47 @@ from config.favorites_manager import FavoritesManager
 from config.routines_manager import RoutinesManager
 from core import wiz_scenes
 from core.action_sequence import ActionSequenceExecutor
+from localization import (
+    LocalizationManager,
+    translated_default_routine_description,
+    translated_default_routine_name,
+    translated_favorite_name,
+    translated_scene_name,
+)
 from ui.scene_visuals import scene_color, scene_icon
 from ui.responsive import PANEL_BREAKPOINTS, Viewport, dialog_dimensions
 from ui.theme import Theme, mounted, supdate
 
 RGB_SWATCHES = [
-    ("Rojo", "#ff0000"), ("Naranjo", "#ff7f00"), ("Amarillo", "#ffd000"),
-    ("Verde", "#00ff40"), ("Cian", "#00d5ff"), ("Azul", "#0055ff"),
-    ("Violeta", "#7f00ff"), ("Magenta", "#ff00cc"), ("Rosa", "#ff4fa3"),
+    ("color.name.red", "#ff0000"), ("color.name.orange", "#ff7f00"), ("color.name.yellow", "#ffd000"),
+    ("color.name.green", "#00ff40"), ("color.name.cyan", "#00d5ff"), ("color.name.blue", "#0055ff"),
+    ("color.name.violet", "#7f00ff"), ("color.name.magenta", "#ff00cc"), ("color.name.pink", "#ff4fa3"),
 ]
-WHITE_PRESETS = [(2200, "Vela"), (2700, "Cálido"), (4000, "Neutro"), (5000, "Día"), (6500, "Frío")]
+WHITE_PRESETS = [(2200, "white.name.candle"), (2700, "white.name.warm"), (4000, "white.name.neutral"), (5000, "white.name.daylight"), (6500, "white.name.cool")]
 
 ACTION_LABELS = {
-    "turn_on": "Encender",
-    "turn_off": "Apagar",
-    "toggle": "Alternar",
-    "brightness": "Brillo",
-    "brightness_delta": "Subir/Bajar brillo",
-    "rgb": "Color",
-    "white_percent": "Blanco cálido/frío",
-    "white_kelvin": "Blanco Kelvin",
-    "scene": "Escena WiZ",
-    "favorite": "Favorito",
-    "custom_scene": "Escena personalizada",
-    "routine": "Otra rutina",
-    "wait": "Esperar",
-    "target_mode": "Destino",
+    action: f"routines.action.{action}"
+    for action in (
+        "turn_on", "turn_off", "toggle", "brightness", "brightness_delta",
+        "rgb", "white_percent", "white_kelvin", "scene", "favorite",
+        "custom_scene", "routine", "wait", "target_mode",
+    )
 }
 ACTION_ORDER = [
     "turn_on", "turn_off", "toggle", "brightness", "brightness_delta", "rgb", "white_percent", "white_kelvin",
     "scene", "favorite", "custom_scene", "routine", "wait", "target_mode",
 ]
 ROUTINE_ICON_OPTIONS = [
-    ("AUTO_AWESOME_ROUNDED", "Auto"),
-    ("SCHOOL_ROUNDED", "Estudio"),
-    ("NIGHTLIGHT_ROUNDED", "Noche"),
-    ("SPORTS_ESPORTS_ROUNDED", "Juego"),
-    ("MOVIE_ROUNDED", "Cine"),
-    ("MENU_BOOK_ROUNDED", "Lectura"),
-    ("POWER_SETTINGS_NEW_ROUNDED", "Apagado"),
-    ("PALETTE_ROUNDED", "Color"),
-    ("LIGHT_MODE_ROUNDED", "Luz"),
-    ("ROCKET_LAUNCH_ROUNDED", "Rutina"),
+    ("AUTO_AWESOME_ROUNDED", "routines.icon.auto"),
+    ("SCHOOL_ROUNDED", "routines.icon.study"),
+    ("NIGHTLIGHT_ROUNDED", "routines.icon.night"),
+    ("SPORTS_ESPORTS_ROUNDED", "routines.icon.gaming"),
+    ("MOVIE_ROUNDED", "routines.icon.cinema"),
+    ("MENU_BOOK_ROUNDED", "routines.icon.reading"),
+    ("POWER_SETTINGS_NEW_ROUNDED", "routines.icon.power_off"),
+    ("PALETTE_ROUNDED", "routines.icon.color"),
+    ("LIGHT_MODE_ROUNDED", "routines.icon.light"),
+    ("ROCKET_LAUNCH_ROUNDED", "routines.icon.routine"),
 ]
 
 
@@ -101,10 +100,11 @@ class RoutinesPanel(ft.Column):
     escenas por nombre, sliders de brillo, favoritos y escenas personalizadas.
     """
 
-    def __init__(self, wiz):
+    def __init__(self, wiz, i18n=None):
         super().__init__(scroll=ft.ScrollMode.AUTO, spacing=16, expand=True)
         self.wiz = wiz
-        self.manager = RoutinesManager()
+        self.i18n = i18n or LocalizationManager(preference="es")
+        self.manager = RoutinesManager(i18n=self.i18n)
         self.executor = ActionSequenceExecutor(wiz)
         self.list_view = ft.Column(spacing=10)
         self._viewport = Viewport(900, 720)
@@ -112,12 +112,31 @@ class RoutinesPanel(ft.Column):
         self._build()
 
     # ------------------------------------------------------------------ #
+    def _t(self, key: str, **values) -> str:
+        return self.i18n.translate(key, **values)
+
+    def _action_label(self, kind: str) -> str:
+        key = ACTION_LABELS.get(kind)
+        return self._t(key) if key else str(kind)
+
+    def _routine_name(self, routine: dict[str, Any]) -> str:
+        return translated_default_routine_name(self.i18n, routine)
+
+    def _routine_description(self, routine: dict[str, Any]) -> str:
+        return translated_default_routine_description(self.i18n, routine)
+
+    def set_language(self, language: str | None = None) -> None:
+        self.manager.i18n = self.i18n
+        self._build()
+        if mounted(self):
+            supdate(self)
+
     def _build(self):
         header_buttons = ft.Row(
             [
-                ft.ElevatedButton("Nueva", icon=ft.Icons.ADD_ROUNDED, bgcolor=Theme.PRIMARY, color="white", on_click=lambda e: self._open_editor()),
+                ft.ElevatedButton(self._t("routines.new"), icon=ft.Icons.ADD_ROUNDED, bgcolor=Theme.PRIMARY, color="white", on_click=lambda e: self._open_editor()),
                 ft.OutlinedButton(
-                    "Capturar estado",
+                    self._t("routines.capture_state"),
                     icon=ft.Icons.CAMERA_ALT_ROUNDED,
                     style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)),
                     on_click=lambda e: self._capture_current(),
@@ -137,8 +156,8 @@ class RoutinesPanel(ft.Column):
                 ft.Container(
                     content=ft.Column(
                         [
-                            ft.Text("Rutinas", style=Theme.H1),
-                            ft.Text("Presets compuestos simples para hotkeys y acciones rápidas", color=Theme.MUTED, size=13),
+                            ft.Text(self._t("routines.title"), style=Theme.H1),
+                            ft.Text(self._t("routines.subtitle"), color=Theme.MUTED, size=13),
                         ],
                         spacing=2,
                     ),
@@ -159,7 +178,7 @@ class RoutinesPanel(ft.Column):
                             [
                                 ft.Icon(ft.Icons.INFO_OUTLINE_ROUNDED, color=Theme.PRIMARY, size=18),
                                 ft.Text(
-                                    "Crea rutinas visuales sin JSON: color, blanco, brillo, escena, favoritos, espera y destino.",
+                                    self._t("routines.info"),
                                     color=Theme.MUTED,
                                     size=12,
                                     expand=True,
@@ -170,7 +189,7 @@ class RoutinesPanel(ft.Column):
                         col={"xs": 12, "md": 8},
                     ),
                     ft.Container(
-                        content=ft.TextButton("Restaurar presets", icon=ft.Icons.RESTART_ALT_ROUNDED, on_click=lambda e: self._reset_defaults()),
+                        content=ft.TextButton(self._t("routines.restore_presets"), icon=ft.Icons.RESTART_ALT_ROUNDED, on_click=lambda e: self._reset_defaults()),
                         col={"xs": 12, "md": 4},
                         alignment=ft.Alignment.CENTER_RIGHT,
                     ),
@@ -194,7 +213,7 @@ class RoutinesPanel(ft.Column):
         return card
 
     def _render(self):
-        self.manager = RoutinesManager()
+        self.manager = RoutinesManager(i18n=self.i18n)
         self.list_view.controls.clear()
         # Las cards de rutina se reconstruyen al guardar/borrar. Mantener
         # referencias viejas hace que cada resize actualice controles desmontados.
@@ -206,7 +225,7 @@ class RoutinesPanel(ft.Column):
                     padding=32,
                     alignment=ft.Alignment.CENTER,
                     content=ft.Column(
-                        [ft.Icon(ft.Icons.ROCKET_LAUNCH_OUTLINED, color=Theme.MUTED, size=40), ft.Text("No hay rutinas.", color=Theme.MUTED)],
+                        [ft.Icon(ft.Icons.ROCKET_LAUNCH_OUTLINED, color=Theme.MUTED, size=40), ft.Text(self._t("routines.empty_full"), color=Theme.MUTED)],
                         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
                 )
@@ -237,9 +256,9 @@ class RoutinesPanel(ft.Column):
                 ),
                 ft.Column(
                     [
-                        ft.Text(r.get("name", "Rutina"), color=Theme.TEXT, weight=ft.FontWeight.W_600, size=15, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
-                        ft.Text(r.get("description", ""), color=Theme.MUTED, size=11, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS),
-                        ft.Text(summary or "Sin acciones", color=Theme.FAINT, size=10, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS),
+                        ft.Text(self._routine_name(r) or self._t("routines.fallback_name"), color=Theme.TEXT, weight=ft.FontWeight.W_600, size=15, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
+                        ft.Text(self._routine_description(r), color=Theme.MUTED, size=11, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS),
+                        ft.Text(summary or self._t("routines.no_actions"), color=Theme.FAINT, size=10, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS),
                     ],
                     spacing=2,
                     expand=True,
@@ -250,10 +269,10 @@ class RoutinesPanel(ft.Column):
         )
         actions_row = ft.Row(
             [
-                ft.ElevatedButton("Aplicar", icon=ft.Icons.PLAY_ARROW_ROUNDED, bgcolor=Theme.PRIMARY, color="white", on_click=lambda e, x=r: self._apply(x)),
-                ft.IconButton(ft.Icons.EDIT_ROUNDED, icon_color=Theme.PRIMARY, tooltip="Editar", on_click=lambda e, x=r: self._open_editor(x)),
-                ft.IconButton(ft.Icons.CONTENT_COPY_ROUNDED, icon_color=Theme.MUTED, tooltip="Duplicar", on_click=lambda e, uid=r.get("id"): self._duplicate(uid)),
-                ft.IconButton(ft.Icons.DELETE_OUTLINE_ROUNDED, icon_color=Theme.ERROR, tooltip="Eliminar", on_click=lambda e, uid=r.get("id"): self._delete(uid)),
+                ft.ElevatedButton(self._t("routines.apply"), icon=ft.Icons.PLAY_ARROW_ROUNDED, bgcolor=Theme.PRIMARY, color="white", on_click=lambda e, x=r: self._apply(x)),
+                ft.IconButton(ft.Icons.EDIT_ROUNDED, icon_color=Theme.PRIMARY, tooltip=self._t("common.edit"), on_click=lambda e, x=r: self._open_editor(x)),
+                ft.IconButton(ft.Icons.CONTENT_COPY_ROUNDED, icon_color=Theme.MUTED, tooltip=self._t("common.duplicate"), on_click=lambda e, uid=r.get("id"): self._duplicate(uid)),
+                ft.IconButton(ft.Icons.DELETE_OUTLINE_ROUNDED, icon_color=Theme.ERROR, tooltip=self._t("common.delete"), on_click=lambda e, uid=r.get("id"): self._delete(uid)),
             ],
             spacing=3,
             run_spacing=6,
@@ -282,44 +301,45 @@ class RoutinesPanel(ft.Column):
         kind = str(action.get("type") or "")
         value = action.get("value")
         if kind == "turn_on":
-            return Theme.SUCCESS, ft.Icons.POWER_SETTINGS_NEW_ROUNDED, "Encender", "sin valor"
+            return Theme.SUCCESS, ft.Icons.POWER_SETTINGS_NEW_ROUNDED, self._action_label(kind), self._t("routines.action.no_value")
         if kind == "turn_off":
-            return Theme.FAINT, ft.Icons.POWER_OFF_ROUNDED, "Apagar", "sin valor"
+            return Theme.FAINT, ft.Icons.POWER_OFF_ROUNDED, self._action_label(kind), self._t("routines.action.no_value")
         if kind == "toggle":
-            return Theme.PRIMARY, ft.Icons.TOGGLE_ON_ROUNDED, "Alternar", "sin valor"
+            return Theme.PRIMARY, ft.Icons.TOGGLE_ON_ROUNDED, self._action_label(kind), self._t("routines.action.no_value")
         if kind == "brightness":
-            return Theme.ACCENT, ft.Icons.BRIGHTNESS_6_ROUNDED, "Brillo", f"{value}%"
+            return Theme.ACCENT, ft.Icons.BRIGHTNESS_6_ROUNDED, self._action_label(kind), self._t("common.percent_value", value=value)
         if kind == "brightness_delta":
-            return Theme.ACCENT, ft.Icons.EXPOSURE_ROUNDED, "Brillo +/-", f"{int(value or 0):+d}%"
+            return Theme.ACCENT, ft.Icons.EXPOSURE_ROUNDED, self._action_label(kind), self._t("common.percent_value", value=f"{int(value or 0):+d}")
         if kind == "rgb":
             rgb = value if isinstance(value, str) else "#{:02x}{:02x}{:02x}".format(*self._rgb_tuple(value))
-            return str(rgb), ft.Icons.PALETTE_ROUNDED, "Color", str(rgb).upper()
+            return str(rgb), ft.Icons.PALETTE_ROUNDED, self._action_label(kind), str(rgb).upper()
         if kind == "white_percent":
-            return Theme.WARNING, ft.Icons.LIGHT_MODE_ROUNDED, "Blanco", f"{value}%"
+            return Theme.WARNING, ft.Icons.LIGHT_MODE_ROUNDED, self._action_label(kind), self._t("common.percent_value", value=value)
         if kind == "white_kelvin":
-            return Theme.WARNING, ft.Icons.WB_SUNNY_ROUNDED, "Blanco", f"{value}K"
+            return Theme.WARNING, ft.Icons.WB_SUNNY_ROUNDED, self._action_label(kind), self._t("common.kelvin_value", value=value)
         if kind == "scene":
             sid = int(value.get("sceneId", 18) if isinstance(value, dict) else value or 18)
             sc = wiz_scenes.get(sid)
-            return scene_color(sid, "#8b5cf6"), scene_icon(sid), "Escena", sc.name if sc else f"Escena {sid}"
+            return scene_color(sid, "#8b5cf6"), scene_icon(sid), self._action_label(kind), translated_scene_name(self.i18n, sid, sc.name if sc else str(sid))
         if kind == "favorite":
             fav = FavoritesManager().get_favorite(str(value or ""))
-            return "#fbbf24", ft.Icons.STAR_ROUNDED, "Favorito", fav.get("name", "Favorito") if fav else "No encontrado"
+            return "#fbbf24", ft.Icons.STAR_ROUNDED, self._action_label(kind), translated_favorite_name(self.i18n, fav) if fav else self._t("routines.action.not_found")
         if kind == "custom_scene":
             scn = CustomScenesManager().get_scene(str(value or ""))
-            return "#ec4899", ft.Icons.AUTO_AWESOME_ROUNDED, "Mi escena", scn.get("name", "Escena") if scn else "No encontrada"
+            return "#ec4899", ft.Icons.AUTO_AWESOME_ROUNDED, self._action_label(kind), scn.get("name", self._t("scenes.custom_fallback")) if scn else self._t("routines.action.not_found")
         if kind == "routine":
-            rt = RoutinesManager().get_routine(str(value or ""))
-            return "#5b8cff", ft.Icons.ROCKET_LAUNCH_ROUNDED, "Rutina", rt.get("name", "Rutina") if rt else "No encontrada"
+            rt = RoutinesManager(i18n=self.i18n).get_routine(str(value or ""))
+            return "#5b8cff", ft.Icons.ROCKET_LAUNCH_ROUNDED, self._action_label(kind), self._routine_name(rt) if rt else self._t("routines.action.not_found")
         if kind == "wait":
-            return Theme.MUTED, ft.Icons.HOURGLASS_BOTTOM_ROUNDED, "Esperar", f"{value}ms"
+            return Theme.MUTED, ft.Icons.HOURGLASS_BOTTOM_ROUNDED, self._action_label(kind), f"{value}ms"
         if kind == "target_mode":
-            return Theme.PRIMARY, ft.Icons.ADJUST_ROUNDED, "Destino", "Todas" if value == "all" else "Una ampolleta"
-        return Theme.PRIMARY, ft.Icons.AUTO_AWESOME_ROUNDED, ACTION_LABELS.get(kind, kind or "Acción"), str(value or "")
+            target = "routines.target.all" if value == "all" else "routines.target.single"
+            return Theme.PRIMARY, ft.Icons.ADJUST_ROUNDED, self._action_label(kind), self._t(target)
+        return Theme.PRIMARY, ft.Icons.AUTO_AWESOME_ROUNDED, self._action_label(kind) or self._t("routines.action.label"), str(value or "")
 
     def _action_text(self, action: dict[str, Any]) -> str:
         _, _, title, sub = self._action_visual(action)
-        return title if not sub or sub == "sin valor" else f"{title} {sub}"
+        return title if not sub or sub == self._t("routines.action.no_value") else f"{title} {sub}"
 
     def _color_from_actions(self, actions: Any) -> str | None:
         if not isinstance(actions, list):
@@ -361,7 +381,13 @@ class RoutinesPanel(ft.Column):
             actions.append({"type": "white_kelvin", "value": int(state.get("temp"))})
         if state.get("dimming"):
             actions.append({"type": "brightness", "value": int(state.get("dimming"))})
-        self.manager.add_routine("Rutina capturada", actions, "Creada desde el estado actual", self._color_from_actions(actions) or "#5b8cff", "CAMERA_ALT_ROUNDED")
+        self.manager.add_routine(
+            self._t("routines.capture_name"),
+            actions,
+            self._t("routines.capture_description"),
+            self._color_from_actions(actions) or "#5b8cff",
+            "CAMERA_ALT_ROUNDED",
+        )
         self._render()
 
     # ------------------------------------------------------------------ #
@@ -376,19 +402,19 @@ class RoutinesPanel(ft.Column):
         if not actions:
             actions.append({"type": "turn_on"})
 
-        name = ft.TextField(label="Nombre", value=str(routine.get("name", "")), dense=True, color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
-        desc = ft.TextField(label="Descripción", value=str(routine.get("description", "")), dense=True, color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
+        name = ft.TextField(label=self._t("favorites.name"), value=self._routine_name(routine), dense=True, color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
+        desc = ft.TextField(label=self._t("common.description"), value=self._routine_description(routine), dense=True, color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
         accent = {"color": str(routine.get("color") or self._color_from_actions(actions) or "#5b8cff")}
         icon_dd = ft.Dropdown(
-            label="Icono",
+            label=self._t("common.icon"),
             value=str(routine.get("icon") or "AUTO_AWESOME_ROUNDED"),
-            options=[ft.DropdownOption(key=k, text=v) for k, v in ROUTINE_ICON_OPTIONS],
+            options=[ft.DropdownOption(key=k, text=self._t(v)) for k, v in ROUTINE_ICON_OPTIONS],
             dense=True,
             color=Theme.TEXT,
             bgcolor=Theme.BG,
             border_color=Theme.STROKE,
         )
-        color_field = ft.TextField(label="Color tarjeta", value=accent["color"], dense=True, color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
+        color_field = ft.TextField(label=self._t("routines.field.card_color"), value=accent["color"], dense=True, color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
         color_preview = ft.Container(width=42, height=42, border_radius=13, bgcolor=accent["color"], border=ft.Border.all(1, Theme.STROKE), alignment=ft.Alignment.CENTER, content=ft.Icon(_icon(icon_dd.value), color="white"))
         actions_column = ft.Column(spacing=8)
 
@@ -416,7 +442,7 @@ class RoutinesPanel(ft.Column):
             final_actions = [a for a in actions if isinstance(a, dict) and a.get("type")]
             if not final_actions:
                 final_actions = [{"type": "turn_on"}]
-            final_name = (name.value or "Nueva rutina").strip() or "Nueva rutina"
+            final_name = (name.value or self._t("routines.default_name")).strip() or self._t("routines.default_name")
             final_desc = (desc.value or "").strip()
             final_icon = icon_dd.value or "AUTO_AWESOME_ROUNDED"
             if is_new:
@@ -430,7 +456,8 @@ class RoutinesPanel(ft.Column):
         color_field.on_submit = update_routine_preview
         color_swatches = ft.Row(wrap=True, spacing=8, run_spacing=8, controls=[
             ft.Container(width=28, height=28, border_radius=14, bgcolor=c, tooltip=n, border=ft.Border.all(1, ft.Colors.with_opacity(0.35, "white")), on_click=lambda ev, col=c: (setattr(color_field, "value", col), update_routine_preview(), supdate(color_field)))
-            for n, c in RGB_SWATCHES
+            for key, c in RGB_SWATCHES
+            for n in (self._t(key),)
         ])
         render_actions()
 
@@ -460,9 +487,9 @@ class RoutinesPanel(ft.Column):
             run_spacing=6,
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
             controls=[
-                ft.Container(content=ft.Text("ACCIONES", style=Theme.LABEL), col={"xs": 12, "sm": 6}),
+                ft.Container(content=ft.Text(self._t("common.actions"), style=Theme.LABEL), col={"xs": 12, "sm": 6}),
                 ft.Container(
-                    content=ft.OutlinedButton("Agregar acción", icon=ft.Icons.ADD_ROUNDED, style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)), on_click=add_action),
+                    content=ft.OutlinedButton(self._t("routines.add_action"), icon=ft.Icons.ADD_ROUNDED, style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)), on_click=add_action),
                     col={"xs": 12, "sm": 6},
                     alignment=ft.Alignment.CENTER_RIGHT,
                 ),
@@ -470,7 +497,7 @@ class RoutinesPanel(ft.Column):
         )
         dlg = ft.AlertDialog(
             bgcolor=Theme.SURFACE,
-            title=ft.Text("Nueva rutina" if is_new else "Editar rutina", color=Theme.TEXT),
+            title=ft.Text(self._t("routines.new_title") if is_new else self._t("routines.edit_title"), color=Theme.TEXT),
             content=ft.Container(
                 width=dialog_w,
                 height=dialog_h,
@@ -488,8 +515,8 @@ class RoutinesPanel(ft.Column):
                 ),
             ),
             actions=[
-                ft.TextButton("Cancelar", on_click=lambda e: self.page.pop_dialog()),
-                ft.ElevatedButton("Guardar", bgcolor=Theme.PRIMARY, color="white", on_click=save),
+                ft.TextButton(self._t("common.cancel"), on_click=lambda e: self.page.pop_dialog()),
+                ft.ElevatedButton(self._t("common.save"), bgcolor=Theme.PRIMARY, color="white", on_click=save),
             ],
         )
         self.page.show_dialog(dlg)
@@ -531,10 +558,10 @@ class RoutinesPanel(ft.Column):
         )
         controls = ft.Row(
             [
-                ft.IconButton(ft.Icons.KEYBOARD_ARROW_UP_ROUNDED, icon_color=Theme.MUTED, tooltip="Subir", icon_size=18, on_click=lambda e: move(-1)),
-                ft.IconButton(ft.Icons.KEYBOARD_ARROW_DOWN_ROUNDED, icon_color=Theme.MUTED, tooltip="Bajar", icon_size=18, on_click=lambda e: move(1)),
-                ft.IconButton(ft.Icons.EDIT_ROUNDED, icon_color=Theme.PRIMARY, tooltip="Editar acción", icon_size=18, on_click=edit),
-                ft.IconButton(ft.Icons.DELETE_OUTLINE_ROUNDED, icon_color=Theme.ERROR, tooltip="Borrar acción", icon_size=18, on_click=delete),
+                ft.IconButton(ft.Icons.KEYBOARD_ARROW_UP_ROUNDED, icon_color=Theme.MUTED, tooltip=self._t("common.move_up"), icon_size=18, on_click=lambda e: move(-1)),
+                ft.IconButton(ft.Icons.KEYBOARD_ARROW_DOWN_ROUNDED, icon_color=Theme.MUTED, tooltip=self._t("common.move_down"), icon_size=18, on_click=lambda e: move(1)),
+                ft.IconButton(ft.Icons.EDIT_ROUNDED, icon_color=Theme.PRIMARY, tooltip=self._t("routines.action.edit"), icon_size=18, on_click=edit),
+                ft.IconButton(ft.Icons.DELETE_OUTLINE_ROUNDED, icon_color=Theme.ERROR, tooltip=self._t("routines.action.delete"), icon_size=18, on_click=delete),
             ],
             spacing=1,
             wrap=True,
@@ -565,9 +592,9 @@ class RoutinesPanel(ft.Column):
             return
         state = self._action_to_state(action or {"type": "brightness", "value": 70})
         kind = ft.Dropdown(
-            label="Acción",
+            label=self._t("routines.action.label"),
             value=state["type"],
-            options=[ft.DropdownOption(key=k, text=ACTION_LABELS[k]) for k in ACTION_ORDER],
+            options=[ft.DropdownOption(key=k, text=self._action_label(k)) for k in ACTION_ORDER],
             color=Theme.TEXT,
             bgcolor=Theme.BG,
             border_color=Theme.STROKE,
@@ -590,14 +617,14 @@ class RoutinesPanel(ft.Column):
             editor.controls.clear()
             t = state["type"]
             if t in {"turn_on", "turn_off", "toggle"}:
-                editor.controls.append(ft.Text("Esta acción no necesita configuración.", color=Theme.MUTED, size=13))
+                editor.controls.append(ft.Text(self._t("routines.action.no_config"), color=Theme.MUTED, size=13))
 
             elif t == "brightness":
                 label = ft.Text("", color=Theme.TEXT, weight=ft.FontWeight.W_600)
                 slider = ft.Slider(min=10, max=100, value=_clamp(state.get("brightness", 70), 10, 100), divisions=18, active_color=Theme.ACCENT, thumb_color="white", expand=True)
                 def changed(ev=None):
                     state["brightness"] = int(slider.value)
-                    label.value = f"Brillo {state['brightness']}%"
+                    label.value = self._t("routines.action.brightness_value", value=state["brightness"])
                     update_preview(); supdate(label)
                 slider.on_change = changed
                 changed()
@@ -612,14 +639,14 @@ class RoutinesPanel(ft.Column):
                         val = 10
                         slider.value = 10
                     state["delta"] = val
-                    label.value = f"Cambio {val:+d}%"
+                    label.value = self._t("routines.action.delta_value", value=val)
                     update_preview(); supdate(label); supdate(slider)
                 slider.on_change = changed
                 changed()
                 editor.controls.extend([label, slider])
 
             elif t == "rgb":
-                hex_field = ft.TextField(label="HEX", value=state.get("rgb", "#ff0000"), color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE, dense=True)
+                hex_field = ft.TextField(label=self._t("favorites.hex"), value=state.get("rgb", "#ff0000"), color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE, dense=True)
                 hue = ft.Slider(min=0, max=359, value=state.get("h", 0), divisions=36, active_color=Theme.PRIMARY, thumb_color="white", expand=True)
                 sat = ft.Slider(min=0, max=100, value=state.get("s", 100), divisions=20, active_color=Theme.ACCENT, thumb_color="white", expand=True)
                 val = ft.Slider(min=10, max=100, value=max(10, state.get("v", 100)), divisions=18, active_color=Theme.WARNING, thumb_color="white", expand=True)
@@ -640,23 +667,28 @@ class RoutinesPanel(ft.Column):
                 hex_field.on_submit = from_hex
                 swatches = ft.Row(wrap=True, spacing=8, run_spacing=8, controls=[
                     ft.Container(width=32, height=32, border_radius=16, bgcolor=c, tooltip=n, border=ft.Border.all(1, ft.Colors.with_opacity(0.35, "white")), on_click=lambda ev, col=c, hf=hex_field: (setattr(hf, "value", col), from_hex()))
-                    for n, c in RGB_SWATCHES
+                    for key, c in RGB_SWATCHES
+                    for n in (self._t(key),)
                 ])
-                editor.controls.extend([swatches, hex_field, ft.Text("Matiz", style=Theme.LABEL), hue, ft.Text("Intensidad", style=Theme.LABEL), sat, ft.Text("Claridad", style=Theme.LABEL), val])
+                editor.controls.extend([swatches, hex_field, ft.Text(self._t("favorites.hue"), style=Theme.LABEL), hue, ft.Text(self._t("favorites.saturation"), style=Theme.LABEL), sat, ft.Text(self._t("favorites.lightness"), style=Theme.LABEL), val])
 
             elif t == "white_percent":
                 label = ft.Text("", color=Theme.TEXT, weight=ft.FontWeight.W_600)
                 slider = ft.Slider(min=0, max=100, value=_clamp(state.get("white_percent", 50), 0, 100), divisions=100, active_color=Theme.WARNING, thumb_color="white", expand=True)
                 def changed(ev=None):
                     state["white_percent"] = int(slider.value)
-                    label.value = f"Blanco {state['white_percent']}% · {self._kelvin_from_pct(state['white_percent'])}K"
+                    label.value = self._t(
+                        "routines.action.white_value",
+                        percent=state["white_percent"],
+                        kelvin=self._kelvin_from_pct(state["white_percent"]),
+                    )
                     update_preview(); supdate(label)
                 slider.on_change = changed
                 def preset(k: int):
                     state["white_percent"] = self._pct_from_kelvin(k)
                     slider.value = state["white_percent"]
                     changed(); supdate(slider)
-                buttons = ft.Row(wrap=True, spacing=8, run_spacing=8, controls=[ft.OutlinedButton(txt, style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)), on_click=lambda ev, kk=k: preset(kk)) for k, txt in WHITE_PRESETS])
+                buttons = ft.Row(wrap=True, spacing=8, run_spacing=8, controls=[ft.OutlinedButton(self._t(key), style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)), on_click=lambda ev, kk=k: preset(kk)) for k, key in WHITE_PRESETS])
                 changed()
                 editor.controls.extend([label, slider, buttons])
 
@@ -674,9 +706,9 @@ class RoutinesPanel(ft.Column):
 
             elif t == "scene":
                 dd = ft.Dropdown(
-                    label="Escena",
+                    label=self._t("favorites.scene"),
                     value=str(state.get("scene", 18)),
-                    options=[ft.DropdownOption(key=str(sid), text=f"{sid} · {sc.name}") for sid, sc in wiz_scenes.CATALOG.items()],
+                    options=[ft.DropdownOption(key=str(sid), text=f"{sid} · {translated_scene_name(self.i18n, sid, sc.name)}") for sid, sc in wiz_scenes.CATALOG.items()],
                     color=Theme.TEXT,
                     bgcolor=Theme.BG,
                     border_color=Theme.STROKE,
@@ -688,7 +720,7 @@ class RoutinesPanel(ft.Column):
                     update_preview()
                 def speed_changed(ev=None):
                     state["speed"] = int(speed.value)
-                    speed_label.value = f"Velocidad {state['speed']}"
+                    speed_label.value = self._t("routines.action.speed_value", value=state["speed"])
                     update_preview(); supdate(speed_label)
                 dd.on_change = scene_changed
                 speed.on_change = speed_changed
@@ -698,9 +730,9 @@ class RoutinesPanel(ft.Column):
             elif t == "favorite":
                 favs = FavoritesManager().get_favorites()
                 dd = ft.Dropdown(
-                    label="Favorito",
+                    label=self._t("routines.action.favorite"),
                     value=str(state.get("favorite") or (favs[0].get("id") if favs else "")),
-                    options=[ft.DropdownOption(key=str(f.get("id")), text=f.get("name", "Favorito")) for f in favs],
+                    options=[ft.DropdownOption(key=str(f.get("id")), text=translated_favorite_name(self.i18n, f) or self._t("color_studio.favorite_default")) for f in favs],
                     color=Theme.TEXT,
                     bgcolor=Theme.BG,
                     border_color=Theme.STROKE,
@@ -710,14 +742,14 @@ class RoutinesPanel(ft.Column):
                     update_preview()
                 dd.on_change = changed
                 changed()
-                editor.controls.append(dd if favs else ft.Text("No hay favoritos creados.", color=Theme.MUTED))
+                editor.controls.append(dd if favs else ft.Text(self._t("routines.action.favorite_empty"), color=Theme.MUTED))
 
             elif t == "custom_scene":
                 scenes = CustomScenesManager().get_scenes()
                 dd = ft.Dropdown(
-                    label="Escena personalizada",
+                    label=self._t("routines.action.custom_scene"),
                     value=str(state.get("custom_scene") or (scenes[0].get("id") if scenes else "")),
-                    options=[ft.DropdownOption(key=str(s.get("id")), text=s.get("name", "Escena")) for s in scenes],
+                    options=[ft.DropdownOption(key=str(s.get("id")), text=s.get("name") or self._t("scenes.custom_fallback")) for s in scenes],
                     color=Theme.TEXT,
                     bgcolor=Theme.BG,
                     border_color=Theme.STROKE,
@@ -727,14 +759,14 @@ class RoutinesPanel(ft.Column):
                     update_preview()
                 dd.on_change = changed
                 changed()
-                editor.controls.append(dd if scenes else ft.Text("No hay escenas personalizadas.", color=Theme.MUTED))
+                editor.controls.append(dd if scenes else ft.Text(self._t("routines.action.custom_scene_empty"), color=Theme.MUTED))
 
             elif t == "routine":
-                routines = [r for r in RoutinesManager().get_routines() if str(r.get("id")) != str(current_routine_id or "")]
+                routines = [r for r in RoutinesManager(i18n=self.i18n).get_routines() if str(r.get("id")) != str(current_routine_id or "")]
                 dd = ft.Dropdown(
-                    label="Rutina",
+                    label=self._t("routines.fallback_name"),
                     value=str(state.get("routine") or (routines[0].get("id") if routines else "")),
-                    options=[ft.DropdownOption(key=str(r.get("id")), text=r.get("name", "Rutina")) for r in routines],
+                    options=[ft.DropdownOption(key=str(r.get("id")), text=self._routine_name(r) or self._t("routines.fallback_name")) for r in routines],
                     color=Theme.TEXT,
                     bgcolor=Theme.BG,
                     border_color=Theme.STROKE,
@@ -744,14 +776,14 @@ class RoutinesPanel(ft.Column):
                     update_preview()
                 dd.on_change = changed
                 changed()
-                editor.controls.append(dd if routines else ft.Text("No hay otras rutinas disponibles.", color=Theme.MUTED))
+                editor.controls.append(dd if routines else ft.Text(self._t("routines.action.routine_empty"), color=Theme.MUTED))
 
             elif t == "wait":
                 label = ft.Text("", color=Theme.TEXT, weight=ft.FontWeight.W_600)
                 slider = ft.Slider(min=0, max=3000, value=_clamp(state.get("wait", 250), 0, 3000), divisions=30, active_color=Theme.MUTED, thumb_color="white", expand=True)
                 def changed(ev=None):
                     state["wait"] = int(slider.value)
-                    label.value = f"Esperar {state['wait']}ms"
+                    label.value = self._t("routines.action.wait_value", value=state["wait"])
                     update_preview(); supdate(label)
                 slider.on_change = changed
                 changed()
@@ -759,9 +791,9 @@ class RoutinesPanel(ft.Column):
 
             elif t == "target_mode":
                 dd = ft.Dropdown(
-                    label="Destino",
+                    label=self._t("routines.action.target_mode"),
                     value=str(state.get("target_mode", "single")),
-                    options=[ft.DropdownOption(key="single", text="Una ampolleta"), ft.DropdownOption(key="all", text="Todas")],
+                    options=[ft.DropdownOption(key="single", text=self._t("routines.target.single")), ft.DropdownOption(key="all", text=self._t("routines.target.all"))],
                     color=Theme.TEXT,
                     bgcolor=Theme.BG,
                     border_color=Theme.STROKE,
@@ -796,7 +828,7 @@ class RoutinesPanel(ft.Column):
             ],
         )
         dlg = ft.AlertDialog(
-            title=ft.Text("Editar acción" if action else "Agregar acción", color=Theme.TEXT),
+            title=ft.Text(self._t("routines.action.edit_title") if action else self._t("routines.action.add_title"), color=Theme.TEXT),
             bgcolor=Theme.SURFACE,
             content=ft.Container(
                 width=dialog_w,
@@ -812,8 +844,8 @@ class RoutinesPanel(ft.Column):
                 ),
             ),
             actions=[
-                ft.TextButton("Cancelar", on_click=lambda e: self.page.pop_dialog()),
-                ft.ElevatedButton("Guardar acción", bgcolor=Theme.PRIMARY, color="white", on_click=save),
+                ft.TextButton(self._t("common.cancel"), on_click=lambda e: self.page.pop_dialog()),
+                ft.ElevatedButton(self._t("routines.action.save"), bgcolor=Theme.PRIMARY, color="white", on_click=save),
             ],
         )
         self.page.show_dialog(dlg)

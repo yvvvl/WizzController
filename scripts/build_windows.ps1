@@ -346,6 +346,24 @@ $Manifest = [ordered]@{
 }
 $ManifestPath = Join-Path $ResolvedOutput "BUILD_INFO.json"
 $Manifest | ConvertTo-Json -Depth 4 | Set-Content -Path $ManifestPath -Encoding utf8
+# Bundle third-party notices with the portable Windows distribution.
+$ThirdPartyNotice = Join-Path $Root "THIRD_PARTY_NOTICES.md"
+$ThirdPartyLicenseDir = Join-Path $Root "licenses"
+
+if (Test-Path $ThirdPartyNotice) {
+    Copy-Item `
+        $ThirdPartyNotice `
+        (Join-Path $ResolvedOutput "THIRD_PARTY_NOTICES.md") `
+        -Force
+}
+
+if (Test-Path $ThirdPartyLicenseDir) {
+    Copy-Item `
+        $ThirdPartyLicenseDir `
+        (Join-Path $ResolvedOutput "licenses") `
+        -Recurse `
+        -Force
+}
 
 $ReleaseDir = Join-Path $Root "dist\release"
 New-Item -ItemType Directory -Force -Path $ReleaseDir | Out-Null

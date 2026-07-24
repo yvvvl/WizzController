@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 
 import flet as ft
+from localization import LocalizationManager, translated_favorite_name
 from config.favorites_manager import FavoritesManager
 from ui.responsive import PANEL_BREAKPOINTS, Viewport
 from ui.theme import Theme, mounted, supdate
@@ -25,9 +26,11 @@ class _Throttle:
 
 
 class HomePanel(ft.Column):
-    def __init__(self, wiz):
+    def __init__(self, wiz, *, i18n=None):
         super().__init__(scroll=ft.ScrollMode.AUTO, spacing=18, expand=True)
         self.wiz = wiz
+        self.i18n = i18n or LocalizationManager(preference="es")
+        self._last_state: dict = {}
         self.is_on = False
         self._bri_throttle = _Throttle(0.065)
         self._bri_guard = LocalEditGuard(1.05)
@@ -36,9 +39,20 @@ class HomePanel(ft.Column):
         self._build()
 
     # ------------------------------------------------------------------ #
+    def _t(self, key: str, **values) -> str:
+        return self.i18n.translate(key, **values)
+
+    def set_language(self, language: str | None = None) -> None:
+        current_state = dict(getattr(self, "_last_state", {}) or {})
+        self._build()
+        if current_state:
+            self.sync_state(current_state)
+        elif mounted(self):
+            supdate(self)
+
     def _build(self):
         self.status_dot = ft.Container(width=8, height=8, border_radius=4, bgcolor=Theme.MUTED)
-        self.status_text = ft.Text("Buscando…", size=12, color=Theme.MUTED)
+        self.status_text = ft.Text(self._t("home.searching"), size=12, color=Theme.MUTED)
         self.target_text = ft.Text("", size=11, color=Theme.FAINT)
         self.status_chip = ft.Container(
             content=ft.Row([self.status_dot, ft.Column([self.status_text, self.target_text], spacing=0)], spacing=8),
@@ -51,7 +65,7 @@ class HomePanel(ft.Column):
             ft.Icons.REFRESH_ROUNDED,
             icon_color=Theme.MUTED,
             icon_size=20,
-            tooltip="Releer estado real",
+            tooltip=self._t("home.refresh_state"),
             on_click=lambda e: self.wiz.refresh(),
         )
 
@@ -64,8 +78,8 @@ class HomePanel(ft.Column):
                 ft.Container(
                     content=ft.Column(
                         [
-                            ft.Text("Inicio", style=Theme.H1),
-                            ft.Text("Control principal de iluminación", color=Theme.MUTED, size=13),
+                            ft.Text(self._t("home.header.title"), style=Theme.H1),
+                            ft.Text(self._t("home.header.subtitle"), color=Theme.MUTED, size=13),
                         ],
                         spacing=2,
                     ),
@@ -81,12 +95,12 @@ class HomePanel(ft.Column):
 
         # --- Control maestro ---
         self.master_icon = ft.Icon(ft.Icons.POWER_OFF_ROUNDED, size=34, color="white")
-        self.master_label = ft.Text("APAGADO", size=18, weight=ft.FontWeight.BOLD, color="white")
+        self.master_label = ft.Text(self._t("home.off"), size=18, weight=ft.FontWeight.BOLD, color="white")
         self.master_text = ft.Column(
             [
-                ft.Text("Control maestro", color="white", size=12, opacity=0.85),
+                ft.Text(self._t("home.master"), color="white", size=12, opacity=0.85),
                 self.master_label,
-                ft.Text("Toca para alternar el target activo", color="white", size=11, opacity=0.7),
+                ft.Text(self._t("home.master_hint"), color="white", size=11, opacity=0.7),
             ],
             spacing=2,
         )
@@ -126,7 +140,7 @@ class HomePanel(ft.Column):
         )
 
         # --- Brillo ---
-        self.bri_value = ft.Text("100%", size=14, weight=ft.FontWeight.BOLD, color=Theme.TEXT)
+        self.bri_value = ft.Text(self._t("common.percent_value", value=100), size=14, weight=ft.FontWeight.BOLD, color=Theme.TEXT)
         self.bri_slider = ft.Slider(
             min=10,
             max=100,
@@ -141,7 +155,7 @@ class HomePanel(ft.Column):
         self.btn_reset_bri = ft.IconButton(
             ft.Icons.RESTART_ALT_ROUNDED,
             icon_color=Theme.MUTED,
-            tooltip="Restaurar brillo a 100%",
+            tooltip=self._t("home.reset_brightness"),
             on_click=self._reset_brightness,
         )
         bri_card = self._card(
@@ -152,7 +166,7 @@ class HomePanel(ft.Column):
                             ft.Row(
                                 [
                                     ft.Icon(ft.Icons.BRIGHTNESS_6_ROUNDED, color=Theme.ACCENT, size=18),
-                                    ft.Text("BRILLO", style=Theme.LABEL),
+                                    ft.Text(self._t("home.brightness_section"), style=Theme.LABEL),
                                 ],
                                 spacing=8,
                             ),
@@ -171,13 +185,13 @@ class HomePanel(ft.Column):
             spacing=12,
             run_spacing=12,
             controls=[
-                self._quick("TV / Cine", ft.Icons.MOVIE_ROUNDED, "#8b5cf6", lambda e: self.wiz.set_scene(18)),
-                self._quick("Lectura", ft.Icons.MENU_BOOK_ROUNDED, "#f59e0b", lambda e: self.wiz.set_white(4000)),
-                self._quick("Relax", ft.Icons.SPA_ROUNDED, "#10b981", lambda e: self.wiz.set_scene(16)),
-                self._quick("Fiesta", ft.Icons.CELEBRATION_ROUNDED, "#ec4899", lambda e: self.wiz.set_scene(4, speed=180)),
-                self._quick("Cálido", ft.Icons.WB_TWILIGHT_ROUNDED, "#fb923c", lambda e: self.wiz.set_white(2700)),
-                self._quick("Frío", ft.Icons.AC_UNIT_ROUNDED, "#38bdf8", lambda e: self.wiz.set_white(6500)),
-                self._quick("Reset", ft.Icons.RESTART_ALT_ROUNDED, "#94a3b8", lambda e: self._reset_all()),
+                self._quick(self._t("home.quick.cinema"), ft.Icons.MOVIE_ROUNDED, "#8b5cf6", lambda e: self.wiz.set_scene(18)),
+                self._quick(self._t("home.quick.reading"), ft.Icons.MENU_BOOK_ROUNDED, "#f59e0b", lambda e: self.wiz.set_white(4000)),
+                self._quick(self._t("home.quick.relax"), ft.Icons.SPA_ROUNDED, "#10b981", lambda e: self.wiz.set_scene(16)),
+                self._quick(self._t("home.quick.party"), ft.Icons.CELEBRATION_ROUNDED, "#ec4899", lambda e: self.wiz.set_scene(4, speed=180)),
+                self._quick(self._t("home.quick.warm"), ft.Icons.WB_TWILIGHT_ROUNDED, "#fb923c", lambda e: self.wiz.set_white(2700)),
+                self._quick(self._t("home.quick.cool"), ft.Icons.AC_UNIT_ROUNDED, "#38bdf8", lambda e: self.wiz.set_white(6500)),
+                self._quick(self._t("home.quick.reset"), ft.Icons.RESTART_ALT_ROUNDED, "#94a3b8", lambda e: self._reset_all()),
             ],
         )
 
@@ -187,8 +201,8 @@ class HomePanel(ft.Column):
                 [
                     ft.Row(
                         [
-                            ft.Text("FAVORITOS", style=Theme.LABEL),
-                            ft.TextButton("Administrar", icon=ft.Icons.STAR_ROUNDED, on_click=lambda e: self._go_favorites()),
+                            ft.Text(self._t("home.favorites_section"), style=Theme.LABEL),
+                            ft.TextButton(self._t("home.manage"), icon=ft.Icons.STAR_ROUNDED, on_click=lambda e: self._go_favorites()),
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     ),
@@ -198,7 +212,7 @@ class HomePanel(ft.Column):
             )
         )
 
-        self.controls = [self.header, self.master_card, bri_card, ft.Text("ACCESOS RÁPIDOS", style=Theme.LABEL), quick, favs_card]
+        self.controls = [self.header, self.master_card, bri_card, ft.Text(self._t("home.quick_section"), style=Theme.LABEL), quick, favs_card]
         self._render_favorites()
 
     # ------------------------------------------------------------------ #
@@ -253,7 +267,7 @@ class HomePanel(ft.Column):
     def _apply_power_visual(self, is_on: bool):
         self.is_on = bool(is_on)
         if self.is_on:
-            self.master_label.value = "ENCENDIDO"
+            self.master_label.value = self._t("home.on")
             self.master_icon.icon = ft.Icons.POWER_SETTINGS_NEW_ROUNDED
             self.master_card.gradient = ft.LinearGradient(
                 begin=ft.Alignment(-1, -1),
@@ -262,7 +276,7 @@ class HomePanel(ft.Column):
             )
             self.master_card.shadow = Theme.GLOW(Theme.PRIMARY)
         else:
-            self.master_label.value = "APAGADO"
+            self.master_label.value = self._t("home.off")
             self.master_icon.icon = ft.Icons.POWER_OFF_ROUNDED
             self.master_card.gradient = ft.LinearGradient(
                 begin=ft.Alignment(-1, -1),
@@ -305,7 +319,7 @@ class HomePanel(ft.Column):
     def _reset_all(self):
         self.wiz.reset_light()
         self.bri_slider.value = 100
-        self.bri_value.value = "100%"
+        self.bri_value.value = self._t("common.percent_value", value=100)
         self._apply_power_visual(True)
         supdate(self)
 
@@ -314,7 +328,7 @@ class HomePanel(ft.Column):
         favs = self.favorites.get_favorites()[:6]
         self.fav_row.controls.clear()
         if not favs:
-            self.fav_row.controls.append(ft.Text("Guarda colores/blancos desde Color o Favoritos.", color=Theme.MUTED, size=12))
+            self.fav_row.controls.append(ft.Text(self._t("home.favorites_empty"), color=Theme.MUTED, size=12))
         else:
             for fav in favs:
                 self.fav_row.controls.append(self._fav_chip(fav))
@@ -334,7 +348,7 @@ class HomePanel(ft.Column):
             content=ft.Row(
                 [
                     ft.Container(width=16, height=16, border_radius=8, bgcolor=color),
-                    ft.Text(fav.get("name", "Favorito"), color=Theme.TEXT, size=12, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS, expand=True),
+                    ft.Text(translated_favorite_name(self.i18n, fav) or self._t("color_studio.favorite_default"), color=Theme.TEXT, size=12, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS, expand=True),
                 ],
                 spacing=8,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -374,11 +388,12 @@ class HomePanel(ft.Column):
 
     # ------------------------------------------------------------------ #
     def sync_state(self, state: dict):
+        self._last_state = dict(state or {})
         if not mounted(self):
             return
         if "dimming" in state and not self._bri_guard.blocks(state["dimming"], tolerance=1):
             self.bri_slider.value = state["dimming"]
-            self.bri_value.value = f"{int(state['dimming'])}%"
+            self.bri_value.value = self._t("common.percent_value", value=int(state["dimming"]))
         if "state" in state:
             self._apply_power_visual(bool(state["state"]))
 
@@ -386,19 +401,19 @@ class HomePanel(ft.Column):
         count = int(s.get("count", 0) or 0)
         active = int(s.get("active", 0) or 0)
         extra = f" · {s['label']}" if s.get("label") else ""
-        mode = "1 luz" if s.get("target_mode") == "single" else "todas"
+        mode = self._t("routines.target.single") if s.get("target_mode") == "single" else self._t("routines.target.all")
         active_ip = s.get("active_ip") or "—"
 
         if active > 0:
             self.status_dot.bgcolor = Theme.SUCCESS
-            self.status_text.value = f"{active}/{count} online{extra}"
+            self.status_text.value = self._t("home.status.active", active=active, count=count, extra=extra)
         elif count > 0:
             self.status_dot.bgcolor = Theme.MUTED
-            self.status_text.value = f"{count} guardada{'s' if count != 1 else ''} · sin respuesta"
+            self.status_text.value = self.i18n.translate_count("home.status.saved", count)
         else:
             self.status_dot.bgcolor = Theme.ERROR
-            self.status_text.value = "Sin bombillas"
-        self.target_text.value = f"target: {mode} · {active_ip}"
+            self.status_text.value = self._t("home.status.no_bulbs")
+        self.target_text.value = self._t("home.target_summary", mode=mode, ip=active_ip)
         # No re-renderizar favoritos en cada tick de sync: evita repintados caros
         # mientras se arrastran sliders. El panel Favoritos refresca su propia vista.
 

@@ -1,5 +1,33 @@
 # Changelog
 
+## v1.1.0
+
+### Added
+
+- Complete English and Spanish localization.
+- Automatic system language detection.
+- Manual language selector.
+- Redesigned Favorites editor based on device capability:
+  - RGB Color Studio editor.
+  - White temperature and brightness editor.
+  - WiZ scene selector.
+  - Brightness-only editor.
+- Improved Windows portable distribution.
+- Third-party attribution and licensing documentation.
+
+### Fixed
+
+- Favorites editor keeping previous controls after changing type.
+- RGB controls appearing in White, Scene and Brightness favorites.
+- UI refresh issues after changing favorite modes.
+- Windows runtime packaging reliability.
+
+### Technical
+
+- 190 automated tests passing.
+- Windows build verified.
+- pywizlight license included in distribution.
+
 ## 1.0.0 — release candidate
 
 Primera versión de escritorio preparada para distribución en Windows.

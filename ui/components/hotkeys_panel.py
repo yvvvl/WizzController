@@ -7,31 +7,32 @@ import time
 import flet as ft
 
 from config.hotkeys_manager import HotkeysManager
+from localization import LocalizationManager
 from ui.responsive import PANEL_BREAKPOINTS, Viewport, dialog_dimensions
 from ui.theme import Theme, mounted, supdate
 
 EO = ft.AnimationCurve.EASE_OUT
 
 POPULAR_COLORS = [
-    ("Rojo", "#ff0000"),
-    ("Naranjo", "#ff7f00"),
-    ("Amarillo", "#ffd000"),
-    ("Verde", "#00ff40"),
-    ("Cian", "#00d5ff"),
-    ("Azul", "#0055ff"),
-    ("Morado", "#7f00ff"),
-    ("Rosa", "#ff4fa3"),
-    ("Blanco", "#ffffff"),
-    ("Cálido", "#ffbf75"),
+    ("color.name.red", "#ff0000"),
+    ("color.name.orange", "#ff7f00"),
+    ("color.name.yellow", "#ffd000"),
+    ("color.name.green", "#00ff40"),
+    ("color.name.cyan", "#00d5ff"),
+    ("color.name.blue", "#0055ff"),
+    ("color.name.violet", "#7f00ff"),
+    ("color.name.pink", "#ff4fa3"),
+    ("white.name.neutral", "#ffffff"),
+    ("white.name.warm", "#ffbf75"),
 ]
 
 SAFE_PRESETS = [
-    ("Toggle", "toggle", "ctrl+alt+l"),
-    ("Brillo +", "bri_up", "ctrl+alt+up"),
-    ("Brillo -", "bri_down", "ctrl+alt+down"),
-    ("Rojo", "color_red", "ctrl+alt+r"),
-    ("Cine", "scene_18", "ctrl+alt+t"),
-    ("Modo noche", "routine_night", "ctrl+alt+n"),
+    ("hotkeys.preset.toggle", "toggle", "ctrl+alt+l"),
+    ("hotkeys.preset.bri_up", "bri_up", "ctrl+alt+up"),
+    ("hotkeys.preset.bri_down", "bri_down", "ctrl+alt+down"),
+    ("hotkeys.preset.red", "color_red", "ctrl+alt+r"),
+    ("hotkeys.preset.cinema", "scene_18", "ctrl+alt+t"),
+    ("hotkeys.preset.night", "routine_night", "ctrl+alt+n"),
 ]
 
 
@@ -46,10 +47,12 @@ class HotkeysPanel(ft.Column):
     y muestra el backend activo; ningún resize vuelve a registrar hooks.
     """
 
-    def __init__(self, wiz, manager: HotkeysManager | None = None):
+    def __init__(self, wiz, manager: HotkeysManager | None = None, i18n=None):
         super().__init__(scroll=ft.ScrollMode.AUTO, spacing=16, expand=True)
         self.wiz = wiz
-        self.manager = manager or HotkeysManager(wiz)
+        self.i18n = i18n or LocalizationManager(preference="es")
+        self.manager = manager or HotkeysManager(wiz, i18n=self.i18n)
+        self.manager.i18n = self.i18n
         self.actions: list[dict] = []
         self.filtered_actions: list[dict] = []
         self.recording = False
@@ -64,7 +67,17 @@ class HotkeysPanel(ft.Column):
         self._build()
 
     # ------------------------------------------------------------------ #
+    def _t(self, key: str, **values) -> str:
+        return self.i18n.translate(key, **values)
+
+    def set_language(self, language: str | None = None) -> None:
+        self.manager.i18n = self.i18n
+        self._build()
+        if mounted(self):
+            supdate(self)
+
     def _build(self):
+        self._cards = []
         self.status_dot = ft.Container(width=9, height=9, border_radius=5, bgcolor=Theme.MUTED)
         self.status_text = ft.Text("", color=Theme.MUTED, size=12, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS)
         self.warning_text = ft.Text("", color=Theme.WARNING, size=12, max_lines=3, overflow=ft.TextOverflow.ELLIPSIS)
@@ -82,9 +95,9 @@ class HotkeysPanel(ft.Column):
             on_change=self._cooldown_changed,
             expand=True,
         )
-        self.cooldown_label = ft.Text(f"{self.manager.cooldown_ms()} ms", color=Theme.MUTED, size=12)
+        self.cooldown_label = ft.Text(self._t("hotkeys.ms_value", value=self.manager.cooldown_ms()), color=Theme.MUTED, size=12)
         self.rehook_btn = ft.OutlinedButton(
-            "Re-registrar",
+            self._t("hotkeys.reregister"),
             icon=ft.Icons.REFRESH_ROUNDED,
             style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)),
             on_click=self._rehook,
@@ -106,8 +119,8 @@ class HotkeysPanel(ft.Column):
                 ft.Container(
                     content=ft.Column(
                         [
-                            ft.Text("Hotkeys", style=Theme.H1),
-                            ft.Text("Atajos globales para luz, rutinas y favoritos", color=Theme.MUTED, size=13),
+                            ft.Text(self._t("hotkeys.title"), style=Theme.H1),
+                            ft.Text(self._t("hotkeys.subtitle"), color=Theme.MUTED, size=13),
                         ],
                         spacing=2,
                     ),
@@ -122,9 +135,9 @@ class HotkeysPanel(ft.Column):
             spacing=12,
             run_spacing=12,
             controls=[
-                self._setting_toggle("Hotkeys activas", self.enabled_switch, "Servicio global de la app."),
-                self._setting_toggle("Capturar teclas", self.suppress_switch, "Solo para el fallback keyboard."),
-                self._setting_toggle("Ejecutar al soltar", self.release_switch, "Keyboard; Windows usa antirebote."),
+                self._setting_toggle(self._t("hotkeys.enabled"), self.enabled_switch, self._t("hotkeys.enabled_help")),
+                self._setting_toggle(self._t("hotkeys.suppress"), self.suppress_switch, self._t("hotkeys.suppress_help")),
+                self._setting_toggle(self._t("hotkeys.release"), self.release_switch, self._t("hotkeys.release_help")),
             ],
         )
         cooldown = ft.ResponsiveRow(
@@ -133,7 +146,7 @@ class HotkeysPanel(ft.Column):
             run_spacing=8,
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
             controls=[
-                ft.Container(content=ft.Text("Antirebote", color=Theme.MUTED, size=12), col={"xs": 12, "sm": 2}),
+                ft.Container(content=ft.Text(self._t("hotkeys.debounce"), color=Theme.MUTED, size=12), col={"xs": 12, "sm": 2}),
                 ft.Container(content=self.cooldown_slider, col={"xs": 9, "sm": 4, "lg": 7}),
                 ft.Container(content=self.cooldown_label, col={"xs": 3, "sm": 2, "lg": 1}, alignment=ft.Alignment.CENTER),
                 ft.Container(content=self.rehook_btn, col={"xs": 12, "sm": 4, "lg": 2}, alignment=ft.Alignment.CENTER_RIGHT),
@@ -141,13 +154,13 @@ class HotkeysPanel(ft.Column):
         )
         status_card = self._card(
             ft.Column(
-                [ft.Text("ESTADO", style=Theme.LABEL), toggles, cooldown, self.warning_text],
+                [ft.Text(self._t("common.status"), style=Theme.LABEL), toggles, cooldown, self.warning_text],
                 spacing=10,
             )
         )
 
         self.category_dropdown = ft.Dropdown(
-            label="Categoría",
+            label=self._t("hotkeys.category"),
             options=[],
             color=Theme.TEXT,
             bgcolor=Theme.BG,
@@ -156,8 +169,8 @@ class HotkeysPanel(ft.Column):
             on_select=self._category_changed,
         )
         self.search_field = ft.TextField(
-            label="Buscar acción",
-            hint_text="cine, rojo, noche, brillo...",
+            label=self._t("hotkeys.search_action"),
+            hint_text=self._t("hotkeys.search_hint"),
             color=Theme.TEXT,
             bgcolor=Theme.BG,
             border_color=Theme.STROKE,
@@ -165,7 +178,7 @@ class HotkeysPanel(ft.Column):
             on_change=self._search_changed,
         )
         self.action_dropdown = ft.Dropdown(
-            label="Acción",
+            label=self._t("hotkeys.action"),
             options=[],
             color=Theme.TEXT,
             bgcolor=Theme.BG,
@@ -174,8 +187,8 @@ class HotkeysPanel(ft.Column):
             on_select=self._action_changed,
         )
         self.combo_field = ft.TextField(
-            label="Atajo",
-            hint_text="ctrl+alt+l",
+            label=self._t("hotkeys.shortcut"),
+            hint_text=self._t("hotkeys.shortcut_hint"),
             color=Theme.TEXT,
             bgcolor=Theme.BG,
             border_color=Theme.STROKE,
@@ -184,20 +197,20 @@ class HotkeysPanel(ft.Column):
         )
         self.validation_text = ft.Text("", color=Theme.MUTED, size=12, max_lines=3, overflow=ft.TextOverflow.ELLIPSIS)
 
-        self.record_btn = ft.ElevatedButton("Grabar", icon=ft.Icons.KEYBOARD_ROUNDED, bgcolor=Theme.PRIMARY, color="white", on_click=self._record_hotkey)
-        self.save_btn = ft.ElevatedButton("Guardar", icon=ft.Icons.SAVE_ROUNDED, bgcolor=Theme.PRIMARY_D, color="white", on_click=self._save_hotkey)
-        self.test_btn = ft.OutlinedButton("Probar", icon=ft.Icons.PLAY_ARROW_ROUNDED, style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)), on_click=self._test_action)
-        self.remove_selected_btn = ft.OutlinedButton("Quitar", icon=ft.Icons.DELETE_OUTLINE_ROUNDED, style=ft.ButtonStyle(color=Theme.ERROR, side=ft.BorderSide(1, Theme.STROKE)), on_click=lambda e: self._remove(self._selected_action_id()))
+        self.record_btn = ft.ElevatedButton(self._t("common.record"), icon=ft.Icons.KEYBOARD_ROUNDED, bgcolor=Theme.PRIMARY, color="white", on_click=self._record_hotkey)
+        self.save_btn = ft.ElevatedButton(self._t("common.save"), icon=ft.Icons.SAVE_ROUNDED, bgcolor=Theme.PRIMARY_D, color="white", on_click=self._save_hotkey)
+        self.test_btn = ft.OutlinedButton(self._t("common.test"), icon=ft.Icons.PLAY_ARROW_ROUNDED, style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)), on_click=self._test_action)
+        self.remove_selected_btn = ft.OutlinedButton(self._t("common.remove"), icon=ft.Icons.DELETE_OUTLINE_ROUNDED, style=ft.ButtonStyle(color=Theme.ERROR, side=ft.BorderSide(1, Theme.STROKE)), on_click=lambda e: self._remove(self._selected_action_id()))
 
         self.color_preview = ft.Container(width=54, height=54, border_radius=16, bgcolor=self.custom_hex, border=ft.Border.all(2, ft.Colors.with_opacity(0.35, "white")))
         self.hex_label = ft.Text(self.custom_hex.upper(), color=Theme.TEXT, size=13, weight=ft.FontWeight.W_600)
-        self.hex_field = ft.TextField(label="HEX", value=self.custom_hex, color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE, dense=True, on_submit=self._hex_changed)
+        self.hex_field = ft.TextField(label=self._t("favorites.hex"), value=self.custom_hex, color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE, dense=True, on_submit=self._hex_changed)
         self.hue_slider = self._slider(0, 360, 0, 36, self._hsv_changed)
         self.sat_slider = self._slider(0, 100, 100, 20, self._hsv_changed)
         self.val_slider = self._slider(10, 100, 100, 18, self._hsv_changed)
-        self.hue_label = ft.Text("Rojo", color=Theme.MUTED, size=12)
-        self.sat_label = ft.Text("100%", color=Theme.MUTED, size=12)
-        self.val_label = ft.Text("100%", color=Theme.MUTED, size=12)
+        self.hue_label = ft.Text(self._t("color.name.red"), color=Theme.MUTED, size=12)
+        self.sat_label = ft.Text(self._t("common.percent_value", value=100), color=Theme.MUTED, size=12)
+        self.val_label = ft.Text(self._t("common.percent_value", value=100), color=Theme.MUTED, size=12)
         self.color_editor = self._color_editor()
 
         selector_row = ft.ResponsiveRow(
@@ -230,9 +243,9 @@ class HotkeysPanel(ft.Column):
         creator = self._card(
             ft.Column(
                 [
-                    ft.Text("CREAR / EDITAR ATAJO", style=Theme.LABEL),
+                    ft.Text(self._t("hotkeys.create_section"), style=Theme.LABEL),
                     ft.Text(
-                        "Elige una acción, graba la combinación y guarda. Los conflictos se reemplazan con aviso.",
+                        self._t("hotkeys.create_help"),
                         color=Theme.MUTED,
                         size=12,
                     ),
@@ -252,9 +265,9 @@ class HotkeysPanel(ft.Column):
             run_spacing=6,
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
             controls=[
-                ft.Container(content=ft.Text("PLANTILLAS ÚTILES", style=Theme.LABEL), col={"xs": 12, "sm": 7}),
+                ft.Container(content=ft.Text(self._t("hotkeys.templates_section"), style=Theme.LABEL), col={"xs": 12, "sm": 7}),
                 ft.Container(
-                    content=ft.TextButton("Restaurar defaults", icon=ft.Icons.RESTART_ALT_ROUNDED, on_click=self._defaults),
+                    content=ft.TextButton(self._t("common.restore_defaults"), icon=ft.Icons.RESTART_ALT_ROUNDED, on_click=self._defaults),
                     col={"xs": 12, "sm": 5},
                     alignment=ft.Alignment.CENTER_RIGHT,
                 ),
@@ -269,10 +282,10 @@ class HotkeysPanel(ft.Column):
             run_spacing=6,
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
             controls=[
-                ft.Container(content=ft.Text("ATAJOS CONFIGURADOS", style=Theme.LABEL), col={"xs": 12, "sm": 7}),
+                ft.Container(content=ft.Text(self._t("hotkeys.assigned_section"), style=Theme.LABEL), col={"xs": 12, "sm": 7}),
                 ft.Container(
                     content=ft.OutlinedButton(
-                        "Exportar",
+                        self._t("common.export"),
                         icon=ft.Icons.CONTENT_COPY_ROUNDED,
                         style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)),
                         on_click=self._export_dialog,
@@ -340,7 +353,7 @@ class HotkeysPanel(ft.Column):
                 ft.Container(
                     content=ft.Column(
                         [
-                            ft.Text("Color personalizado", color=Theme.TEXT, weight=ft.FontWeight.W_600, size=13),
+                            ft.Text(self._t("hotkeys.custom_color"), color=Theme.TEXT, weight=ft.FontWeight.W_600, size=13),
                             self.hex_label,
                         ],
                         spacing=4,
@@ -351,13 +364,13 @@ class HotkeysPanel(ft.Column):
             ],
         )
         self.color_swatches = ft.ResponsiveRow(breakpoints=PANEL_BREAKPOINTS, spacing=8, run_spacing=8)
-        for name, col in POPULAR_COLORS:
-            self.color_swatches.controls.append(self._swatch(name, col))
+        for key, col in POPULAR_COLORS:
+            self.color_swatches.controls.append(self._swatch(self._t(key), col))
         sliders = ft.Column(
             [
-                self._slider_row("Tono", self.hue_slider, self.hue_label),
-                self._slider_row("Intensidad", self.sat_slider, self.sat_label),
-                self._slider_row("Claridad", self.val_slider, self.val_label),
+                self._slider_row(self._t("hotkeys.hue"), self.hue_slider, self.hue_label),
+                self._slider_row(self._t("hotkeys.intensity"), self.sat_slider, self.sat_label),
+                self._slider_row(self._t("hotkeys.lightness"), self.val_slider, self.val_label),
             ],
             spacing=6,
         )
@@ -368,7 +381,7 @@ class HotkeysPanel(ft.Column):
             bgcolor=ft.Colors.with_opacity(0.26, Theme.BG),
             border=ft.Border.all(1, Theme.STROKE),
             content=ft.Column(
-                [intro, ft.Text("Colores rápidos", style=Theme.LABEL), self.color_swatches, sliders],
+                [intro, ft.Text(self._t("hotkeys.quick_colors"), style=Theme.LABEL), self.color_swatches, sliders],
                 spacing=10,
             ),
         )
@@ -408,7 +421,7 @@ class HotkeysPanel(ft.Column):
     # ------------------------------------------------------------------ #
     def _status_text(self) -> str:
         if not self.manager.available:
-            return "no disponible"
+            return self._t("hotkeys.unavailable")
         return self.manager.backend_status()
 
     def _render(self):
@@ -425,7 +438,7 @@ class HotkeysPanel(ft.Column):
     def _render_categories(self):
         groups: list[str] = []
         for action in self.actions:
-            group = str(action.get("group", "General"))
+            group = str(action.get("group") or self._t("hotkeys.group.general"))
             if group not in groups:
                 groups.append(group)
         self.category_dropdown.options = [ft.DropdownOption(key=g, text=g) for g in groups]
@@ -448,7 +461,7 @@ class HotkeysPanel(ft.Column):
         self.suppress_switch.value = self.manager.suppress_enabled()
         self.release_switch.value = self.manager.trigger_on_release()
         self.cooldown_slider.value = self.manager.cooldown_ms()
-        self.cooldown_label.value = f"{self.manager.cooldown_ms()} ms"
+        self.cooldown_label.value = self._t("hotkeys.ms_value", value=self.manager.cooldown_ms())
         self.warning_text.value = self.manager.last_error or self.manager.last_warning or ""
         self.warning_text.color = Theme.ERROR if self.manager.last_error else Theme.WARNING
 
@@ -476,25 +489,25 @@ class HotkeysPanel(ft.Column):
     def _sync_validation(self):
         combo = self.combo_field.value or ""
         if not combo:
-            self.validation_text.value = "Elige o graba un atajo. Recomendado: ctrl+alt+letra/flecha."
+            self.validation_text.value = self._t("hotkeys.choose_shortcut")
             self.validation_text.color = Theme.MUTED
             return
-        ok, msg = self.manager.validate_hotkey(combo)
+        ok, msg = self.manager.validate_hotkey(combo, self.i18n)
         conflict = self.manager.combo_conflict(combo, ignore_action=self._selected_action_id()) if ok else None
         if not ok:
             self.validation_text.value = msg
             self.validation_text.color = Theme.ERROR
         elif conflict:
-            self.validation_text.value = f"Conflicto: reemplazará '{conflict[1]}'."
+            self.validation_text.value = self._t("hotkeys.conflict", action=conflict[1])
             self.validation_text.color = Theme.WARNING
         else:
-            self.validation_text.value = "Atajo válido."
+            self.validation_text.value = self._t("hotkeys.valid")
             self.validation_text.color = Theme.SUCCESS
 
     def _render_defaults(self):
         self.quick_defaults.controls.clear()
-        for label, aid, combo in SAFE_PRESETS:
-            self.quick_defaults.controls.append(self._preset_card(label, aid, combo))
+        for key, aid, combo in SAFE_PRESETS:
+            self.quick_defaults.controls.append(self._preset_card(self._t(key), aid, combo))
 
     def _preset_card(self, label: str, aid: str, combo: str):
         return ft.Container(
@@ -520,7 +533,7 @@ class HotkeysPanel(ft.Column):
         rows = self.manager.configured_rows()
         self.list_view.controls.clear()
         if not rows:
-            self.list_view.controls.append(ft.Text("No hay hotkeys asignadas.", color=Theme.MUTED, size=13))
+            self.list_view.controls.append(ft.Text(self._t("hotkeys.empty"), color=Theme.MUTED, size=13))
             return
         for row in rows:
             self.list_view.controls.append(self._hotkey_row(row))
@@ -573,9 +586,9 @@ class HotkeysPanel(ft.Column):
         )
         actions = ft.Row(
             [
-                ft.IconButton(ft.Icons.EDIT_ROUNDED, icon_color=Theme.PRIMARY, tooltip="Editar", on_click=lambda e, x=aid: self._select_action(x)),
-                ft.IconButton(ft.Icons.PLAY_ARROW_ROUNDED, icon_color=Theme.PRIMARY, tooltip="Probar", on_click=lambda e, x=aid: self._test_specific(x)),
-                ft.IconButton(ft.Icons.DELETE_OUTLINE_ROUNDED, icon_color=Theme.ERROR, tooltip="Quitar", on_click=lambda e, x=aid: self._remove(x)),
+                ft.IconButton(ft.Icons.EDIT_ROUNDED, icon_color=Theme.PRIMARY, tooltip=self._t("common.edit"), on_click=lambda e, x=aid: self._select_action(x)),
+                ft.IconButton(ft.Icons.PLAY_ARROW_ROUNDED, icon_color=Theme.PRIMARY, tooltip=self._t("common.test"), on_click=lambda e, x=aid: self._test_specific(x)),
+                ft.IconButton(ft.Icons.DELETE_OUTLINE_ROUNDED, icon_color=Theme.ERROR, tooltip=self._t("common.remove"), on_click=lambda e, x=aid: self._remove(x)),
             ],
             spacing=1,
             wrap=True,
@@ -649,13 +662,13 @@ class HotkeysPanel(ft.Column):
 
     def _group_for_action(self, aid: str) -> str:
         if aid.startswith("color_hex_"):
-            return "Colores personalizados"
+            return self._t("hotkeys.group.custom_colors")
         for action in self.actions:
             if action.get("id") == aid:
-                return str(action.get("group", "General"))
+                return str(action.get("group") or self._t("hotkeys.group.general"))
         if aid.startswith("routine_"):
-            return "Rutinas"
-        return "General"
+            return self._t("hotkeys.group.routines")
+        return self._t("hotkeys.group.general")
 
     # ------------------------------------------------------------------ #
     def _record_hotkey(self, e):
@@ -666,9 +679,9 @@ class HotkeysPanel(ft.Column):
             self._render()
             return
         self.recording = True
-        self.record_btn.text = "Presiona teclas..."
+        self.record_btn.text = self._t("hotkeys.recording")
         self.record_btn.disabled = True
-        self.validation_text.value = "Grabando. Presiona ESC para cancelar."
+        self.validation_text.value = self._t("hotkeys.recording_help")
         self.validation_text.color = Theme.PRIMARY
         supdate(self)
 
@@ -680,7 +693,7 @@ class HotkeysPanel(ft.Column):
                     self.combo_field.value = combo
             finally:
                 self.recording = False
-                self.record_btn.text = "Grabar"
+                self.record_btn.text = self._t("common.record")
                 self.record_btn.disabled = False
                 self._sync_validation()
                 supdate(self)
@@ -731,7 +744,7 @@ class HotkeysPanel(ft.Column):
 
     def _cooldown_changed(self, e):
         self.manager.set_cooldown_ms(int(self.cooldown_slider.value or 280))
-        self.cooldown_label.value = f"{self.manager.cooldown_ms()} ms"
+        self.cooldown_label.value = self._t("hotkeys.ms_value", value=self.manager.cooldown_ms())
         supdate(self.cooldown_label)
 
     def _export_dialog(self, e):
@@ -751,9 +764,9 @@ class HotkeysPanel(ft.Column):
         dialog_w, dialog_h = dialog_dimensions(self, 600, 500)
         dlg = ft.AlertDialog(
             bgcolor=Theme.SURFACE,
-            title=ft.Text("Hotkeys JSON", color=Theme.TEXT),
+            title=ft.Text(self._t("hotkeys.export_title"), color=Theme.TEXT),
             content=ft.Container(width=dialog_w, height=dialog_h, content=text),
-            actions=[ft.TextButton("Cerrar", on_click=lambda e: self.page.pop_dialog())],
+            actions=[ft.TextButton(self._t("common.close"), on_click=lambda e: self.page.pop_dialog())],
         )
         self.page.show_dialog(dlg)
 
@@ -789,10 +802,20 @@ class HotkeysPanel(ft.Column):
         return hh * 360.0, ss * 100.0, max(10.0, vv * 100.0)
 
     def _hue_name(self, hue: float) -> str:
-        for limit, name in [(15, "Rojo"), (45, "Naranjo"), (75, "Amarillo"), (150, "Verde"), (195, "Cian"), (255, "Azul"), (300, "Morado"), (345, "Rosa"), (361, "Rojo")]:
+        for limit, key in [
+            (15, "color.name.red"),
+            (45, "color.name.orange"),
+            (75, "color.name.yellow"),
+            (150, "color.name.green"),
+            (195, "color.name.cyan"),
+            (255, "color.name.blue"),
+            (300, "color.name.violet"),
+            (345, "color.name.pink"),
+            (361, "color.name.red"),
+        ]:
             if hue <= limit:
-                return name
-        return "Rojo"
+                return self._t(key)
+        return self._t("color.name.red")
 
     def _set_custom_hsv(self, hue=None, sat=None, val=None):
         if hue is not None:

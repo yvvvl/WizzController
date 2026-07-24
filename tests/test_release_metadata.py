@@ -120,3 +120,13 @@ def test_certifi_embedder_refreshes_app_archive_hash():
     assert "hashlib.sha256" in source
     assert 'f"{app_zip.name}.hash"' in source
     assert "archive_hash" in source
+
+def test_windows_build_bundles_third_party_notices():
+    build_script = (
+        ROOT / "scripts" / "build_windows.ps1"
+    ).read_text(
+        encoding="utf-8"
+    )
+
+    assert "THIRD_PARTY_NOTICES.md" in build_script
+    assert "licenses" in build_script

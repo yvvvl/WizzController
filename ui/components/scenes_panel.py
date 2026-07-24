@@ -8,6 +8,7 @@ import flet as ft
 
 from config.custom_scenes_manager import CustomScenesManager
 from core import wiz_scenes
+from localization import LocalizationManager, translated_scene_group, translated_scene_name
 from ui.theme import Theme, mounted, supdate
 from ui.interaction import LocalEditGuard
 from ui.responsive import PANEL_BREAKPOINTS, Viewport, dialog_dimensions
@@ -53,9 +54,10 @@ class ScenesPanel(ft.Column):
     CARD_H = 104
     CARDS_PER_ROW = 5
 
-    def __init__(self, wiz):
+    def __init__(self, wiz, i18n=None):
         super().__init__(scroll=ft.ScrollMode.AUTO, spacing=14, expand=True)
         self.wiz = wiz
+        self.i18n = i18n or LocalizationManager(preference="es")
         self.custom = CustomScenesManager()
         self.selected_id: int | None = None
         self.selected_custom_id: str | None = None
@@ -70,12 +72,21 @@ class ScenesPanel(ft.Column):
         self._build()
 
     # ------------------------------------------------------------------ #
+    def _t(self, key: str, **values) -> str:
+        return self.i18n.translate(key, **values)
+
+    def set_language(self, language: str | None = None) -> None:
+        self._build()
+        self._highlight()
+        if mounted(self):
+            supdate(self)
+
     def _build(self):
-        self.speed_label = ft.Text("100", size=12, color=Theme.TEXT, text_align=ft.TextAlign.RIGHT)
+        self.speed_label = ft.Text(str(self.speed), size=12, color=Theme.TEXT, text_align=ft.TextAlign.RIGHT)
         self.speed_slider = ft.Slider(
             min=20,
             max=200,
-            value=100,
+            value=self.speed,
             divisions=18,
             active_color=Theme.ACCENT,
             thumb_color="white",
@@ -89,9 +100,9 @@ class ScenesPanel(ft.Column):
         self.controls = [
             self._header(),
             self._speed_card(),
-            self._section_title("MIS ESCENAS"),
+            self._section_title(self._t("scenes.my_section")),
             self.custom_block,
-            self._section_title("ESCENAS WIZ"),
+            self._section_title(self._t("scenes.wiz_section")),
             self.builtin_block,
         ]
         self._render_custom()
@@ -101,13 +112,13 @@ class ScenesPanel(ft.Column):
         buttons = ft.Row(
             [
                 ft.OutlinedButton(
-                    "Guardar actual",
+                    self._t("scenes.save_current"),
                     icon=ft.Icons.ADD_PHOTO_ALTERNATE_ROUNDED,
                     style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)),
                     on_click=self._capture_current_dialog,
                 ),
                 ft.ElevatedButton(
-                    "Nueva escena",
+                    self._t("scenes.new"),
                     icon=ft.Icons.ADD_ROUNDED,
                     bgcolor=Theme.PRIMARY,
                     color="white",
@@ -128,8 +139,8 @@ class ScenesPanel(ft.Column):
                 ft.Container(
                     content=ft.Column(
                         [
-                            ft.Text("Escenas", style=Theme.H1),
-                            ft.Text("Escenas WiZ y escenas personalizadas locales", color=Theme.MUTED, size=13),
+                            ft.Text(self._t("scenes.title"), style=Theme.H1),
+                            ft.Text(self._t("scenes.subtitle"), color=Theme.MUTED, size=13),
                         ],
                         spacing=2,
                     ),
@@ -143,7 +154,7 @@ class ScenesPanel(ft.Column):
         reset = ft.IconButton(
             ft.Icons.RESTART_ALT_ROUNDED,
             icon_color=Theme.MUTED,
-            tooltip="Restaurar velocidad",
+            tooltip=self._t("scenes.reset_speed"),
             on_click=self._reset_speed,
         )
         return ft.Container(
@@ -159,7 +170,7 @@ class ScenesPanel(ft.Column):
                 controls=[
                     ft.Container(
                         content=ft.Row(
-                            [ft.Icon(ft.Icons.SPEED_ROUNDED, color=Theme.ACCENT, size=18), ft.Text("VELOCIDAD DE ESCENA", style=Theme.LABEL)],
+                            [ft.Icon(ft.Icons.SPEED_ROUNDED, color=Theme.ACCENT, size=18), ft.Text(self._t("scenes.speed_section"), style=Theme.LABEL)],
                             spacing=8,
                         ),
                         col={"xs": 12, "sm": 4},
@@ -182,7 +193,9 @@ class ScenesPanel(ft.Column):
         self._builtin_cards.clear()
         self.builtin_block.controls.clear()
         for group_name, ids in wiz_scenes.GROUPS.items():
-            self.builtin_block.controls.append(self._section_title(group_name.upper()))
+            self.builtin_block.controls.append(
+                self._section_title(translated_scene_group(self.i18n, group_name).upper())
+            )
             for row_ids in _chunks(ids, self._cards_per_row):
                 self.builtin_block.controls.append(
                     ft.Row(spacing=10, controls=[self._scene_card(sid) for sid in row_ids])
@@ -213,7 +226,7 @@ class ScenesPanel(ft.Column):
                         alignment=ft.Alignment.CENTER,
                     ),
                     ft.Text(
-                        sc.name,
+                        translated_scene_name(self.i18n, sc.id, sc.name),
                         color=Theme.TEXT,
                         size=12,
                         weight=ft.FontWeight.W_600,
@@ -222,7 +235,7 @@ class ScenesPanel(ft.Column):
                         text_align=ft.TextAlign.CENTER,
                     ),
                     ft.Text(
-                        "dinámica" if sc.dynamic else "estática",
+                        self._t("scenes.dynamic") if sc.dynamic else self._t("scenes.static"),
                         color=Theme.FAINT,
                         size=9,
                         max_lines=1,
@@ -258,7 +271,7 @@ class ScenesPanel(ft.Column):
                     content=ft.Row(
                         [
                             ft.Icon(ft.Icons.INFO_OUTLINE_ROUNDED, color=Theme.MUTED, size=16),
-                            ft.Text("Aún no tienes escenas personalizadas.", color=Theme.MUTED, size=12),
+                            ft.Text(self._t("scenes.empty"), color=Theme.MUTED, size=12),
                         ],
                         spacing=8,
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -307,7 +320,7 @@ class ScenesPanel(ft.Column):
                                 width=30,
                                 height=30,
                                 padding=0,
-                                tooltip="Editar",
+                                tooltip=self._t("common.edit"),
                                 on_click=lambda e, s=scene: self._custom_dialog(s),
                             ),
                             ft.IconButton(
@@ -317,14 +330,14 @@ class ScenesPanel(ft.Column):
                                 width=30,
                                 height=30,
                                 padding=0,
-                                tooltip="Eliminar",
+                                tooltip=self._t("common.delete"),
                                 on_click=lambda e, x=uid: self._delete_custom(x),
                             ),
                         ],
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
                         spacing=2,
                     ),
-                    ft.Text(scene.get("name", "Mi escena"), color=Theme.TEXT, size=12, weight=ft.FontWeight.W_600, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS, text_align=ft.TextAlign.CENTER),
+                    ft.Text(scene.get("name") or self._t("scenes.custom_fallback"), color=Theme.TEXT, size=12, weight=ft.FontWeight.W_600, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS, text_align=ft.TextAlign.CENTER),
                     ft.Text(self._custom_subtitle(scene), color=Theme.FAINT, size=9, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS, text_align=ft.TextAlign.CENTER),
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -346,8 +359,12 @@ class ScenesPanel(ft.Column):
         if mode == "white" and isinstance(v, dict):
             return f"{v.get('temp', 4000)}K · {v.get('dimming', 100)}%"
         if mode == "scene" and isinstance(v, dict):
-            return f"Escena {v.get('sceneId')} · vel {v.get('speed', 100)}"
-        return str(mode or "personalizada")
+            return self._t(
+                "scenes.scene_summary",
+                scene_id=v.get("sceneId"),
+                speed=v.get("speed", 100),
+            )
+        return str(mode or self._t("scenes.custom_type"))
 
     # ------------------------------------------------------------------ #
     def _activate_builtin(self, sc):
@@ -405,22 +422,22 @@ class ScenesPanel(ft.Column):
     def _capture_current_dialog(self, e=None):
         if not mounted(self):
             return
-        field = ft.TextField(label="Nombre", value="Escena actual", autofocus=True, color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
+        field = ft.TextField(label=self._t("favorites.name"), value=self._t("scenes.capture_default_name"), autofocus=True, color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
 
         def save(ev):
             payload = self.wiz.capture_current_scene_payload()
-            self.custom.add_scene(field.value or "Escena actual", payload["mode"], payload["value"])
+            self.custom.add_scene(field.value or self._t("scenes.capture_default_name"), payload["mode"], payload["value"])
             self.page.pop_dialog()
             self._render_custom()
 
         self.page.show_dialog(
             ft.AlertDialog(
-                title=ft.Text("Guardar estado actual", color=Theme.TEXT),
+                title=ft.Text(self._t("scenes.capture_title"), color=Theme.TEXT),
                 bgcolor=Theme.SURFACE,
                 content=field,
                 actions=[
-                    ft.TextButton("Cancelar", on_click=lambda e: self.page.pop_dialog()),
-                    ft.ElevatedButton("Guardar", bgcolor=Theme.PRIMARY, color="white", on_click=save),
+                    ft.TextButton(self._t("common.cancel"), on_click=lambda e: self.page.pop_dialog()),
+                    ft.ElevatedButton(self._t("common.save"), bgcolor=Theme.PRIMARY, color="white", on_click=save),
                 ],
             )
         )
@@ -429,17 +446,17 @@ class ScenesPanel(ft.Column):
         if not mounted(self):
             return
         editing = scene is not None
-        scene = scene or {"name": "Mi escena", "mode": "rgb", "value": {"r": 255, "g": 0, "b": 0, "dimming": 100}}
+        scene = scene or {"name": self._t("scenes.custom_fallback"), "mode": "rgb", "value": {"r": 255, "g": 0, "b": 0, "dimming": 100}}
         v = scene.get("value") or {}
 
-        name = ft.TextField(label="Nombre", value=scene.get("name", "Mi escena"), color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
+        name = ft.TextField(label=self._t("favorites.name"), value=scene.get("name") or self._t("scenes.custom_fallback"), color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
         mode = ft.Dropdown(
-            label="Tipo",
+            label=self._t("common.type"),
             value=scene.get("mode", "rgb"),
             options=[
-                ft.DropdownOption(key="rgb", text="Color HEX"),
-                ft.DropdownOption(key="white", text="Blanco Kelvin"),
-                ft.DropdownOption(key="scene", text="Escena WiZ"),
+                ft.DropdownOption(key="rgb", text=self._t("scenes.type_rgb")),
+                ft.DropdownOption(key="white", text=self._t("scenes.type_white")),
+                ft.DropdownOption(key="scene", text=self._t("scenes.type_wiz")),
             ],
             color=Theme.TEXT,
             bgcolor=Theme.BG,
@@ -453,7 +470,7 @@ class ScenesPanel(ft.Column):
             default_value = str(v.get("temp", 4000))
         if scene.get("mode") == "scene" and isinstance(v, dict):
             default_value = str(v.get("sceneId", 18))
-        value = ft.TextField(label="Valor", value=str(default_value), hint_text="#ff0000 / 4000 / 18", color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
+        value = ft.TextField(label=self._t("common.value"), value=str(default_value), hint_text="#ff0000 / 4000 / 18", color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
         dimming = ft.Slider(min=10, max=100, value=int(v.get("dimming", 100) if isinstance(v, dict) else 100), divisions=18, active_color=Theme.ACCENT, thumb_color="white")
         speed = ft.Slider(min=20, max=200, value=int(v.get("speed", 100) if isinstance(v, dict) else 100), divisions=18, active_color=Theme.ACCENT, thumb_color="white")
 
@@ -481,7 +498,7 @@ class ScenesPanel(ft.Column):
 
         dialog_w, dialog_h = dialog_dimensions(self, 460, 560)
         dlg = ft.AlertDialog(
-            title=ft.Text("Editar escena" if editing else "Nueva escena personalizada", color=Theme.TEXT),
+            title=ft.Text(self._t("scenes.edit_title") if editing else self._t("scenes.new_title"), color=Theme.TEXT),
             bgcolor=Theme.SURFACE,
             content=ft.Container(
                 width=dialog_w,
@@ -491,9 +508,9 @@ class ScenesPanel(ft.Column):
                         name,
                         mode,
                         value,
-                        ft.Text("Brillo", style=Theme.LABEL),
+                        ft.Text(self._t("light.brightness"), style=Theme.LABEL),
                         dimming,
-                        ft.Text("Velocidad si es escena dinámica", style=Theme.LABEL),
+                        ft.Text(self._t("scenes.dynamic_speed"), style=Theme.LABEL),
                         speed,
                     ],
                     tight=True,
@@ -502,8 +519,8 @@ class ScenesPanel(ft.Column):
                 ),
             ),
             actions=[
-                ft.TextButton("Cancelar", on_click=lambda e: self.page.pop_dialog()),
-                ft.ElevatedButton("Guardar", bgcolor=Theme.PRIMARY, color="white", on_click=save),
+                ft.TextButton(self._t("common.cancel"), on_click=lambda e: self.page.pop_dialog()),
+                ft.ElevatedButton(self._t("common.save"), bgcolor=Theme.PRIMARY, color="white", on_click=save),
             ],
         )
         self.page.show_dialog(dlg)

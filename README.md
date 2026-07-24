@@ -26,7 +26,20 @@ Las acciones normales se envían por **UDP LAN nativo**, por lo que el control n
 
 La aplicación está diseñada para Windows y combina control de iluminación, automatizaciones, hotkeys globales y una interfaz moderna en un único programa portable.
 
-> Versión actual: **v1.0.0 · build 1**
+> Versión actual: **v1.1.0 · build 1**
+
+## Novedades v1.1.0
+
+- Interfaz completa en español e inglés.
+- Detección automática del idioma del sistema.
+- Selector manual de idioma.
+- Nuevo editor inteligente de favoritos:
+  - RGB usando Color Studio.
+  - Blanco mediante temperatura Kelvin.
+  - Escenas WiZ.
+  - Control dedicado de brillo.
+- Mejoras de estabilidad en Windows.
+- Distribución portable con licencias de terceros incluidas.
 
 ---
 
@@ -99,7 +112,7 @@ La aplicación está diseñada para Windows y combina control de iluminación, a
 ### Pasos
 
 1. Abre la [última release](https://github.com/yvvvl/WizzController/releases/latest).
-2. Descarga `WizZDesktop-v1.0.0-windows-x64.zip`.
+2. Descarga `WizZDesktop-v1.1.0-windows-x64.zip`.
 3. Extrae todo el contenido del ZIP.
 4. Ejecuta `WizZDesktop.exe`.
 
@@ -110,7 +123,7 @@ La descarga incluye un archivo `.sha256` para comprobar la integridad del paquet
 ### Verificar SHA-256 en PowerShell
 
 ```powershell
-Get-FileHash .\WizZDesktop-v1.0.0-windows-x64.zip -Algorithm SHA256
+Get-FileHash .\WizZDesktop-v1.1.0-windows-x64.zip -Algorithm SHA256
 ```
 
 Compara el resultado con el contenido de:
@@ -327,3 +340,22 @@ El proyecto cuenta con pruebas automatizadas para:
 Desarrollado por **Ignacio** (`yvvvl`).
 
 Proyecto construido como una aplicación personal de escritorio para control local de iluminación WiZ.
+
+
+---
+
+## Acknowledgements
+
+WizZ Desktop uses:
+
+- `pywizlight` by Stephan Traub and contributors.
+
+See:
+
+- `THIRD_PARTY_NOTICES.md`
+- `licenses/pywizlight-LICENSE.txt`
+
+for license information.
+
+WizZ Desktop is an independent community project and is not
+affiliated with WiZ Connected or Signify.
