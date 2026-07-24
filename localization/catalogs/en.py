@@ -97,7 +97,36 @@ CATALOG: dict[str, str] = {
 
     # Favorites / routines / hotkeys
     "favorites.title": "Favorites",
+    "favorites.subtitle": "Saved colors, whites, scenes and brightness",
+
+    "favorites.new": "New",
+    "favorites.edit": "Edit",
+    "favorites.delete": "Delete",
+
     "favorites.empty": "No favorites yet.",
+
+    "favorites.name": "Name",
+    "favorites.type": "Type",
+    "favorites.hex": "HEX",
+
+    "favorites.hue": "Hue",
+    "favorites.saturation": "Intensity",
+    "favorites.lightness": "Lightness",
+
+    "favorites.scene": "Scene",
+    "favorites.wiz_scene": "WiZ Scene",
+    "favorites.speed_value": "Speed {value}",
+    "favorites.brightness_value": "Brightness {value}%",
+    "favorites.scene_summary": "{scene} · speed {speed}",
+
+    "favorites.cancel": "Cancel",
+    "favorites.save": "Save",
+
+    "favorites.new_title": "New favorite",
+    "favorites.edit_title": "Edit favorite",
+
+    "favorites.default_name": "New favorite",
+
     "routines.title": "Routines",
     "routines.empty": "No routines yet.",
     "hotkeys.title": "Global hotkeys",

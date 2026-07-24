@@ -45,7 +45,7 @@ class WizzApp(ft.Container):
             HomePanel(self.wiz, i18n=self.i18n),
             ColorPanel(self.wiz, i18n=self.i18n),
             ScenesPanel(self.wiz),
-            FavoritesPanel(self.wiz),
+            FavoritesPanel(self.wiz, i18n=self.i18n),
             RoutinesPanel(self.wiz),
             SettingsPanel(
                 self.wiz,

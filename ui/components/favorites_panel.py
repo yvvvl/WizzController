@@ -7,18 +7,25 @@ import flet as ft
 
 from config.favorites_manager import FavoritesManager
 from core import wiz_scenes
+from localization import LocalizationManager
 from ui.scene_visuals import scene_color, scene_icon
 from ui.responsive import PANEL_BREAKPOINTS, Viewport, dialog_dimensions
 from ui.theme import Theme, mounted, supdate
 
 
 RGB_SWATCHES = [
-    ("Rojo", "#ff0000"), ("Naranjo", "#ff7f00"), ("Amarillo", "#ffd000"),
-    ("Verde", "#00ff40"), ("Cian", "#00d5ff"), ("Azul", "#0055ff"),
-    ("Violeta", "#7f00ff"), ("Magenta", "#ff00cc"), ("Rosa", "#ff4fa3"),
+    ("color.name.red", "#ff0000"), ("color.name.orange", "#ff7f00"), ("color.name.yellow", "#ffd000"),
+    ("color.name.green", "#00ff40"), ("color.name.cyan", "#00d5ff"), ("color.name.blue", "#0055ff"),
+    ("color.name.violet", "#7f00ff"), ("color.name.magenta", "#ff00cc"), ("color.name.pink", "#ff4fa3"),
 ]
 
-WHITE_PRESETS = [(2200, "Vela"), (2700, "Cálido"), (4000, "Neutro"), (5000, "Día"), (6500, "Frío")]
+WHITE_PRESETS = [
+    (2200, "white.name.candle"),
+    (2700, "white.name.warm"),
+    (4000, "white.name.neutral"),
+    (5000, "white.name.daylight"),
+    (6500, "white.name.cool"),
+]
 
 
 def _parse_rgb(hex_color: str) -> tuple[int, int, int] | None:
@@ -43,18 +50,27 @@ def _hsv_from_hex(hex_color: str) -> tuple[int, int, int]:
 
 
 class FavoritesPanel(ft.Column):
-    def __init__(self, wiz):
+    def __init__(self, wiz, i18n=None):
         super().__init__(scroll=ft.ScrollMode.AUTO, spacing=18, expand=True)
         self.wiz = wiz
+        self.i18n = i18n or LocalizationManager(preference="es")
         self.manager = FavoritesManager()
         self._viewport = Viewport(900, 720)
         self._cards: list[ft.Container] = []
         self._build()
 
+    def _t(self, key: str, **values) -> str:
+        return self.i18n.translate(key, **values)
+
+    def set_language(self, language: str | None = None) -> None:
+        self._build()
+        if mounted(self):
+            supdate(self)
+
     def _build(self):
         self.manager.seed_defaults()
         new_btn = ft.OutlinedButton(
-            "Nuevo",
+            self._t("favorites.new"),
             icon=ft.Icons.ADD_ROUNDED,
             style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)),
             on_click=lambda e: self._new_dialog(),
@@ -68,8 +84,8 @@ class FavoritesPanel(ft.Column):
                 ft.Container(
                     content=ft.Column(
                         [
-                            ft.Text("Favoritos", style=Theme.H1),
-                            ft.Text("Colores, blancos, escenas y brillo guardados", color=Theme.MUTED, size=13),
+                            ft.Text(self._t("favorites.title"), style=Theme.H1),
+                            ft.Text(self._t("favorites.subtitle"), color=Theme.MUTED, size=13),
                         ],
                         spacing=2,
                     ),
@@ -94,7 +110,7 @@ class FavoritesPanel(ft.Column):
                     padding=32,
                     alignment=ft.Alignment.CENTER,
                     content=ft.Column(
-                        [ft.Icon(ft.Icons.STAR_BORDER_ROUNDED, color=Theme.MUTED, size=38), ft.Text("Aún no hay favoritos.", color=Theme.MUTED)],
+                        [ft.Icon(ft.Icons.STAR_BORDER_ROUNDED, color=Theme.MUTED, size=38), ft.Text(self._t("favorites.empty"), color=Theme.MUTED)],
                         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
                 )
@@ -114,7 +130,8 @@ class FavoritesPanel(ft.Column):
         if ftype == "scene":
             sid = int(value.get("sceneId", 18) if isinstance(value, dict) else value)
             sc = wiz_scenes.get(sid)
-            return scene_color(sid, "#8b5cf6"), scene_icon(sid), sc.name if sc else f"Escena {sid}"
+            fallback = f"{self._t('favorites.scene')} {sid}"
+            return scene_color(sid, "#8b5cf6"), scene_icon(sid), sc.name if sc else fallback
         if ftype == "brightness":
             return Theme.ACCENT, ft.Icons.BRIGHTNESS_6_ROUNDED, f"{value}%"
         return Theme.PRIMARY, ft.Icons.STAR_ROUNDED, str(value)
@@ -144,8 +161,8 @@ class FavoritesPanel(ft.Column):
                                 alignment=ft.Alignment.CENTER,
                             ),
                             ft.Container(expand=True),
-                            ft.IconButton(ft.Icons.EDIT_ROUNDED, icon_color=Theme.PRIMARY, tooltip="Editar", icon_size=18, on_click=lambda e, f=fav: self._edit_dialog(f)),
-                            ft.IconButton(ft.Icons.DELETE_OUTLINE_ROUNDED, icon_color=Theme.ERROR, tooltip="Borrar", icon_size=18, on_click=lambda e, uid=fav.get("id"): self._delete(uid)),
+                            ft.IconButton(ft.Icons.EDIT_ROUNDED, icon_color=Theme.PRIMARY, tooltip=self._t("favorites.edit"), icon_size=18, on_click=lambda e, f=fav: self._edit_dialog(f)),
+                            ft.IconButton(ft.Icons.DELETE_OUTLINE_ROUNDED, icon_color=Theme.ERROR, tooltip=self._t("favorites.delete"), icon_size=18, on_click=lambda e, uid=fav.get("id"): self._delete(uid)),
                         ],
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
@@ -212,7 +229,7 @@ class FavoritesPanel(ft.Column):
             return
 
         editing = fav is not None
-        fav = fav or {"name": "Nuevo favorito", "type": "rgb", "value": "#ff0000"}
+        fav = fav or {"name": self._t("favorites.default_name"), "type": "rgb", "value": "#ff0000"}
         state = {
             "type": fav.get("type", "rgb"),
             "rgb": str(fav.get("value", "#ff0000")) if fav.get("type") == "rgb" else "#ff0000",
@@ -224,15 +241,15 @@ class FavoritesPanel(ft.Column):
         h, s, v = _hsv_from_hex(state["rgb"])
         state.update({"h": h, "s": s, "v": v})
 
-        name = ft.TextField(label="Nombre", value=fav.get("name", "Nuevo favorito"), color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
+        name = ft.TextField(label=self._t("favorites.name"), value=fav.get("name", self._t("favorites.default_name")), color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
         kind = ft.Dropdown(
-            label="Tipo",
+            label=self._t("favorites.type"),
             value=state["type"],
             options=[
-                ft.DropdownOption(key="rgb", text="Color"),
-                ft.DropdownOption(key="white", text="Blanco"),
-                ft.DropdownOption(key="scene", text="Escena WiZ"),
-                ft.DropdownOption(key="brightness", text="Brillo"),
+                ft.DropdownOption(key="rgb", text=self._t("light.color")),
+                ft.DropdownOption(key="white", text=self._t("light.white")),
+                ft.DropdownOption(key="scene", text=self._t("favorites.wiz_scene")),
+                ft.DropdownOption(key="brightness", text=self._t("light.brightness")),
             ],
             color=Theme.TEXT,
             bgcolor=Theme.BG,
@@ -256,13 +273,18 @@ class FavoritesPanel(ft.Column):
             elif ftype == "brightness":
                 preview.bgcolor = Theme.ACCENT
                 preview.content = ft.Icon(ft.Icons.BRIGHTNESS_6_ROUNDED, color="white")
-                summary.value = f"Brillo {int(state['brightness'])}%"
+                summary.value = self._t("favorites.brightness_value", value=int(state["brightness"]))
             else:
                 sid = int(state["scene"])
                 preview.bgcolor = scene_color(sid, "#8b5cf6")
                 preview.content = ft.Icon(scene_icon(sid), color="white")
                 sc = wiz_scenes.get(sid)
-                summary.value = f"{sc.name if sc else 'Escena'} · vel {int(state['speed'])}"
+                scene_name = sc.name if sc else self._t("favorites.scene")
+                summary.value = self._t(
+                    "favorites.scene_summary",
+                    scene=scene_name,
+                    speed=int(state["speed"]),
+                )
             supdate(preview)
             supdate(summary)
 
@@ -272,7 +294,7 @@ class FavoritesPanel(ft.Column):
             ftype = state["type"]
 
             if ftype == "rgb":
-                hex_field = ft.TextField(label="HEX", value=state["rgb"], color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE, dense=True)
+                hex_field = ft.TextField(label=self._t("favorites.hex"), value=state["rgb"], color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE, dense=True)
                 hue = ft.Slider(min=0, max=359, value=state["h"], divisions=36, active_color=Theme.PRIMARY, thumb_color="white", expand=True)
                 sat = ft.Slider(min=0, max=100, value=state["s"], divisions=20, active_color=Theme.ACCENT, thumb_color="white", expand=True)
                 val = ft.Slider(min=10, max=100, value=max(10, state["v"]), divisions=18, active_color=Theme.WARNING, thumb_color="white", expand=True)
@@ -296,10 +318,10 @@ class FavoritesPanel(ft.Column):
                 hue.on_change = sat.on_change = val.on_change = from_sliders
                 hex_field.on_submit = from_hex
                 swatches = ft.Row(wrap=True, spacing=8, run_spacing=8, controls=[
-                    ft.Container(width=32, height=32, border_radius=16, bgcolor=c, tooltip=n, border=ft.Border.all(1, ft.Colors.with_opacity(0.35, "white")), on_click=lambda ev, col=c, hf=hex_field: (setattr(hf, "value", col), from_hex()))
-                    for n, c in RGB_SWATCHES
+                    ft.Container(width=32, height=32, border_radius=16, bgcolor=c, tooltip=self._t(key), border=ft.Border.all(1, ft.Colors.with_opacity(0.35, "white")), on_click=lambda ev, col=c, hf=hex_field: (setattr(hf, "value", col), from_hex()))
+                    for key, c in RGB_SWATCHES
                 ])
-                editor.controls.extend([swatches, hex_field, ft.Text("Matiz", style=Theme.LABEL), hue, ft.Text("Intensidad", style=Theme.LABEL), sat, ft.Text("Claridad", style=Theme.LABEL), val])
+                editor.controls.extend([swatches, hex_field, ft.Text(self._t("favorites.hue"), style=Theme.LABEL), hue, ft.Text(self._t("favorites.saturation"), style=Theme.LABEL), sat, ft.Text(self._t("favorites.lightness"), style=Theme.LABEL), val])
 
             elif ftype == "white":
                 pct = self._pct_from_kelvin(int(state["white"]))
@@ -320,22 +342,26 @@ class FavoritesPanel(ft.Column):
                     supdate(sl)
 
                 buttons = ft.Row(wrap=True, spacing=8, run_spacing=8, controls=[
-                    ft.OutlinedButton(txt, style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)), on_click=lambda ev, k=k: preset_white(k))
-                    for k, txt in WHITE_PRESETS
+                    ft.OutlinedButton(self._t(key), style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)), on_click=lambda ev, k=k: preset_white(k))
+                    for k, key in WHITE_PRESETS
                 ])
                 set_white_from_pct()
                 editor.controls.extend([label, slider, buttons])
 
             elif ftype == "scene":
                 dd = ft.Dropdown(
-                    label="Escena",
+                    label=self._t("favorites.scene"),
                     value=str(state["scene"]),
                     options=[ft.DropdownOption(key=str(sid), text=f"{sid} · {sc.name}") for sid, sc in wiz_scenes.CATALOG.items()],
                     color=Theme.TEXT,
                     bgcolor=Theme.BG,
                     border_color=Theme.STROKE,
                 )
-                speed_label = ft.Text(f"Velocidad {state['speed']}", color=Theme.TEXT, weight=ft.FontWeight.W_600)
+                speed_label = ft.Text(
+                    self._t("favorites.speed_value", value=state["speed"]),
+                    color=Theme.TEXT,
+                    weight=ft.FontWeight.W_600,
+                )
                 speed = ft.Slider(min=20, max=200, value=state["speed"], divisions=18, active_color=Theme.ACCENT, thumb_color="white", expand=True)
 
                 def scene_changed(ev=None):
@@ -344,7 +370,7 @@ class FavoritesPanel(ft.Column):
 
                 def speed_changed(ev=None):
                     state["speed"] = int(speed.value)
-                    speed_label.value = f"Velocidad {state['speed']}"
+                    speed_label.value = self._t("favorites.speed_value", value=state["speed"])
                     update_preview()
                     supdate(speed_label)
 
@@ -353,12 +379,16 @@ class FavoritesPanel(ft.Column):
                 editor.controls.extend([dd, speed_label, speed])
 
             else:
-                label = ft.Text(f"Brillo {state['brightness']}%", color=Theme.TEXT, weight=ft.FontWeight.W_600)
+                label = ft.Text(
+                    self._t("favorites.brightness_value", value=state["brightness"]),
+                    color=Theme.TEXT,
+                    weight=ft.FontWeight.W_600,
+                )
                 slider = ft.Slider(min=10, max=100, value=state["brightness"], divisions=18, active_color=Theme.ACCENT, thumb_color="white", expand=True)
 
                 def bri_changed(ev=None):
                     state["brightness"] = int(slider.value)
-                    label.value = f"Brillo {state['brightness']}%"
+                    label.value = self._t("favorites.brightness_value", value=state["brightness"])
                     update_preview()
                     supdate(label)
 
@@ -404,7 +434,7 @@ class FavoritesPanel(ft.Column):
             ],
         )
         dlg = ft.AlertDialog(
-            title=ft.Text("Editar favorito" if editing else "Nuevo favorito", color=Theme.TEXT),
+            title=ft.Text(self._t("favorites.edit_title") if editing else self._t("favorites.new_title"), color=Theme.TEXT),
             bgcolor=Theme.SURFACE,
             content=ft.Container(
                 width=dialog_w,
@@ -421,8 +451,8 @@ class FavoritesPanel(ft.Column):
                 ),
             ),
             actions=[
-                ft.TextButton("Cancelar", on_click=lambda e: self.page.pop_dialog()),
-                ft.ElevatedButton("Guardar", bgcolor=Theme.PRIMARY, color="white", on_click=save),
+                ft.TextButton(self._t("favorites.cancel"), on_click=lambda e: self.page.pop_dialog()),
+                ft.ElevatedButton(self._t("favorites.save"), bgcolor=Theme.PRIMARY, color="white", on_click=save),
             ],
         )
         self.page.show_dialog(dlg)
