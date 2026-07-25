@@ -415,3 +415,136 @@ mutate Flet controls from the tray thread after an exposed session loop stops.
   targeting with physical WiZ lights.
 - Refine compact spacing only through composition that leaves the protected
   Color Studio component unchanged.
+
+## Premium UI redesign implementation record
+
+### Task 1 checkpoint: compact Color Studio adapter
+
+Status: completed.
+
+Files changed:
+
+- `ui/components/quick_color_studio_adapter.py` adds a compact composition
+  boundary around a Quick-Panel-only `ColorPanel` instance.
+- `tests/test_quick_panel.py` covers compact Color composition, full removal of
+  the mounted RGB tree in White mode, and remounting after Color Studio rebuilds
+  its controls for a language change.
+- `docs/codex/queries/2026-07-25-03-quick-panel-ui-review.md` records the
+  approved redesign plan and continuity context.
+
+The adapter mounts the existing Color/Precise or White subtree, followed by the
+existing brightness and manual-apply controls. It never mounts
+`ColorPanel.main_layout`, never duplicates picker or conversion logic, and
+keeps one active Flet parent for every mounted Color Studio control.
+
+Checkpoint validation:
+
+- `python -m pytest -q tests/test_quick_panel.py tests/test_color_panel_studio.py`
+  completed with `51 passed`.
+
+### Task 2 checkpoint: premium card shell
+
+Status: completed.
+
+Files changed:
+
+- `ui/quick_panel_view.py` replaces the reduced desktop-style stack with a
+  five-card overlay shell: header/device, power, target, compact Color Studio,
+  and quick favorites.
+- `tests/test_quick_panel.py` covers the absence of desktop navigation, active
+  device/status rendering, card structure, six-favorite limit, “View all”
+  navigation, and existing action callbacks.
+
+The header uses localized product/status/settings copy and preserves user
+device names. ON/OFF actions are permanently visible and enlarged. Favorites
+are rendered as a two-row compact card grid instead of a text list. The
+existing adapter receives viewport, live state, and language updates.
+
+Checkpoint validation:
+
+- `python -m pytest -q tests/test_quick_panel.py tests/test_full_app_i18n.py tests/test_home_color_i18n.py`
+  completed with `42 passed`; the 98 warnings are pre-existing Flet
+  `ElevatedButton` deprecations outside the Quick Panel.
+
+### Task 3 checkpoint: premium overlay behavior
+
+Status: completed.
+
+Files changed:
+
+- `core/quick_panel_controller.py` adds fixed overlay geometry, bottom-right
+  work-area positioning, compact window chrome, complete window-property
+  restoration, and full-app section navigation.
+- `ui/components/quick_color_studio_adapter.py` follows Color Studio's
+  externally synchronized RGB/White mode so the mounted compact tree always
+  matches the current light state.
+- `tests/test_quick_panel.py` covers overlay sizing and chrome, deterministic
+  positioning, full restoration, section navigation, and state-driven White
+  composition.
+
+Quick mode now uses a 440 x 680 non-resizable, always-on-top window positioned
+16 px from the bottom-right of the Windows work area under the tray cursor,
+with a primary-monitor fallback. The controller captures every property it
+changes and restores the full app before navigating to Favorites or Settings.
+Platforms that do not expose a work area keep best-effort compositor placement
+while retaining the existing tray actions.
+
+Checkpoint validation:
+
+- `python -m pytest -q tests/test_quick_panel.py tests/test_color_panel_studio.py tests/test_tray_window_restore.py tests/test_tray_branding.py tests/test_full_app_i18n.py tests/test_home_color_i18n.py`
+  completed with `81 passed`; the 98 warnings are pre-existing Flet
+  `ElevatedButton` deprecations outside the Quick Panel.
+
+### Task 4 checkpoint: review hardening and final validation
+
+Status: completed.
+
+Final architecture and UX:
+
+- `QuickPanelView` uses Header, Power, Target, Color Studio, and Favorites card
+  order, with the real WizZ icon and no desktop navigation.
+- `ColorStudioQuickAdapter` separates passive composition from behavioral mode
+  changes. Construction, i18n rebuilds, and external state synchronization
+  never dispatch lighting actions; only an explicit Color/White click delegates
+  to Color Studio's selector.
+- Existing White and Precise views survive adapter construction. White removes
+  the mounted RGB subtree, and external Kelvin/RGB state remounts the matching
+  compact content.
+- Windows placement selects the monitor under the tray cursor and restores
+  every changed native window property when returning to the full app.
+
+Review problems and solutions:
+
+- Independent review found that initializing a saved White mode through
+  Color Studio's behavioral selector could emit an unintended live Kelvin
+  command. A passive `_mount_mode` path and no-dispatch regressions removed the
+  startup side effect.
+- The original Windows provider returned only the primary monitor work area.
+  It now uses `GetCursorPos`, `MonitorFromPoint`, and `GetMonitorInfoW`, with
+  `SPI_GETWORKAREA` retained as a safe fallback.
+- The i18n audit found one decorative hardcoded separator. Removing it left all
+  visible Quick Panel framework copy on the existing ES/EN catalogs.
+
+Final validation:
+
+- `python -m compileall -q main.py app_meta.py core config ui localization tests tools`
+  completed successfully.
+- `python -m pytest -q` completed with `227 passed`; the 98 warnings are
+  pre-existing Flet `ElevatedButton` deprecations in unrelated panels.
+- `python tools/i18n_audit.py` reported `579` matching English/Spanish keys and
+  zero potential hardcoded UI strings.
+- The final related regression group completed with `84 passed`; the same 98
+  unrelated warnings were present.
+- `git diff --check` completed successfully.
+- `python main.py` confirmed the existing single-instance process was restored
+  and no second app instance was created.
+
+Remaining manual risks:
+
+- Close the already-running pre-redesign process before visually testing this
+  commit's rendered tray overlay.
+- Verify frameless focus, left-click toggle, double-click full restore,
+  Color/White remounting, favorites, and ON/OFF with pointer input and physical
+  lights.
+- Verify cursor-monitor placement on mixed-DPI Windows systems and compositor
+  behavior on X11/AppIndicator/Wayland desktops.

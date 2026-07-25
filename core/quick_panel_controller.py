@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any
+import os
+from typing import Any, Callable
 
 from config.favorites_manager import FavoritesManager
 from core.action_sequence import ActionSequenceExecutor
@@ -9,10 +10,11 @@ from core.action_sequence import ActionSequenceExecutor
 class QuickPanelController:
     """Coordinate Quick Panel state without owning WiZ protocol behavior."""
 
-    QUICK_WIDTH = 430
-    QUICK_HEIGHT = 720
-    QUICK_MIN_WIDTH = 380
-    QUICK_MIN_HEIGHT = 520
+    QUICK_WIDTH = 440
+    QUICK_HEIGHT = 680
+    QUICK_MIN_WIDTH = 440
+    QUICK_MIN_HEIGHT = 680
+    QUICK_MARGIN = 16
 
     def __init__(
         self,
@@ -23,6 +25,11 @@ class QuickPanelController:
         *,
         favorites: Any | None = None,
         executor: Any | None = None,
+        work_area_provider: Callable[
+            [],
+            tuple[int, int, int, int] | None,
+        ]
+        | None = None,
     ) -> None:
         self.page = page
         self.wiz = wiz
@@ -30,6 +37,9 @@ class QuickPanelController:
         self.content_host = content_host
         self.favorites = favorites
         self.executor = executor or ActionSequenceExecutor(wiz)
+        self.work_area_provider = (
+            work_area_provider or self._system_work_area
+        )
         self.view: Any | None = None
         self.window_mode = "full"
         self._full_geometry: dict[str, Any] | None = None
@@ -116,7 +126,106 @@ class QuickPanelController:
             "resizable": getattr(window, "resizable", True),
             "maximized": getattr(window, "maximized", False),
             "full_screen": getattr(window, "full_screen", False),
+            "left": getattr(window, "left", None),
+            "top": getattr(window, "top", None),
+            "always_on_top": getattr(window, "always_on_top", False),
+            "frameless": getattr(window, "frameless", False),
+            "title_bar_hidden": getattr(window, "title_bar_hidden", False),
+            "title_bar_buttons_hidden": getattr(
+                window,
+                "title_bar_buttons_hidden",
+                False,
+            ),
+            "maximizable": getattr(window, "maximizable", True),
+            "minimizable": getattr(window, "minimizable", True),
+            "shadow": getattr(window, "shadow", False),
         }
+
+    @staticmethod
+    def _cursor_monitor_work_area(
+        user32: Any,
+    ) -> tuple[int, int, int, int] | None:
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            class MonitorInfo(ctypes.Structure):
+                _fields_ = [
+                    ("cbSize", wintypes.DWORD),
+                    ("rcMonitor", wintypes.RECT),
+                    ("rcWork", wintypes.RECT),
+                    ("dwFlags", wintypes.DWORD),
+                ]
+
+            point = wintypes.POINT()
+            if not user32.GetCursorPos(ctypes.byref(point)):
+                return None
+            monitor_from_point = user32.MonitorFromPoint
+            try:
+                monitor_from_point.argtypes = [
+                    wintypes.POINT,
+                    wintypes.DWORD,
+                ]
+                monitor_from_point.restype = wintypes.HANDLE
+            except Exception:
+                pass
+            monitor = monitor_from_point(point, 1)
+            if not monitor:
+                return None
+
+            info = MonitorInfo()
+            info.cbSize = ctypes.sizeof(MonitorInfo)
+            if not user32.GetMonitorInfoW(monitor, ctypes.byref(info)):
+                return None
+            rect = info.rcWork
+            return rect.left, rect.top, rect.right, rect.bottom
+        except Exception:
+            return None
+
+    @staticmethod
+    def _system_work_area() -> tuple[int, int, int, int] | None:
+        if os.name != "nt":
+            return None
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            cursor_area = QuickPanelController._cursor_monitor_work_area(
+                ctypes.windll.user32,
+            )
+            if cursor_area is not None:
+                return cursor_area
+
+            rect = wintypes.RECT()
+            spi_get_work_area = 0x0030
+            ok = ctypes.windll.user32.SystemParametersInfoW(
+                spi_get_work_area,
+                0,
+                ctypes.byref(rect),
+                0,
+            )
+            if not ok:
+                return None
+            return rect.left, rect.top, rect.right, rect.bottom
+        except Exception:
+            return None
+
+    def _position_quick(self, window: Any) -> None:
+        try:
+            area = self.work_area_provider()
+        except Exception:
+            area = None
+        if not area or len(area) != 4:
+            return
+        left, top, right, bottom = [int(value) for value in area]
+        window.left = max(
+            left,
+            right - self.QUICK_WIDTH - self.QUICK_MARGIN,
+        )
+        window.top = max(
+            top,
+            bottom - self.QUICK_HEIGHT - self.QUICK_MARGIN,
+        )
 
     def _update_page(self) -> bool:
         try:
@@ -135,6 +244,13 @@ class QuickPanelController:
         self.content_host.content = self.view
         window.maximized = False
         window.full_screen = False
+        window.always_on_top = True
+        window.frameless = True
+        window.title_bar_hidden = True
+        window.title_bar_buttons_hidden = True
+        window.maximizable = False
+        window.minimizable = False
+        window.shadow = True
         window.width = self.QUICK_WIDTH
         window.height = self.QUICK_HEIGHT
         window.min_width = self.QUICK_MIN_WIDTH
@@ -144,6 +260,7 @@ class QuickPanelController:
         window.skip_task_bar = True
         window.minimized = False
         window.focused = True
+        self._position_quick(window)
         self.window_mode = "quick"
         self.refresh_view()
         return self._update_page()
@@ -170,6 +287,19 @@ class QuickPanelController:
             "resizable": getattr(window, "resizable", True),
             "maximized": getattr(window, "maximized", False),
             "full_screen": getattr(window, "full_screen", False),
+            "left": getattr(window, "left", None),
+            "top": getattr(window, "top", None),
+            "always_on_top": getattr(window, "always_on_top", False),
+            "frameless": getattr(window, "frameless", False),
+            "title_bar_hidden": getattr(window, "title_bar_hidden", False),
+            "title_bar_buttons_hidden": getattr(
+                window,
+                "title_bar_buttons_hidden",
+                False,
+            ),
+            "maximizable": getattr(window, "maximizable", True),
+            "minimizable": getattr(window, "minimizable", True),
+            "shadow": getattr(window, "shadow", False),
         }
         geometry = (
             self._full_geometry or current_geometry
@@ -194,6 +324,15 @@ class QuickPanelController:
                 update=False,
             )
         return self._update_page()
+
+    def open_full_section(self, index: int) -> bool:
+        if not self.open_full():
+            return False
+        navigate_to = getattr(self.full_app, "navigate_to", None)
+        if callable(navigate_to):
+            navigate_to(int(index))
+            self._update_page()
+        return True
 
     def toggle_quick(self) -> bool:
         window = self._window()

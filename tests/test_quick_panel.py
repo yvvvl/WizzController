@@ -10,7 +10,9 @@ from core.background.tray_service import TrayService
 from core.quick_panel_controller import QuickPanelController
 from localization import LocalizationManager
 from main import _update_runtime_views
+from ui.components.quick_color_studio_adapter import ColorStudioQuickAdapter
 from ui.quick_panel_view import QuickPanelView
+from ui.theme import Theme
 
 
 class _Window:
@@ -25,6 +27,16 @@ class _Window:
     focused = True
     maximized = False
     full_screen = False
+    left = 120
+    top = 80
+    always_on_top = False
+    frameless = False
+    title_bar_hidden = False
+    title_bar_buttons_hidden = False
+    maximizable = True
+    minimizable = True
+    shadow = False
+    bgcolor = "#101010"
 
 
 class _Page:
@@ -49,9 +61,13 @@ class _Runtime:
 class _FullApp:
     def __init__(self) -> None:
         self.viewports: list[tuple[float, float, bool]] = []
+        self.navigation: list[int] = []
 
     def set_viewport(self, width: float, height: float, *, update: bool = True) -> None:
         self.viewports.append((width, height, update))
+
+    def navigate_to(self, index: int) -> None:
+        self.navigation.append(index)
 
 
 class _Wiz:
@@ -344,13 +360,101 @@ def test_open_quick_reuses_window_and_replaces_only_host_content() -> None:
 
     assert host.content is quick_view
     assert controller.window_mode == "quick"
-    assert page.window.width == 430
-    assert page.window.height == 720
-    assert page.window.min_width == 380
-    assert page.window.min_height == 520
+    assert page.window.width == 440
+    assert page.window.height == 680
+    assert page.window.min_width == 440
+    assert page.window.min_height == 680
     assert page.window.visible is True
     assert page.window.skip_task_bar is True
     assert page.update_count == 1
+
+
+def test_open_quick_uses_fixed_overlay_chrome_and_bottom_right_position() -> None:
+    page = _Page()
+    full_app = _FullApp()
+    host = _Host(full_app)
+    controller = QuickPanelController(
+        page,
+        _Wiz(),
+        full_app,
+        host,
+        favorites=_Favorites(),
+        executor=_Executor(),
+        work_area_provider=lambda: (0, 0, 1920, 1080),
+    )
+    controller.attach_view(object())
+
+    controller.open_quick()
+
+    assert page.window.width == 440
+    assert page.window.height == 680
+    assert page.window.min_width == 440
+    assert page.window.min_height == 680
+    assert page.window.left == 1464
+    assert page.window.top == 384
+    assert page.window.always_on_top is True
+    assert page.window.frameless is True
+    assert page.window.title_bar_hidden is True
+    assert page.window.title_bar_buttons_hidden is True
+    assert page.window.maximizable is False
+    assert page.window.minimizable is False
+    assert page.window.shadow is True
+
+
+def test_windows_work_area_uses_monitor_under_tray_cursor() -> None:
+    class _MonitorApi:
+        def GetCursorPos(self, pointer) -> int:
+            pointer._obj.x = 2500
+            pointer._obj.y = 700
+            return 1
+
+        def MonitorFromPoint(self, point, _flags):
+            assert (point.x, point.y) == (2500, 700)
+            return 42
+
+        def GetMonitorInfoW(self, monitor, pointer) -> int:
+            assert monitor == 42
+            rect = pointer._obj.rcWork
+            rect.left = 1920
+            rect.top = 0
+            rect.right = 3840
+            rect.bottom = 1040
+            return 1
+
+    assert QuickPanelController._cursor_monitor_work_area(_MonitorApi()) == (
+        1920,
+        0,
+        3840,
+        1040,
+    )
+
+
+def test_open_full_restores_position_and_window_chrome_after_overlay() -> None:
+    controller, page, host, _wiz, _favorites, _executor = _make_controller()
+    controller.attach_view(object())
+    page.window.left = 222
+    page.window.top = 111
+    page.window.always_on_top = False
+    page.window.frameless = False
+    page.window.title_bar_hidden = False
+    page.window.title_bar_buttons_hidden = False
+    page.window.maximizable = True
+    page.window.minimizable = True
+    page.window.shadow = False
+
+    controller.open_quick()
+    controller.open_full()
+
+    assert host.content is controller.full_app
+    assert page.window.left == 222
+    assert page.window.top == 111
+    assert page.window.always_on_top is False
+    assert page.window.frameless is False
+    assert page.window.title_bar_hidden is False
+    assert page.window.title_bar_buttons_hidden is False
+    assert page.window.maximizable is True
+    assert page.window.minimizable is True
+    assert page.window.shadow is False
 
 
 def test_hide_and_restore_full_app_preserve_saved_geometry() -> None:
@@ -424,6 +528,18 @@ def test_open_full_preserves_current_geometry_when_already_in_full_mode() -> Non
     assert controller.full_app.viewports[-1] == (1440.0, 900.0, False)
 
 
+def test_open_full_section_restores_app_before_navigating() -> None:
+    controller, _page, host, _wiz, _favorites, _executor = _make_controller()
+    controller.attach_view(object())
+    controller.open_quick()
+
+    assert controller.open_full_section(3) is True
+
+    assert host.content is controller.full_app
+    assert controller.window_mode == "full"
+    assert controller.full_app.navigation == [3]
+
+
 def test_toggle_quick_hides_only_a_visible_quick_panel() -> None:
     controller, page, _host, _wiz, _favorites, _executor = _make_controller()
     controller.attach_view(object())
@@ -466,6 +582,9 @@ class _RecordingQuickController:
     def run_favorite(self, uid: str) -> None:
         self.calls.append(("favorite", uid))
 
+    def open_full_section(self, index: int) -> None:
+        self.calls.append(("full", str(index)))
+
 
 class _Studio:
     def __init__(self) -> None:
@@ -483,6 +602,219 @@ class _Studio:
     def set_language(self, language: str | None = None) -> None:
         self.languages.append(language)
         self.main_layout = ft.Container(data=f"studio-{language}")
+
+
+class _QuickAdapter(ft.Container):
+    def __init__(self) -> None:
+        super().__init__(data="compact-color-studio")
+        self.viewports: list[tuple[float, float]] = []
+        self.states: list[dict] = []
+        self.languages: list[str | None] = []
+
+    def set_viewport(self, width: float, height: float) -> None:
+        self.viewports.append((width, height))
+
+    def sync_state(self, state: dict) -> None:
+        self.states.append(dict(state))
+
+    def set_language(self, language: str | None = None) -> None:
+        self.languages.append(language)
+
+
+class _CompactStudio:
+    def __init__(self) -> None:
+        self.main_layout = ft.Container(data="desktop-color-layout")
+        self.color_section = ft.Container(data="rgb-picker-and-quick-colors")
+        self.precise_section = ft.Container(
+            data="precise-rgb",
+            visible=False,
+        )
+        self.white_section = ft.Container(data="kelvin-and-white-presets")
+        self.brightness_card = ft.Container(data="brightness")
+        self.apply_row = ft.Row([ft.TextButton("apply")])
+        self.selected_views: list[str] = []
+        self.languages: list[str | None] = []
+        self.viewports: list[tuple[float, float]] = []
+        self.states: list[dict] = []
+        self.view_mode = "color"
+
+    def _select_view(self, mode: str, *, update: bool = True) -> None:
+        self.selected_views.append(mode)
+        self.view_mode = mode
+        self.color_section.visible = mode == "color"
+        self.precise_section.visible = mode == "precise"
+        self.white_section.visible = mode == "white"
+
+    def set_language(self, language: str | None = None) -> None:
+        self.languages.append(language)
+        self.color_section = ft.Container(data=f"rgb-{language}")
+        self.precise_section = ft.Container(
+            data=f"precise-{language}",
+            visible=False,
+        )
+        self.white_section = ft.Container(data=f"white-{language}")
+        self.brightness_card = ft.Container(data=f"brightness-{language}")
+        self.apply_row = ft.Row([ft.TextButton(f"apply-{language}")])
+
+    def set_viewport(self, width: float, height: float) -> None:
+        self.viewports.append((width, height))
+
+    def sync_state(self, state: dict) -> None:
+        self.states.append(dict(state))
+        self.view_mode = "white" if state.get("temp") is not None else "color"
+
+
+def _control_tree_contains(root: ft.Control, target: ft.Control) -> bool:
+    if root is target:
+        return True
+    for name in ("content", "controls"):
+        value = getattr(root, name, None)
+        children = value if isinstance(value, list) else [value]
+        for child in children:
+            if isinstance(child, ft.Control) and _control_tree_contains(
+                child,
+                target,
+            ):
+                return True
+    return False
+
+
+def test_color_studio_adapter_mounts_compact_color_tree_not_desktop_layout() -> None:
+    studio = _CompactStudio()
+
+    adapter = ColorStudioQuickAdapter(
+        studio,
+        i18n=LocalizationManager(preference="en"),
+    )
+
+    assert set(adapter.mode_buttons) == {"color", "white"}
+    assert adapter.mode == "color"
+    assert adapter.mode_host.content.controls == [
+        studio.color_section,
+        studio.precise_section,
+    ]
+    assert adapter.controls == [
+        adapter.mode_selector,
+        adapter.mode_host,
+        adapter.brightness_host,
+        adapter.apply_host,
+    ]
+    assert adapter.brightness_host.content is studio.brightness_card
+    assert adapter.apply_host.content is studio.apply_row
+    assert not _control_tree_contains(adapter, studio.main_layout)
+
+
+def test_color_studio_adapter_preserves_existing_white_mode_on_mount() -> None:
+    studio = _CompactStudio()
+    studio.view_mode = "white"
+    studio.color_section.visible = False
+    studio.white_section.visible = True
+
+    adapter = ColorStudioQuickAdapter(
+        studio,
+        i18n=LocalizationManager(preference="en"),
+    )
+
+    assert adapter.mode == "white"
+    assert adapter.mode_host.content is studio.white_section
+    assert not _control_tree_contains(adapter, studio.color_section)
+    assert studio.selected_views == []
+
+
+def test_color_studio_adapter_preserves_existing_precise_view_on_mount() -> None:
+    studio = _CompactStudio()
+    studio.view_mode = "precise"
+    studio.color_section.visible = False
+    studio.precise_section.visible = True
+
+    adapter = ColorStudioQuickAdapter(
+        studio,
+        i18n=LocalizationManager(preference="en"),
+    )
+
+    assert adapter.mode == "color"
+    assert studio.view_mode == "precise"
+    assert studio.selected_views == []
+    assert _control_tree_contains(adapter, studio.precise_section)
+
+
+def test_color_studio_adapter_replaces_rgb_tree_with_white_controls() -> None:
+    studio = _CompactStudio()
+    adapter = ColorStudioQuickAdapter(
+        studio,
+        i18n=LocalizationManager(preference="en"),
+    )
+
+    adapter.set_mode("white")
+
+    assert adapter.mode == "white"
+    assert studio.selected_views[-1] == "white"
+    assert adapter.mode_host.content is studio.white_section
+    assert _control_tree_contains(adapter, studio.white_section)
+    assert not _control_tree_contains(adapter, studio.color_section)
+    assert not _control_tree_contains(adapter, studio.precise_section)
+    assert adapter.brightness_host.content is studio.brightness_card
+
+
+def test_color_studio_adapter_remounts_rebuilt_controls_after_language_change() -> None:
+    manager = LocalizationManager(preference="en")
+    studio = _CompactStudio()
+    adapter = ColorStudioQuickAdapter(studio, i18n=manager)
+    adapter.set_mode("white")
+    previous_white = adapter.mode_host.content
+
+    manager.set_preference("es")
+    adapter.set_language("es")
+
+    assert studio.languages == ["es"]
+    assert adapter.mode == "white"
+    assert adapter.mode_host.content is studio.white_section
+    assert adapter.mode_host.content is not previous_white
+    assert adapter.brightness_host.content is studio.brightness_card
+    assert adapter.apply_host.content is studio.apply_row
+    white_label = adapter.mode_buttons["white"].content.controls[1]
+    assert white_label.value == "Blanco"
+
+
+def test_color_studio_adapter_forwards_compact_viewport() -> None:
+    studio = _CompactStudio()
+    adapter = ColorStudioQuickAdapter(
+        studio,
+        i18n=LocalizationManager(preference="en"),
+    )
+
+    adapter.set_viewport(390, 620)
+
+    assert studio.viewports == [(390, 620)]
+
+
+def test_color_studio_adapter_forwards_external_light_state() -> None:
+    studio = _CompactStudio()
+    adapter = ColorStudioQuickAdapter(
+        studio,
+        i18n=LocalizationManager(preference="en"),
+    )
+    state = {"state": True, "dimming": 72, "temp": 4000}
+
+    adapter.sync_state(state)
+
+    assert studio.states == [state]
+
+
+def test_color_studio_adapter_follows_white_mode_from_external_state() -> None:
+    studio = _CompactStudio()
+    adapter = ColorStudioQuickAdapter(
+        studio,
+        i18n=LocalizationManager(preference="en"),
+    )
+
+    adapter.sync_state({"state": True, "dimming": 72, "temp": 4000})
+
+    assert studio.view_mode == "white"
+    assert adapter.mode == "white"
+    assert adapter.mode_host.content is studio.white_section
+    assert not _control_tree_contains(adapter, studio.color_section)
+    assert studio.selected_views == []
 
 
 def _view_snapshot() -> dict:
@@ -556,9 +888,10 @@ def _view_snapshot() -> dict:
     }
 
 
-def test_view_builds_compact_sections_from_i18n_and_existing_color_studio() -> None:
+def test_view_builds_premium_card_shell_without_desktop_navigation() -> None:
     i18n = LocalizationManager(preference="en")
     studio = _Studio()
+    adapter = _QuickAdapter()
     controller = _RecordingQuickController()
 
     view = QuickPanelView(
@@ -566,24 +899,100 @@ def test_view_builds_compact_sections_from_i18n_and_existing_color_studio() -> N
         object(),
         i18n=i18n,
         color_panel=studio,
+        color_adapter=adapter,
     )
 
     assert view.title.value == "Quick Panel"
     assert view.power_on.content == "ON"
     assert view.power_off.content == "OFF"
-    assert view.color_host.content is studio.main_layout
-    assert view.controls.index(view.color_host) < view.controls.index(view.favorites_section)
-    assert studio.viewports == [(390, 620)]
+    assert view.controls == [view.shell]
+    assert view.shell.content.controls == [
+        view.header_card,
+        view.power_card,
+        view.target_card,
+        view.studio_card,
+        view.favorites_card,
+    ]
+    assert view.studio_card.content is adapter
+    assert not any(
+        isinstance(control, ft.NavigationRail)
+        for control in view.shell.content.controls
+    )
+    assert adapter.viewports == [(390, 620)]
+
+
+def test_view_header_renders_active_device_and_online_state() -> None:
+    view = QuickPanelView(
+        _RecordingQuickController(),
+        object(),
+        i18n=LocalizationManager(preference="en"),
+        color_panel=_Studio(),
+        color_adapter=_QuickAdapter(),
+    )
+
+    view.update_snapshot(_view_snapshot())
+
+    assert view.product_name.value == "WizZ Desktop"
+    assert isinstance(view.brand_icon, ft.Image)
+    assert view.brand_icon.src == "icon.png"
+    assert view.device_name.value == "Living Room"
+    assert view.online_status.value == "Online"
+    assert view.status_dot.bgcolor == Theme.SUCCESS
+
+
+def test_view_limits_quick_favorites_to_six_compact_cards() -> None:
+    snapshot = _view_snapshot()
+    snapshot["favorites"] = [
+        {
+            "id": f"favorite-{index}",
+            "name": f"Favorite {index}",
+            "type": "rgb",
+            "value": "#ff0000",
+        }
+        for index in range(8)
+    ]
+    view = QuickPanelView(
+        _RecordingQuickController(),
+        object(),
+        i18n=LocalizationManager(preference="en"),
+        color_panel=_Studio(),
+        color_adapter=_QuickAdapter(),
+    )
+
+    view.update_snapshot(snapshot)
+
+    assert len(view.favorite_row.controls) == 6
+    assert all(
+        isinstance(favorite, ft.Container)
+        for favorite in view.favorite_row.controls
+    )
+
+
+def test_view_all_opens_full_app_at_favorites() -> None:
+    controller = _RecordingQuickController()
+    view = QuickPanelView(
+        controller,
+        object(),
+        i18n=LocalizationManager(preference="en"),
+        color_panel=_Studio(),
+        color_adapter=_QuickAdapter(),
+    )
+
+    view.view_all.on_click(None)
+
+    assert controller.calls == [("full", "3")]
 
 
 def test_view_updates_devices_modes_status_and_favorite_callbacks() -> None:
     controller = _RecordingQuickController()
     studio = _Studio()
+    adapter = _QuickAdapter()
     view = QuickPanelView(
         controller,
         object(),
         i18n=LocalizationManager(preference="en"),
         color_panel=studio,
+        color_adapter=adapter,
     )
 
     view.update_snapshot(_view_snapshot())
@@ -595,7 +1004,7 @@ def test_view_updates_devices_modes_status_and_favorite_callbacks() -> None:
     assert view.device_selector.value == "192.168.1.20"
     assert view.online_status.value == "Online"
     assert len(view.favorite_row.controls) == 4
-    assert studio.states[-1] == {
+    assert adapter.states[-1] == {
         "state": True,
         "dimming": 72,
         "r": 111,
@@ -627,11 +1036,13 @@ def test_view_updates_devices_modes_status_and_favorite_callbacks() -> None:
 def test_view_updates_all_visible_copy_through_existing_i18n() -> None:
     manager = LocalizationManager(preference="en")
     studio = _Studio()
+    adapter = _QuickAdapter()
     view = QuickPanelView(
         _RecordingQuickController(),
         object(),
         i18n=manager,
         color_panel=studio,
+        color_adapter=adapter,
     )
     view.update_snapshot(_view_snapshot())
 
@@ -644,9 +1055,9 @@ def test_view_updates_all_visible_copy_through_existing_i18n() -> None:
     assert view.power_on.content == "ENCENDIDO"
     assert view.power_off.content == "APAGADO"
     assert view.favorites_title.value == "Favoritos"
-    assert studio.languages == ["es"]
-    assert view.color_host.content is studio.main_layout
-    assert view.color_host.content.data == "studio-es"
+    assert view.view_all.content == "Ver todos"
+    assert adapter.languages == ["es"]
+    assert view.studio_card.content is adapter
 
 
 class _Timer:
