@@ -5,7 +5,7 @@ import time
 import logging
 import threading
 import traceback
-from typing import Callable
+from typing import Any, Callable
 
 import flet as ft
 
@@ -17,11 +17,13 @@ from ui.theme import Theme
 from config.app_runtime_manager import AppRuntimeManager
 from config.hotkeys_manager import HotkeysManager
 from core.background.tray_service import TrayService, install_window_handlers
+from core.quick_panel_controller import QuickPanelController
 from core.single_instance import SingleInstanceGuard
 from core.windows_window import restore_window
 from core.logging_setup import configure_logging
 from config.paths import assets_dir, config_dir, logs_dir
 from localization import RuntimeLanguagePreference, get_manager
+from ui.quick_panel_view import QuickPanelView
 
 _APP_TITLE = APP_NAME
 _INSTANCE_GUARD = SingleInstanceGuard(APP_ID)
@@ -30,6 +32,18 @@ _RUNTIME_SHUTDOWN_CALLBACK: Callable[[], None] | None = None
 
 
 configure_logging()
+
+
+def _update_runtime_views(
+    app: Any,
+    quick_panel: Any,
+    state: dict[str, Any],
+) -> None:
+    """Fan one LightController state out to both views."""
+
+    snapshot = dict(state or {})
+    _safe(app.update_ui, dict(snapshot))
+    _safe(quick_panel.update_state, dict(snapshot))
 
 
 
@@ -108,13 +122,35 @@ def main(page: ft.Page):
             _safe(wiz.stop)
 
         app = WizzApp(page, wiz, hotkeys_manager=hotkeys)
+        content_host = ft.Container(content=app, expand=True)
+        quick_controller = QuickPanelController(
+            page,
+            wiz,
+            app,
+            content_host,
+        )
+        quick_view = QuickPanelView(
+            quick_controller,
+            wiz,
+            i18n=i18n,
+        )
+        quick_controller.attach_view(quick_view)
         page.on_resize = app.handle_page_resize
         # PHASE32_RUNTIME_TRAY_SAFE
         tray = None
         tray_started = False
         if runtime.get('tray_enabled', True):
             try:
-                tray = TrayService(page, wiz, runtime, hotkeys_manager=hotkeys, on_shutdown=shutdown_services, i18n=i18n)
+                tray = TrayService(
+                    page,
+                    wiz,
+                    runtime,
+                    hotkeys_manager=hotkeys,
+                    on_shutdown=shutdown_services,
+                    i18n=i18n,
+                    on_open_quick=quick_controller.toggle_quick,
+                    on_open_full=quick_controller.open_full,
+                )
                 tray_started = tray.start()
                 if tray_started:
                     logging.info('[Tray] Icono de bandeja iniciado. X => ocultar a bandeja. Salir real desde menú de bandeja.')  # PHASE33_TRAY_NOTE
@@ -157,17 +193,22 @@ def main(page: ft.Page):
             page._wizz_runtime = runtime
             page._wizz_tray = tray if tray_started else None
             page._wizz_hotkeys = hotkeys
+            page._wizz_quick_panel = quick_controller
         except Exception:
             pass
         wiz.set_callback(
             lambda state: _dispatch_wiz_state(
                 page,
-                app.update_ui,
+                lambda snapshot: _update_runtime_views(
+                    app,
+                    quick_controller,
+                    snapshot,
+                ),
                 state,
             )
         )
 
-        page.add(app)
+        page.add(content_host)
         page.update()
         # PHASE32_OPEN_MINIMIZED_SAFE
         try:
