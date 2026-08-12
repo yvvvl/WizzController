@@ -1,60 +1,63 @@
-from core.effects.models import RGBColor, RGBICFrame, RGBICZone
+import pytest
+
+from core.effects.models import CalibrationProfile, RGBColor, RGBICStep
 from core.effects.rgbic_simulator import simulate_rgbic
 
 
-def test_simulator_represents_all_twelve_zones_without_padding():
-    frame = RGBICFrame(
-        zones=[
-            RGBICZone(RGBColor(index, index + 1, index + 2))
-            for index in range(12)
-        ]
+def test_simulator_expands_absolute_widths_into_physical_segments():
+    result = simulate_rgbic(
+        [
+            RGBICStep(RGBColor(255, 0, 0), width=2),
+            RGBICStep(RGBColor(0, 255, 0), width=3, brightness=80),
+        ],
+        CalibrationProfile(physical_segments=5),
     )
 
-    result = simulate_rgbic(frame)
-
-    assert len(result) == 12
-    assert [zone.number for zone in result] == list(range(1, 13))
-    assert result[0].color == RGBColor(0, 1, 2)
-    assert result[-1].color == RGBColor(11, 12, 13)
-    assert all(not zone.padded for zone in result)
-
-
-def test_simulator_pads_missing_zones_with_black():
-    frame = RGBICFrame(
-        zones=[
-            RGBICZone(RGBColor(255, 0, 0)),
-            RGBICZone(RGBColor(0, 255, 0)),
-        ]
-    )
-
-    result = simulate_rgbic(frame)
-
-    assert [zone.color for zone in result[:2]] == [
+    assert len(result) == 5
+    assert [segment.number for segment in result] == [1, 2, 3, 4, 5]
+    assert [segment.step_number for segment in result] == [1, 1, 2, 2, 2]
+    assert [segment.color for segment in result] == [
+        RGBColor(255, 0, 0),
         RGBColor(255, 0, 0),
         RGBColor(0, 255, 0),
+        RGBColor(0, 255, 0),
+        RGBColor(0, 255, 0),
     ]
-    assert all(zone.color == RGBColor(0, 0, 0) for zone in result[2:])
-    assert all(zone.padded for zone in result[2:])
+    assert all(not segment.padded for segment in result)
 
 
-def test_simulator_represents_empty_frame_as_twelve_black_zones():
-    result = simulate_rgbic(RGBICFrame(zones=[]))
-
-    assert len(result) == 12
-    assert all(zone.color == RGBColor(0, 0, 0) for zone in result)
-    assert all(zone.padded for zone in result)
-
-
-def test_simulator_preserves_optional_zone_weights():
-    frame = RGBICFrame(
-        zones=[
-            RGBICZone(RGBColor(255, 0, 0), weight=3),
-            RGBICZone(RGBColor(0, 255, 0)),
-        ]
+def test_simulator_pads_uncovered_segments_with_black():
+    result = simulate_rgbic(
+        [RGBICStep(RGBColor(255, 0, 0), width=2)],
+        CalibrationProfile(physical_segments=4),
     )
 
-    result = simulate_rgbic(frame)
+    assert [segment.color for segment in result[:2]] == [
+        RGBColor(255, 0, 0),
+        RGBColor(255, 0, 0),
+    ]
+    assert all(segment.color == RGBColor(0, 0, 0) for segment in result[2:])
+    assert all(segment.padded for segment in result[2:])
 
-    assert result[0].weight == 3
-    assert result[1].weight is None
-    assert all(zone.weight is None for zone in result[2:])
+
+def test_simulator_preserves_optional_brightness_without_modifier():
+    result = simulate_rgbic(
+        [
+            RGBICStep(
+                RGBColor(255, 0, 0),
+                width=2,
+                brightness=55,
+            )
+        ],
+        CalibrationProfile(physical_segments=2),
+    )
+
+    assert [segment.brightness for segment in result] == [55, 55]
+
+
+def test_simulator_rejects_widths_that_exceed_physical_segments():
+    with pytest.raises(ValueError, match="cannot exceed"):
+        simulate_rgbic(
+            [RGBICStep(RGBColor(255, 0, 0), width=5)],
+            CalibrationProfile(physical_segments=4),
+        )

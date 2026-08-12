@@ -1,0 +1,21 @@
+{
+  "sceneId": 258,
+  "transport": "accepted",
+  "deviceResponse": {
+    "success": true
+  },
+  "visual": "visually_correct",
+  "observedBehavior": "RGBIC pattern applied correctly using elm.",
+  "payload": {
+    "state": true,
+    "sceneId": 258,
+    "elm": {
+      "modifier": 100,
+      "support": 17,
+      "steps": [
+        [0, 0, 255, 0, 0, 0, 0, 100, 0, 0, 0, 0, 1],
+        [0, 0, 0, 255, 0, 0, 0, 100, 0, 0, 0, 0, 1]
+      ]
+    }
+  }
+}

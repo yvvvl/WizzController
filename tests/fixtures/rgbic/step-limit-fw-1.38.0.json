@@ -1,0 +1,28 @@
+{
+  "moduleName": "ESP25_MHORGB_01",
+  "fwVersion": "1.38.0",
+  "cases": {
+    "11": {
+      "transport": "accepted",
+      "visual": "visually_correct"
+    },
+    "12": {
+      "transport": "accepted",
+      "visual": "visually_correct"
+    },
+    "13": {
+      "transport": "rejected",
+      "error": {
+        "code": -32602,
+        "message": "Invalid params"
+      }
+    },
+    "14": {
+      "transport": "rejected",
+      "error": {
+        "code": -32602,
+        "message": "Invalid params"
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "physicalSegments": 17,
+  "partialCoverage": {
+    "widths": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    "litSegments": 12,
+    "darkSegments": 5
+  },
+  "fullCoverage": {
+    "widths": [1, 1, 2, 1, 2, 1, 1, 2, 1, 2, 1, 2],
+    "litSegments": 17,
+    "darkSegments": 0
+  }
+}
