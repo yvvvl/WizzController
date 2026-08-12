@@ -82,7 +82,7 @@ class WizProtocol(asyncio.DatagramProtocol):
             fut = self._futures.get((ip, method))
             if fut and not fut.done():
                 if "error" in msg:
-                    fut.set_result(None)
+                    fut.set_result({"error": msg["error"]})
                 else:
                     fut.set_result(result if isinstance(result, dict) else {})
 

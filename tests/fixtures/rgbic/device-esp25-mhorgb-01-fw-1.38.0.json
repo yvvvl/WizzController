@@ -1,0 +1,18 @@
+{
+  "moduleName": "ESP25_MHORGB_01",
+  "fwVersion": "1.38.0",
+  "physicalSegments": 17,
+  "installationNotes": {
+    "stripLengthOriginalMeters": 5,
+    "stripLengthInstalledApproxMeters": 4,
+    "stripCutObserved": true
+  },
+  "getSystemConfig": {
+    "physicalSegmentCountPresent": false,
+    "installedLengthPresent": false,
+    "relevantFieldsObserved": [
+      "moduleName",
+      "fwVersion"
+    ]
+  }
+}

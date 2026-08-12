@@ -1,5 +1,7 @@
 # WizZ Desktop — prueba manual de hotkeys y bandeja
 
+Status: Completed
+
 Esta prueba es para Windows real, antes del empaquetado `.exe`. En Flet dev pueden aparecer detalles de ciclo de vida de ventana/tray que no representan el comportamiento final, pero igual sirve para validar lógica.
 
 ## 1. Arranque limpio

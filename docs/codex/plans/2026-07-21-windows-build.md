@@ -1,5 +1,7 @@
 # Build nativo de WizZ Desktop para Windows
 
+Status: In Progress
+
 La distribución inicial usa el pipeline oficial de Flet:
 
 ```text

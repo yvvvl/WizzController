@@ -1,5 +1,7 @@
 # Flujo Git recomendado para cerrar la v1
 
+Status: Completed
+
 No conviene seguir acumulando cambios grandes sin checkpoints. Desde esta etapa,
 cada bloque debe quedar en un commit pequeño, probado y reversible.
 

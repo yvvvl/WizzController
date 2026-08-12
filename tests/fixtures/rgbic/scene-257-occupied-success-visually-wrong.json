@@ -1,0 +1,21 @@
+{
+  "sceneId": 257,
+  "transport": "accepted",
+  "deviceResponse": {
+    "success": true
+  },
+  "visual": "visually_wrong",
+  "observedBehavior": "Saved rainbow mode reproduced and elm was ignored.",
+  "payload": {
+    "state": true,
+    "sceneId": 257,
+    "elm": {
+      "modifier": 100,
+      "support": 17,
+      "steps": [
+        [0, 0, 255, 0, 0, 0, 0, 100, 0, 0, 0, 0, 1],
+        [0, 0, 0, 255, 0, 0, 0, 100, 0, 0, 0, 0, 1]
+      ]
+    }
+  }
+}

@@ -1,5 +1,7 @@
 # v1 RC — restauración de ventana e instancia única
 
+Status: Completed
+
 ## Problema corregido
 
 La restauración anterior llamaba `Window.to_front()` desde el thread del tray o

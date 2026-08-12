@@ -1,5 +1,9 @@
 # Comment and docstring style
 
+Status: Archived
+
+Estas reglas se consolidaron en `docs/codex/DOCUMENTATION_GUIDE.md`.
+
 Technical comments and docstrings are written in English. User-visible text belongs in the localization catalogs.
 
 ## Rule

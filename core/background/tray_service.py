@@ -34,12 +34,16 @@ class TrayService:
         hotkeys_manager: Any | None = None,
         on_shutdown: Callable[[], Any] | None = None,
         i18n=None,
+        on_open_quick: Callable[[], Any] | None = None,
+        on_open_full: Callable[[], Any] | None = None,
     ) -> None:
         self.page = page
         self.wiz = wiz
         self.runtime = runtime
         self.hotkeys_manager = hotkeys_manager
         self.on_shutdown = on_shutdown
+        self.on_open_quick = on_open_quick
+        self.on_open_full = on_open_full
         self.i18n = i18n or LocalizationManager(preference="es")
         self.icon = None
         self._thread: threading.Thread | None = None
@@ -57,6 +61,8 @@ class TrayService:
         self._last_show_ok = False
         self._tray_click_lock = threading.Lock()
         self._last_tray_click = 0.0
+        self._pending_primary_timer: threading.Timer | None = None
+        self._pending_primary_token: object | None = None
         self._double_click_seconds = self._system_double_click_seconds()
         self._unsubscribe_i18n = self.i18n.subscribe(lambda language: self.refresh_menu())
         try:
@@ -244,8 +250,9 @@ class TrayService:
         # un doble click real; las opciones visibles del menu siguen siendo
         # acciones directas de un solo click.
         primary_action_items = []
-        show_is_default = os.name != "nt"
-        if os.name == "nt":
+        panel_action_items = []
+        has_quick_panel = callable(self.on_open_quick)
+        if os.name == "nt" and has_quick_panel:
             primary_action_items.append(
                 item(
                     self._t("tray.toggle_app"),
@@ -254,14 +261,32 @@ class TrayService:
                     visible=False,
                 )
             )
+        if has_quick_panel:
+            panel_action_items.extend(
+                [
+                    item(
+                        self._t("tray.quick_panel"),
+                        lambda icon, it: self._open_quick_from_tray(),
+                        default=os.name != "nt",
+                    ),
+                    item(
+                        self._t("quick.open_full"),
+                        lambda icon, it: self._open_full_from_tray(),
+                    ),
+                ]
+            )
+        else:
+            panel_action_items.append(
+                item(
+                    self._t("tray.show_app"),
+                    lambda icon, it: self.show_window(),
+                    default=os.name != "nt",
+                )
+            )
 
         return menu(
             *primary_action_items,
-            item(
-                self._t("tray.show_app"),
-                lambda icon, it: self.show_window(),
-                default=show_is_default,
-            ),
+            *panel_action_items,
             item(self._t("tray.hide_app"), lambda icon, it: self.hide_window()),
             item(self._t("tray.update_menu"), lambda icon, it: self.refresh_menu()),
             sep,
@@ -469,22 +494,118 @@ class TrayService:
             return 0.5
 
     def _handle_tray_primary_click(self) -> bool:
-        """Alterna la ventana al completar un doble click en Windows."""
+        """Resuelve click simple del panel y doble click de la app completa."""
+
+        if not callable(self.on_open_quick):
+            if os.name != "nt":
+                return self.toggle_window()
+
+            now = time.monotonic()
+            should_toggle = False
+            with self._tray_click_lock:
+                elapsed = now - self._last_tray_click
+                if 0.0 < elapsed <= self._double_click_seconds:
+                    self._last_tray_click = 0.0
+                    should_toggle = True
+                else:
+                    self._last_tray_click = now
+
+            return self.toggle_window() if should_toggle else False
 
         if os.name != "nt":
-            return self.toggle_window()
+            return self._open_quick_from_tray()
 
         now = time.monotonic()
-        should_toggle = False
+        should_open_full = False
         with self._tray_click_lock:
             elapsed = now - self._last_tray_click
-            if 0.0 < elapsed <= self._double_click_seconds:
+            if (
+                self._pending_primary_timer is not None
+                and 0.0 < elapsed <= self._double_click_seconds
+            ):
+                self._pending_primary_timer.cancel()
+                self._pending_primary_timer = None
+                self._pending_primary_token = None
                 self._last_tray_click = 0.0
-                should_toggle = True
+                should_open_full = True
             else:
+                if self._pending_primary_timer is not None:
+                    self._pending_primary_timer.cancel()
+                token = object()
+                timer = threading.Timer(
+                    self._double_click_seconds,
+                    lambda: self._complete_primary_click(token),
+                )
+                timer.daemon = True
+                self._pending_primary_token = token
+                self._pending_primary_timer = timer
                 self._last_tray_click = now
+                timer.start()
 
-        return self.toggle_window() if should_toggle else False
+        return self._open_full_from_tray() if should_open_full else False
+
+    def _complete_primary_click(self, token: object) -> None:
+        with self._tray_click_lock:
+            if token is not self._pending_primary_token:
+                return
+            self._pending_primary_timer = None
+            self._pending_primary_token = None
+            self._last_tray_click = 0.0
+        self._open_quick_from_tray()
+
+    def _invoke_ui_callback(
+        self,
+        callback: Callable[[], Any] | None,
+        *,
+        label: str,
+    ) -> bool:
+        if not callable(callback):
+            return False
+
+        async def invoke() -> None:
+            result = callback()
+            if inspect.isawaitable(result):
+                await result
+
+        if self._schedule_page_coroutine(invoke, label=label):
+            return True
+
+        # If Flet exposed a loop but it stopped, the session is shutting down.
+        # Mutating controls from the tray/timer thread in that state is unsafe.
+        session = getattr(self.page, "session", None)
+        connection = getattr(session, "connection", None)
+        session_loop = getattr(connection, "loop", None)
+        page_loop = getattr(self.page, "loop", None)
+        if session_loop is not None or page_loop is not None:
+            return False
+
+        # Old Flet versions and small test doubles may expose no loop at all.
+        try:
+            result = callback()
+            if inspect.isawaitable(result):
+                close = getattr(result, "close", None)
+                if callable(close):
+                    close()
+                return False
+            return result is not False
+        except Exception as exc:
+            self.last_error = f"{label}: {exc}"
+            self._log(self.last_error)
+            return False
+
+    def _open_quick_from_tray(self) -> bool:
+        return self._invoke_ui_callback(
+            self.on_open_quick,
+            label=self._t("tray.quick_panel"),
+        )
+
+    def _open_full_from_tray(self) -> bool:
+        if not callable(self.on_open_full):
+            return self.show_window()
+        return self._invoke_ui_callback(
+            self.on_open_full,
+            label=self._t("quick.open_full"),
+        )
 
     def _window_is_visible_for_toggle(self) -> bool:
         """Indica si el doble click debe ocultar en vez de restaurar.
@@ -677,6 +798,12 @@ class TrayService:
     # Cierre
     # ------------------------------------------------------------------ #
     def stop(self) -> None:
+        with self._tray_click_lock:
+            if self._pending_primary_timer is not None:
+                self._pending_primary_timer.cancel()
+            self._pending_primary_timer = None
+            self._pending_primary_token = None
+            self._last_tray_click = 0.0
         if self._unsubscribe_i18n is not None:
             try:
                 self._unsubscribe_i18n()

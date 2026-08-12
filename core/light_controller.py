@@ -25,6 +25,8 @@ from core.wiz_color import (
     normalize_rgb,
     wiz_channels_signature,
 )
+from core.effects.models import RGBICProgram, RGBICTransportResult
+from core.effects.rgbic_encoder import encode_rgbic_program
 from core.wiz_protocol import (
     WIZ_PORT,
     WizProtocol,
@@ -1173,6 +1175,91 @@ class LightController:
                 self.set_scene(int(value.get("sceneId", 1)), value.get("speed"))
             else:
                 self.set_scene(int(value))
+
+    def send_rgbic_program(
+        self,
+        program: RGBICProgram,
+        *,
+        scene_id: int,
+        target: str | None = None,
+        timeout: float = 0.9,
+    ) -> list[RGBICTransportResult]:
+        """Puente experimental RGBIC por el camino oficial LightController/WizProtocol."""
+        if not isinstance(program, RGBICProgram):
+            raise ValueError("program must be an RGBICProgram")
+        if type(scene_id) is not int:
+            raise ValueError("scene_id must be an integer")
+        if target is not None and not isinstance(target, str):
+            raise ValueError("target must be a string or None")
+        if not self.proto:
+            return [
+                RGBICTransportResult(
+                    target_ip=target or "",
+                    scene_id=scene_id,
+                    transport_status="error",
+                    transport_error={"message": "WizProtocol is not available"},
+                )
+            ]
+        targets = {target} if target else self._control_targets()
+        if not targets:
+            return []
+        return asyncio.run(
+            self._send_rgbic_program_once(
+                sorted(targets),
+                program,
+                scene_id=scene_id,
+                timeout=timeout,
+            )
+        )
+
+    async def _send_rgbic_program_once(
+        self,
+        targets: list[str],
+        program: RGBICProgram,
+        *,
+        scene_id: int,
+        timeout: float,
+    ) -> list[RGBICTransportResult]:
+        params = encode_rgbic_program(program, scene_id)
+        results: list[RGBICTransportResult] = []
+        for ip in targets:
+            response = await self.proto.query(
+                ip,
+                "setPilot",
+                self.loop,
+                timeout=timeout,
+                params=params,
+                retries=0,
+            )
+            if response is None:
+                results.append(
+                    RGBICTransportResult(
+                        target_ip=ip,
+                        scene_id=scene_id,
+                        transport_status="timeout",
+                    )
+                )
+                continue
+            if "error" in response:
+                results.append(
+                    RGBICTransportResult(
+                        target_ip=ip,
+                        scene_id=scene_id,
+                        transport_status="rejected",
+                        transport_error=response["error"],
+                    )
+                )
+                continue
+            results.append(
+                RGBICTransportResult(
+                    target_ip=ip,
+                    scene_id=scene_id,
+                    transport_status=(
+                        "accepted" if response.get("success") is True else "sent"
+                    ),
+                )
+            )
+        return results
 
     def _drop_mode_keys(self, *keys: str) -> None:
         for key in keys:

@@ -1,5 +1,7 @@
 # Favorites editor v2
 
+Status: Completed
+
 ## Current state found
 
 The repository is on `feature/v1.1.0-favorites-editor-v2` at commit `820c8e5`.
@@ -93,7 +95,7 @@ diff from commit `820c8e5`.
 - `tests/test_favorites_editor_v2.py`
 - `tests/test_favorites_editor_modes.py` (updated the static-scene assertion to
   require an absent speed subtree instead of a hidden one)
-- `docs/codex/favorites-editor-v2.md`
+- `docs/codex/queries/2026-07-24-02-favorites-editor-v2.md`
 
 ## Risks
 

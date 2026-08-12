@@ -16,6 +16,7 @@ from config.app_runtime_manager import AppRuntimeManager
 from config.paths import config_dir, logs_dir
 from ui.responsive import PANEL_BREAKPOINTS, Viewport, dialog_dimensions
 from ui.theme import Theme, mounted, supdate
+from ui.components.target_selector import TargetSelector
 
 
 class SettingsPanel(ft.Column):
@@ -130,28 +131,6 @@ class SettingsPanel(ft.Column):
             ],
         )
 
-        self.mode_dropdown = ft.Dropdown(
-            label=self._t("settings.target.mode"),
-            value="single",
-            options=[
-                ft.DropdownOption(key="single", text=self._t("bulbs.mode.single")),
-                ft.DropdownOption(key="all", text=self._t("bulbs.mode.all")),
-            ],
-            border_color=Theme.STROKE,
-            bgcolor=Theme.BG,
-            color=Theme.TEXT,
-            on_select=self._mode_changed,
-            dense=True,
-        )
-        self.active_dropdown = ft.Dropdown(
-            label=self._t("bulbs.active"),
-            options=[],
-            border_color=Theme.STROKE,
-            bgcolor=Theme.BG,
-            color=Theme.TEXT,
-            on_select=self._active_changed,
-            dense=True,
-        )
         self.interval_dropdown = ft.Dropdown(
             label=self._t("settings.slider_performance"),
             value="65",
@@ -174,26 +153,24 @@ class SettingsPanel(ft.Column):
             on_click=self._cleanup,
         )
 
-        target_card = self._card(
-            ft.Column(
-                [
-                    ft.Text(self._t("settings.target.section"), style=Theme.LABEL),
-                    ft.ResponsiveRow(
-                        breakpoints=PANEL_BREAKPOINTS,
-                        spacing=14,
-                        run_spacing=12,
-                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                        controls=[
-                            ft.Container(content=self.mode_dropdown, col={"xs": 12, "sm": 6, "lg": 3}),
-                            ft.Container(content=self.active_dropdown, col={"xs": 12, "sm": 6, "lg": 3}),
-                            ft.Container(content=self.interval_dropdown, col={"xs": 12, "sm": 8, "lg": 3}),
-                            ft.Container(content=self.btn_cleanup, col={"xs": 12, "sm": 4, "lg": 3}, alignment=ft.Alignment.CENTER_RIGHT),
-                        ],
-                    ),
-                    ft.Text(self._t("settings.target.help"), color=Theme.FAINT, size=11),
-                ],
-                spacing=10,
-            )
+        # Selector de destino reutilizable (modo + ampolleta activa).
+        self.target_selector = TargetSelector(self.wiz, i18n=self.i18n)
+
+        target_card = ft.Column(
+            [
+                self.target_selector,
+                ft.ResponsiveRow(
+                    breakpoints=PANEL_BREAKPOINTS,
+                    spacing=12,
+                    run_spacing=10,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    controls=[
+                        ft.Container(content=self.interval_dropdown, col={"xs": 12, "sm": 8, "lg": 4}),
+                        ft.Container(content=self.btn_cleanup, col={"xs": 12, "sm": 4, "lg": 2}, alignment=ft.Alignment.CENTER_RIGHT),
+                    ],
+                ),
+            ],
+            spacing=10,
         )
 
         self.language_dropdown = ft.Dropdown(
@@ -423,28 +400,8 @@ class SettingsPanel(ft.Column):
             supdate(self.runtime_status)
 
     def _render_all(self):
-        self._render_target_controls()
+        self.target_selector.refresh()
         self._render_list()
-
-    def _render_target_controls(self):
-        cfg = self.wiz.get_target_config()
-        bulbs = self.wiz.get_bulbs_detailed()
-        self.mode_dropdown.value = cfg.get("mode", "single")
-        self.active_dropdown.options = [
-            ft.DropdownOption(
-                key=b["ip"],
-                text=f"{'●' if b.get('online') else '○'} {b.get('name') or b['ip']} · {b['ip']}",
-            )
-            for b in bulbs
-        ]
-        active = cfg.get("active_ip")
-        self.active_dropdown.value = active if active else None
-        ms = str(int(cfg.get("slider_interval_ms", 65)))
-        allowed = {"35", "65", "90", "130"}
-        self.interval_dropdown.value = ms if ms in allowed else "65"
-        supdate(self.mode_dropdown)
-        supdate(self.active_dropdown)
-        supdate(self.interval_dropdown)
 
     def _render_list(self):
         self.list_view.controls.clear()
@@ -749,15 +706,6 @@ class SettingsPanel(ft.Column):
             )
             self.page.show_dialog(dlg)
 
-    def _mode_changed(self, e):
-        self.wiz.set_target_mode(self.mode_dropdown.value or "single")
-        self._render_all()
-
-    def _active_changed(self, e):
-        if self.active_dropdown.value:
-            self.wiz.set_active_bulb(self.active_dropdown.value)
-            self._render_all()
-
     def _select_ip(self, ip):
         self.wiz.set_active_bulb(ip)
         self._render_all()
@@ -868,6 +816,7 @@ class SettingsPanel(ft.Column):
             for control in self.controls[:4]:
                 if isinstance(control, ft.Container):
                     control.padding = card_padding
+            self.target_selector.set_viewport(width, height, update=False)
             if update:
                 supdate(self)
 

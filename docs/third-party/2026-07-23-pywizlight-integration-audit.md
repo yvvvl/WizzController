@@ -1,8 +1,12 @@
 # pywizlight integration audit
 
-**Project:** WizZ Desktop  
-**Target branch:** `feature/v1.1.0-pywizlight-capabilities`  
-**Audit date:** 2026-07-23  
+Status: Completed
+
+**Project:** WizZ Desktop
+
+**Target branch:** `feature/v1.1.0-pywizlight-capabilities`
+
+**Audit date:** 2026-07-23
 **Scope:** dependency role, runtime boundary, performance, packaging, licensing, and upgrade readiness.
 
 ## Executive decision
@@ -161,7 +165,7 @@ The included read-only audit tool checks:
 Run:
 
 ```powershell
-python tools/pywizlight_audit.py --write docs/PYWIZLIGHT_LOCAL_AUDIT.json
+python tools/pywizlight_audit.py --write docs/third-party/pywizlight-local-audit.json
 ```
 
 ## Licensing and attribution

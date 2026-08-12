@@ -7,16 +7,20 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_pywizlight_phase0_documents_exist() -> None:
-    assert (ROOT / "docs" / "PYWIZLIGHT_INTEGRATION_AUDIT.md").is_file()
-    assert (ROOT / "docs" / "PYWIZLIGHT_065_UPGRADE_REPORT.md").is_file()
+    assert (
+        ROOT / "docs" / "third-party" / "2026-07-23-pywizlight-integration-audit.md"
+    ).is_file()
+    assert (
+        ROOT / "docs" / "third-party" / "2026-07-23-pywizlight-065-upgrade-review.md"
+    ).is_file()
     assert (ROOT / "docs" / "adr" / "0001-pywizlight-role.md").is_file()
-    assert (ROOT / "docs" / "COMMENT_AND_DOCSTRING_STYLE.md").is_file()
+    assert (ROOT / "docs" / "codex" / "DOCUMENTATION_GUIDE.md").is_file()
 
 
 def test_audit_preserves_native_udp_hot_path_decision() -> None:
-    audit = (ROOT / "docs" / "PYWIZLIGHT_INTEGRATION_AUDIT.md").read_text(
-        encoding="utf-8"
-    )
+    audit = (
+        ROOT / "docs" / "third-party" / "2026-07-23-pywizlight-integration-audit.md"
+    ).read_text(encoding="utf-8")
     adr = (ROOT / "docs" / "adr" / "0001-pywizlight-role.md").read_text(
         encoding="utf-8"
     )
@@ -28,9 +32,9 @@ def test_audit_preserves_native_udp_hot_path_decision() -> None:
 
 
 def test_upgrade_is_not_performed_during_audit() -> None:
-    report = (ROOT / "docs" / "PYWIZLIGHT_065_UPGRADE_REPORT.md").read_text(
-        encoding="utf-8"
-    )
+    report = (
+        ROOT / "docs" / "third-party" / "2026-07-23-pywizlight-065-upgrade-review.md"
+    ).read_text(encoding="utf-8")
     requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
@@ -40,7 +44,6 @@ def test_upgrade_is_not_performed_during_audit() -> None:
 
 
 def test_phase0_does_not_add_a_project_license() -> None:
-    # The owner must explicitly select the WizZ Desktop license.
     candidates = ("LICENSE", "LICENSE.txt", "LICENSE.md", "LICENSE.rst", "COPYING")
     existing = [name for name in candidates if (ROOT / name).is_file()]
     assert isinstance(existing, list)

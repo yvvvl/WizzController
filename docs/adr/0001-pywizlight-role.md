@@ -1,7 +1,8 @@
 # ADR 0001: Role of pywizlight in WizZ Desktop
 
-- **Status:** Accepted for v1.1 implementation
+- Status: Accepted
 - **Date:** 2026-07-23
+- **Decision scope:** v1.1 implementation
 - **Decision owners:** WizZ Desktop maintainers
 
 ## Context
