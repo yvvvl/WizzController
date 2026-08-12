@@ -8,6 +8,7 @@ from config.favorites_manager import FavoritesManager
 from ui.responsive import PANEL_BREAKPOINTS, Viewport
 from ui.theme import Theme, mounted, supdate
 from ui.interaction import LocalEditGuard
+from ui.components.target_selector import TargetSelector
 
 EO = ft.AnimationCurve.EASE_OUT
 
@@ -68,6 +69,9 @@ class HomePanel(ft.Column):
             tooltip=self._t("home.refresh_state"),
             on_click=lambda e: self.wiz.refresh(),
         )
+
+        # Selector de destino (modo + ampolleta activa) en la parte principal.
+        self.target_selector = TargetSelector(self.wiz, i18n=self.i18n)
 
         self.header = ft.ResponsiveRow(
             breakpoints=PANEL_BREAKPOINTS,
@@ -212,7 +216,7 @@ class HomePanel(ft.Column):
             )
         )
 
-        self.controls = [self.header, self.master_card, bri_card, ft.Text(self._t("home.quick_section"), style=Theme.LABEL), quick, favs_card]
+        self.controls = [self.header, self.target_selector, self.master_card, bri_card, ft.Text(self._t("home.quick_section"), style=Theme.LABEL), quick, favs_card]
         self._render_favorites()
 
     # ------------------------------------------------------------------ #
@@ -378,6 +382,7 @@ class HomePanel(ft.Column):
             self._viewport = viewport
             return
         self._viewport = viewport
+        self.target_selector.set_viewport(width, height, update=False)
         self.master_card.padding = 16 if viewport.compact else 20 if viewport.medium else 24
         self.master_touch.visible = not viewport.compact
         self.master_icon_box.width = 54 if viewport.compact else 64
@@ -391,6 +396,7 @@ class HomePanel(ft.Column):
         self._last_state = dict(state or {})
         if not mounted(self):
             return
+        self.target_selector.refresh()
         if "dimming" in state and not self._bri_guard.blocks(state["dimming"], tolerance=1):
             self.bri_slider.value = state["dimming"]
             self.bri_value.value = self._t("common.percent_value", value=int(state["dimming"]))
