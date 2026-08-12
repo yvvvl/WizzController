@@ -1,10 +1,14 @@
-"""Modelos inmutables e independientes del transporte para efectos dinámicos."""
+"""Modelos inmutables e independientes del transporte para efectos dinamicos."""
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import Any, Literal
 
-MAX_RGBIC_ZONES = 12
+MAX_RGBIC_PHYSICAL_STEPS = 12
+
+TransportStatus = Literal["sent", "accepted", "rejected", "timeout", "error"]
+VisualStatus = Literal["unconfirmed", "confirmed_correct", "confirmed_wrong"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,7 +29,7 @@ class RGBColor:
 
 @dataclass(frozen=True, slots=True)
 class EffectFrame:
-    """Muestra temporal de colores destinada a un target lógico."""
+    """Muestra temporal de colores destinada a un target logico."""
 
     timestamp: float
     target: str
@@ -62,13 +66,8 @@ class EffectFrame:
                 raise ValueError("zones must be an iterable of zone ids") from exc
             if len(normalized_zones) != len(colors):
                 raise ValueError("zones and colors must have the same length")
-            if any(
-                type(zone) is not int or zone < 1 or zone > MAX_RGBIC_ZONES
-                for zone in normalized_zones
-            ):
-                raise ValueError(
-                    f"zone ids must be between 1 and {MAX_RGBIC_ZONES}"
-                )
+            if any(type(zone) is not int or zone < 1 for zone in normalized_zones):
+                raise ValueError("zone ids must be positive integers")
             if len(set(normalized_zones)) != len(normalized_zones):
                 raise ValueError("zone ids must be unique")
 
@@ -79,42 +78,77 @@ class EffectFrame:
 
 
 @dataclass(frozen=True, slots=True)
-class RGBICZone:
-    """Color de una zona y su peso/ancho relativo opcional."""
+class RGBICFrame:
+    """Frame logico compresible de colores para mapping RGBIC."""
+
+    colors: tuple[RGBColor, ...]
+
+    def __post_init__(self) -> None:
+        try:
+            colors = tuple(self.colors)
+        except TypeError as exc:
+            raise ValueError("colors must be an iterable of RGBColor") from exc
+        if any(not isinstance(color, RGBColor) for color in colors):
+            raise ValueError("colors must contain only RGBColor values")
+        object.__setattr__(self, "colors", colors)
+
+
+@dataclass(frozen=True, slots=True)
+class RGBICStep:
+    """Representacion fisica secuencial de un step RGBIC."""
 
     color: RGBColor
-    weight: float | None = None
+    width: int
+    brightness: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.color, RGBColor):
             raise ValueError("color must be an RGBColor")
-        if self.weight is not None and (
-            isinstance(self.weight, bool)
-            or not isinstance(self.weight, (int, float))
-            or not math.isfinite(self.weight)
-            or self.weight <= 0
+        if type(self.width) is not int or self.width <= 0:
+            raise ValueError("width must be a positive integer")
+        if self.brightness is not None and (
+            type(self.brightness) is not int
+            or self.brightness < 0
+            or self.brightness > 100
         ):
-            raise ValueError("weight must be a positive finite number")
+            raise ValueError("brightness must be an integer between 0 and 100")
 
 
 @dataclass(frozen=True, slots=True)
-class RGBICFrame:
-    """Frame lógico de hasta doce zonas RGBIC."""
+class RGBICProgram:
+    """Contenedor fisico completo para elm RGBIC sin datos de transporte."""
 
-    zones: tuple[RGBICZone, ...]
+    steps: tuple[RGBICStep, ...]
+    modifier: int
+    support: int
 
     def __post_init__(self) -> None:
         try:
-            zones = tuple(self.zones)
+            steps = tuple(self.steps)
         except TypeError as exc:
-            raise ValueError("zones must be an iterable of RGBICZone") from exc
-        if len(zones) > MAX_RGBIC_ZONES:
+            raise ValueError("steps must be an iterable of RGBICStep") from exc
+        if len(steps) < 1 or len(steps) > MAX_RGBIC_PHYSICAL_STEPS:
             raise ValueError(
-                f"an RGBIC frame supports at most {MAX_RGBIC_ZONES} zones"
+                f"steps must contain between 1 and {MAX_RGBIC_PHYSICAL_STEPS} RGBICStep values"
             )
-        if any(not isinstance(zone, RGBICZone) for zone in zones):
-            raise ValueError("zones must contain only RGBICZone values")
-        object.__setattr__(self, "zones", zones)
+        if any(not isinstance(step, RGBICStep) for step in steps):
+            raise ValueError("steps must contain only RGBICStep values")
+        if type(self.modifier) is not int:
+            raise ValueError("modifier must be an integer")
+        if type(self.support) is not int or self.support <= 0:
+            raise ValueError("support must be a positive integer")
+        object.__setattr__(self, "steps", steps)
+
+
+@dataclass(frozen=True, slots=True)
+class CalibrationProfile:
+    """Describe la instalacion fisica necesaria para mapping RGBIC."""
+
+    physical_segments: int
+
+    def __post_init__(self) -> None:
+        if type(self.physical_segments) is not int or self.physical_segments <= 0:
+            raise ValueError("physical_segments must be a positive integer")
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,14 +158,22 @@ class DeviceCapabilities:
     rgb: bool = False
     white: bool = False
     scenes: bool = False
-    rgbic_zones: int | None = None
+    rgbic: bool = False
+    rgbic_max_steps: int | None = None
 
     def __post_init__(self) -> None:
-        if self.rgbic_zones is not None and (
-            type(self.rgbic_zones) is not int
-            or self.rgbic_zones < 1
-            or self.rgbic_zones > MAX_RGBIC_ZONES
+        if self.rgbic_max_steps is not None and (
+            type(self.rgbic_max_steps) is not int or self.rgbic_max_steps <= 0
         ):
-            raise ValueError(
-                f"rgbic_zones must be between 1 and {MAX_RGBIC_ZONES}"
-            )
+            raise ValueError("rgbic_max_steps must be a positive integer")
+
+
+@dataclass(frozen=True, slots=True)
+class RGBICTransportResult:
+    """Resultado experimental del puente RGBIC oficial."""
+
+    target_ip: str
+    scene_id: int
+    transport_status: TransportStatus
+    visual_status: VisualStatus = "unconfirmed"
+    transport_error: dict[str, Any] | None = None
