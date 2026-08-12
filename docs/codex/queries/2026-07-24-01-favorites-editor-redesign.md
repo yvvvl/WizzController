@@ -1,5 +1,7 @@
 # Favorites editor redesign
 
+Status: Completed
+
 ## Objective
 
 Replace the single RGB-oriented Favorites editor with capability-specific
@@ -102,7 +104,7 @@ adapts compatible custom scenes at save time.
 - `localization/catalogs/es.py`
 - `tests/test_favorites_editor_modes.py`
 - `tests/test_favorites_i18n.py`
-- `docs/codex/favorites-editor-redesign.md`
+- `docs/codex/queries/2026-07-24-01-favorites-editor-redesign.md`
 
 ## Tests executed
 

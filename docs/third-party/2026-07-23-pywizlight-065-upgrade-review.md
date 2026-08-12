@@ -1,7 +1,10 @@
 # pywizlight 0.6.5 upgrade report
 
-**Current pin:** `0.6.3`  
-**Latest researched release:** `0.6.5`  
+Status: Completed
+
+**Current pin:** `0.6.3`
+
+**Latest researched release:** `0.6.5`
 **Decision:** **Postpone the upgrade until the adapter boundary and capability fixtures exist.**
 
 ## Public metadata comparison

@@ -1,5 +1,7 @@
 # Query 2026-07-25-03: Quick Panel Premium UI redesign
 
+Status: Completed
+
 > **Execution:** Inline, incremental TDD on the existing
 > `feature/v1.2.0-quick-panel-design` branch. No new branch, worktree, merge, or
 > push.
@@ -18,7 +20,7 @@ Studio calibration.
 - Related baseline: 56 tests passed in
   `tests/test_quick_panel.py`, `tests/test_color_panel_studio.py`, and
   `tests/test_tray_window_restore.py`.
-- Existing untracked `docs/superpowers/` content belongs to an earlier session
+- Existing untracked `docs/codex/plans/` content belongs to an earlier session
   and is outside this query.
 
 ## Architecture
@@ -73,7 +75,8 @@ property it changes.
 
 - Create `ui/components/quick_color_studio_adapter.py`.
 - Modify `tests/test_quick_panel.py`.
-- Update the premium checkpoint in `docs/codex/quick-panel-design.md`.
+- Update the premium checkpoint in
+  `docs/codex/plans/2026-07-25-wizz-quick-panel-design.md`.
 
 **TDD cycle**
 
@@ -97,7 +100,8 @@ property it changes.
 
 - Modify `ui/quick_panel_view.py`.
 - Modify `tests/test_quick_panel.py`.
-- Update the premium checkpoint in `docs/codex/quick-panel-design.md`.
+- Update the premium checkpoint in
+  `docs/codex/plans/2026-07-25-wizz-quick-panel-design.md`.
 
 **TDD cycle**
 
@@ -120,7 +124,8 @@ property it changes.
 
 - Modify `core/quick_panel_controller.py`.
 - Modify `tests/test_quick_panel.py`.
-- Update the premium checkpoint in `docs/codex/quick-panel-design.md`.
+- Update the premium checkpoint in
+  `docs/codex/plans/2026-07-25-wizz-quick-panel-design.md`.
 
 **TDD cycle**
 
@@ -140,7 +145,7 @@ property it changes.
 
 **Files**
 
-- Update `docs/codex/quick-panel-design.md` with the final Premium UI
+- Update `docs/codex/plans/2026-07-25-wizz-quick-panel-design.md` with the final Premium UI
   Implementation record.
 - Complete this query report without modifying earlier reports.
 
@@ -255,7 +260,7 @@ Quick Panel action
 - `tests/test_quick_panel.py`: adapter, visual hierarchy, icon, favorite
   limit, i18n, callbacks, overlay geometry, restoration, navigation, and
   state-driven mode regression coverage.
-- `docs/codex/quick-panel-design.md`: incremental and final implementation
+- `docs/codex/plans/2026-07-25-wizz-quick-panel-design.md`: incremental and final implementation
   record.
 - `docs/codex/queries/2026-07-25-03-quick-panel-ui-review.md`: this standalone
   continuity report.

@@ -1,11 +1,12 @@
 # WizZ Desktop — contexto maestro del proyecto
 
-Última actualización: 2026-07-26
+Última actualización: 2026-08-03
 
 Este documento es la fuente principal de continuidad para nuevas sesiones de
 ChatGPT/Codex. Antes de modificar el proyecto, se debe leer completo y
 contrastar la rama activa, `git status`, los commits recientes y los reportes
-de `docs/codex/queries/`.
+de `docs/codex/queries/`. La clasificación y el ciclo de vida de documentos se
+definen en `docs/codex/DOCUMENTATION_GUIDE.md`.
 
 ## 1. Resumen del proyecto
 
@@ -48,10 +49,22 @@ implemente su propio protocolo, discovery o controlador.
   representativas antes de considerarlo terminado para release.
 - **Checkout al crear este documento:** rama
   `feature/v1.3.0-effects-engine-foundation`.
-- **Foundation experimental adicional:** los modelos base de efectos y RGBIC
-  están implementados y pendientes de revisión. Esto no equivale a un Effects
-  Engine productivo: no hay scheduler, sesión realtime, Screen Sync, Gradient,
-  adaptador RGBIC de hardware ni UI.
+- **Foundation experimental adicional:** la base interna de efectos y RGBIC
+  ya separa frame lógico, compresión lógica, calibración, steps físicos,
+  mapper puro, simulador por segmentos y encoder puro. También existe un
+  puente experimental de envío único mediante `LightController` y una
+  herramienta beta de validación manual. Esto no equivale a un Effects Engine
+  productivo: no hay scheduler, sesión realtime, Screen Sync, Gradient,
+  soporte RGBIC estable, UI RGBIC definitiva ni selección automática de slot.
+- **RGBIC validation status:** existe un tester comunitario con hardware RGBIC
+  WiZ disponible para pruebas controladas. El hardware no pertenece al
+  desarrollador; ya existen fixtures sanitizados y evidencia revisada para un
+  dispositivo, además de un validador beta local para registrar nuevos casos.
+  Esto sigue sin equivaler a soporte productivo.
+- **Cross-platform Foundation Phase 1:** la frontera neutral
+  `core/platform/`, sus contratos y fakes están implementados y pendientes de
+  revisión. No hay migración, detección de OS, adapters reales, wiring de UI
+  ni packaging Linux/macOS.
 
 ### Ramas relevantes
 
@@ -208,6 +221,32 @@ arquitectónica concreta, tests y alcance aislado. Si una feature parece
 necesitar saltárselos, detener la implementación y explicar primero la
 expansión de alcance.
 
+### Frontera cross-platform
+
+ADR 0004 establece un único producto con integraciones de escritorio
+capability-driven. Phase 1 crea una frontera todavía desconectada en
+`core/platform/`:
+
+- `CapabilityStatus` expresa `available`, `unavailable`, `degraded` o
+  `permission_required`;
+- `CapabilityState` agrega un motivo opcional y define si una capacidad es
+  utilizable;
+- `DesktopCapabilities` es un snapshot inmutable con estados independientes
+  para hotkeys, tray, autostart, ventanas, instancia única y apertura de
+  carpetas;
+- `contracts.py` define `Protocol` neutrales para `HotkeyService`,
+  `TrayBackend`, `AutostartService`, `WindowService`,
+  `SingleInstanceService` y `SystemIntegrationService`;
+- `fakes.py` implementa esos contratos con estado in-memory para tests.
+
+`degraded` sigue siendo utilizable; `unavailable` y
+`permission_required` no ejecutan la operación simulada. Exclusión y
+activación de instancia única son capacidades distintas.
+
+Ningún consumidor existente usa todavía esta frontera. El comportamiento
+Windows continúa en sus módulos actuales y no fue movido ni modificado. Esta
+foundation no demuestra soporte Linux/macOS por sí sola.
+
 ## 4. UI actual
 
 ### Estado
@@ -344,9 +383,12 @@ aplicación manual. **Color Studio es la fuente de verdad.**
 - **URL:** https://github.com/TechAntohere/WizScreenSyncController
 - **Autor reportado:** TechAntohere
 - **Revisión auditada:** `0feb5749a28389bc6971639467f6cb7fd464ebe2`
-- **Permiso recibido/reportado:** el autor autorizó integrar la lógica con los
-  créditos correspondientes.
-- **Créditos:** pendientes de texto y publicación definitivos.
+- **Auditoría canónica:**
+  `docs/third-party/2026-07-26-wizscreensynccontroller-review.md`
+- **Permiso:** existe un permiso reportado, pero su alcance y los términos de
+  modificación/redistribución siguen pendientes de formalización.
+- **Créditos:** pendientes de texto, permiso/licencia y publicación
+  definitivos.
 
 El repositorio no contiene una licencia de proyecto. El permiso debe
 conservarse como evidencia escrita y aclarar modificación y redistribución
@@ -362,23 +404,73 @@ dueño en WizZ Desktop.
 ### Hallazgos técnicos RGBIC
 
 - RGBIC usa `setPilot`.
-- `sceneId: 257` actúa como contenedor de una escena dinámica.
+- Los `sceneId` observados actúan como slots/contenedores, no como
+  identificadores fijos. `sceneId: 257` funcionó inicialmente; después de una
+  actualización de firmware pareció quedar sobrescrito por un efecto guardado
+  del dispositivo, y `sceneId: 258` recuperó el comportamiento esperado.
 - `elm` transporta datos dinámicos.
-- `elm.steps` contiene las zonas.
-- Se observaron hasta **12 zonas**.
-- `width`/`weight` representa la distribución o proporción relativa de la
-  zona, no un número de LEDs.
+- `elm.steps` contiene steps físicos secuenciales; no representa directamente
+  las zonas lógicas de un efecto.
+- Se observaron hasta **12 steps** por payload, pero ese límite no implica que
+  la tira tenga 12 segmentos ni que el payload cubra toda su longitud.
+- `width` es un span físico absoluto: `width: 1` ocupa un segmento físico,
+  `width: 2` ocupa dos, y así sucesivamente.
+- Los steps se aplican en orden desde el inicio de la tira. Doce steps con
+  `width: 1` cubren 12 segmentos; doce con `width: 2` cubren aproximadamente
+  24 segmentos.
+- El firmware no conoce necesariamente la longitud instalada. Una tira
+  cortada puede seguir reportando el mismo modelo.
+- La densidad, longitud instalada y calibración determinan la cobertura
+  física; no debe existir una tabla fija `modelo -> cantidad de segmentos`.
+- `elm.modifier` es global para el programa completo, no por step.
+- En las observaciones disponibles, `modifier: 100` corresponde a color
+  estático del programa y los valores 101–125 parecen seleccionar efectos
+  internos usados por la app WiZ.
+- Existen otros rangos con comportamiento de efectos, pero el mapa exacto no
+  está completamente documentado. `modifier` debe permanecer como entero
+  experimental; no crear enums ni nombres estables todavía.
+- Cada step observado contiene 13 enteros; RGB vive en índices 1/2/3,
+  `brightness` en índice 7 y `width` absoluto en índice 12. Los demás índices
+  observados permanecen en 0 y siguen siendo desconocidos.
+- El éxito del transporte no demuestra que el efecto haya sido aplicado. Una
+  implementación futura debe representar por separado `transport success` y
+  `effect applied`.
 
 Estos hallazgos siguen siendo observaciones que necesitan fixtures, soporte de
-capabilities y verificación con hardware real. No presentar el formato como
-API oficial WiZ.
+capabilities, firmware awareness, probing, fallback acotado de
+slots/contenedores y verificación con hardware real. No presentar el formato
+como API oficial WiZ ni crear tablas `firmware -> sceneId`.
+
+### RGBIC validation status
+
+- existe un tester comunitario con una tira RGBIC WiZ disponible;
+- el dispositivo no es hardware propio del desarrollador;
+- existe evidencia física revisada para `ESP25_MHORGB_01` con firmware
+  `1.38.0` y una instalación calibrada de 17 segmentos;
+- la validación se ejecutó mediante pares de pruebas controladas que
+  mantuvieron el payload y cambiaron solamente `sceneId`;
+- cada fixture debe registrar modelo, `moduleName`, firmware, payload,
+  `elm.steps`, response, resultado de transporte y resultado visual;
+- ya existen fixtures sanitizados reales bajo `tests/fixtures/rgbic/`;
+- no existe soporte RGBIC productivo ni selección estable de slot;
+- existe un encoder puro a params de `setPilot`;
+- existe un puente experimental de envío único detrás de `LightController`;
+- existe un validador beta local para ejecutar nuevas pruebas controladas sin
+  introducir streaming ni soporte productivo.
+
+La metodología y la plantilla documental están en
+`docs/codex/queries/2026-07-26-07-rgbic-hardware-validation.md`. La
+disponibilidad del tester no autoriza hardcodear un `sceneId`, crear una tabla
+por firmware ni asumir que un response exitoso demuestra aplicación visual.
 
 ### Screen Sync
 
-La investigación recomienda un motor puro, independiente de UI y transporte:
-captura, análisis, mapeo de regiones, smoothing, políticas de modo y
-backpressure. El engine produciría frames inmutables y los entregaría a una
-sesión realtime controlada por `LightController`.
+La investigación recomienda una fuente pura, independiente de UI y
+transporte: captura, análisis de regiones, smoothing, políticas de modo y
+backpressure. Screen Sync produciría intención lógica —por ejemplo,
+izquierda, centro y derecha— sin elegir spans físicos. Un `PhysicalMapper`
+calibrado resolvería después los steps que una sesión realtime controlada por
+`LightController` puede emitir.
 
 Reglas:
 
@@ -394,60 +486,158 @@ Reglas:
 
 ## 7. Effects Engine futuro
 
-La rama actual ya contiene una foundation de modelos en `core/effects/`:
+La rama actual ya contiene una foundation de modelos y mapping en
+`core/effects/`:
 
 - `RGBColor`;
 - `EffectFrame`;
-- `RGBICZone`;
-- `RGBICFrame`;
+- `RGBICFrame` como frame lógico compresible de colores;
+- `RGBICStep` como salida física secuencial por step;
+- `RGBICProgram` como contenedor físico completo con `modifier` global y
+  `support`;
+- `CalibrationProfile`;
 - `DeviceCapabilities`;
-- simulador puro de 12 zonas con padding negro.
+- `compress_rgbic_colors()` para reducir intención lógica a un máximo físico
+  seguro cuando una fuente produce más de 12 colores/regiones;
+- `map_rgbic_frame()` para distribución uniforme sobre segmentos físicos;
+- simulador puro de segmentos físicos secuenciales, con padding negro sólo si
+  faltan steps para cubrir toda la calibración.
+- encoder puro a params de `setPilot`;
+- puente experimental `LightController.send_rgbic_program()` para envío único
+  por el camino oficial;
+- `tools/rgbic_beta_validator.py` para validación manual y captura de
+  artefactos locales sanitizados.
 
-Esos modelos son inmutables e independientes de Flet, sockets y protocolo. El
-Effects Engine completo sigue siendo trabajo futuro. La arquitectura deseada
-es:
+Esos modelos son inmutables e independientes de Flet, sockets y protocolo. La
+fase `RGBIC Physical Model Foundation` reemplazó el antiguo scaffolding basado
+en `RGBICZone.weight`: el `width` físico absoluto ahora vive únicamente en
+`RGBICStep`, mientras `RGBICFrame` conserva la intención lógica sin detalles
+de hardware ni WiZ.
+
+La foundation sigue siendo válida por sus frames inmutables, compresión determinista, simulación pura, transporte genérico y desacoplamiento de UDP/UI. Lo incompleto es el camino productivo: calibración persistida, políticas de mapping más ricas, selección/probing de slot, capabilities reales, scheduler, streaming beta y sesión realtime.
+
+El Effects Engine completo sigue siendo trabajo futuro. Debe distinguir:
 
 ```text
-core/effects/
-├── modelos: EffectFrame, RGBICFrame y capacidades
-├── engine/scheduler común
-├── Screen Sync
-├── Gradient
-└── futuros efectos
+Logical Effect Zones
+    intención del efecto: izquierda, centro, derecha, etc.
+    sin LEDs, segmentos ni detalles de WiZ
+
+Physical RGBIC Steps
+    color + width absoluto + brightness opcional
+    posición determinada por el orden secuencial
+
+RGBIC Program
+    steps físicos + modifier global + support experimental
+
+Calibration Profile
+    segmentos físicos instalados, tira cortada y densidad/calibración
 ```
 
 Flujo obligatorio:
 
 ```text
-Effects Engine
+Effect Source (Screen Sync, Gradient, Music)
       |
-      v
+Logical Effect Frame
+      |
+Physical Mapper  <---------------- Calibration Profile
+      |
+RGBIC Steps (color + width + brightness)
+      |
+RGBIC Program (steps + modifier global + support)
+      |
 LightController
       |
-      v
 WizProtocol
 ```
 
 **Regla no negociable:** Effects nunca debe mandar UDP directamente.
 
+### Future RGBIC physical mapping
+
+- `RGBICFrame` expresa la intención lógica actual como una secuencia de
+  colores. No conoce segmentos, LEDs, `width`, `modifier` ni WiZ.
+- si una fuente lógica produce más de 12 colores/regiones, primero debe pasar
+  por una compresión determinista antes del mapping físico; el límite de 12
+  pertenece al programa RGBIC físico, no al frame lógico.
+- `CalibrationProfile` pertenece a una instalación concreta y hoy describe el
+  span físico utilizable mediante `physical_segments`; no se deriva de una
+  tabla por modelo.
+- `map_rgbic_frame()` es la foundation actual del `PhysicalMapper`: distribuye
+  uniformemente `K` colores sobre `N` segmentos con
+  `floor((i+1)*N/K) - floor(i*N/K)` y exige que cada step conserve `width > 0`.
+- Cada `RGBICStep` físico contiene color, `width` absoluto y `brightness`
+  opcional.
+- `RGBICProgram` agrega el `modifier` global y `support` experimental
+  observados en `elm`.
+- El simulador actual expande steps sobre segmentos físicos secuenciales y
+  permite validar cobertura, orden y metadata sin `sceneId`, `elm` ni UDP.
+- El encoder puro actual recibe `RGBICProgram` y `sceneId`, serializa arrays
+  de 13 enteros por step y deja en 0 los índices todavía desconocidos.
+- El encoder no decide regiones, calibración, widths ni el significado de
+  modifiers.
+- El encoder permanece detrás de `LightController`, que sigue siendo el único
+  dueño de salida.
+- `LightController.send_rgbic_program()` es sólo un puente experimental de
+  envío único: distingue transporte de validación visual, exige `sceneId`
+  explícito y no implica streaming, scheduler ni soporte estable.
+- `tools/rgbic_beta_validator.py` prepara patrones lógicos, comprime si hace
+  falta, mapea a steps físicos y guarda artefactos sanitizados para revisión
+  humana.
+
 La futura capa debe:
 
-- producir frames y políticas, no datagramas;
+- producir frames lógicos y políticas, no datagramas;
+- mantener las zonas lógicas independientes de LEDs y segmentos físicos;
+- resolver spans físicos exclusivamente en un `PhysicalMapper` que consuma
+  una calibración por instalación;
+- representar la salida RGBIC como steps físicos secuenciales con `width`
+  absoluto y `brightness` opcional;
+- representar `modifier` y `support` como metadata global del programa;
+- transportar modifiers experimentales sin convertirlos en un enum ni
+  prometer una taxonomía estable;
 - usar una sesión realtime con ownership, `latest wins`, rate limiting y
   deduplicación;
 - validar capabilities antes de emitir RGBIC;
-- dejar la serialización WiZ detrás de `LightController`/`WizProtocol`;
+- incorporar firmware awareness sin decidir sólo por número de versión;
+- probar candidatos de slot de forma acotada, aplicar fallback y validar el
+  comportamiento observado;
+- distinguir éxito de transporte de efecto realmente aplicado;
+- dejar el encoder y la serialización WiZ detrás de
+  `LightController`/`WizProtocol`;
 - permitir que Screen Sync, Gradient y futuros efectos compartan el mismo
   scheduler;
-- separar análisis, scheduling, transporte y UI.
+- separar fuente, intención lógica, calibración, mapping, scheduling,
+  transporte y UI.
+
+No se debe:
+
+- crear una lookup table fija de cantidad de segmentos por modelo;
+- asumir que dos tiras del mismo producto conservan la misma longitud;
+- usar el límite de 12 steps como longitud física;
+- usar el límite de 12 steps como límite del frame lógico;
+- mezclar zonas lógicas con steps RGBIC.
+- añadir ahora un enum o catálogo de efectos para `modifier`;
+- introducir `width` o `modifier` en el frame lógico.
+- hardcodear `sceneId: 257`, 258 u otro slot;
+- crear una lookup table `firmware -> sceneId`;
+- asumir que un envío exitoso implica que el efecto fue aplicado.
 
 Pendientes concretos:
 
 - diseñar el scheduler y el lifecycle del engine;
 - acordar el contrato realtime de `LightController`;
-- diseñar el adapter entre `RGBICFrame` y `sceneId`/`elm`;
+- diseñar el flujo persistido y la UX de calibración por
+  dispositivo/instalación;
+- ampliar `map_rgbic_frame()` con políticas de mapping distintas de la
+  distribución uniforme cuando una fuente futura lo necesite;
+- diseñar el encoder de `RGBICStep` a un slot probado y `elm`, con fallback
+  acotado y verificación de aplicación;
+- capturar fixtures de modifiers y documentar rangos sólo con evidencia;
 - detectar capacidades RGBIC reales;
-- probar payloads con hardware y rollback seguro;
+- ejecutar el protocolo documentado de validación comunitaria con payloads
+  controlados y rollback seguro;
 - añadir Screen Sync y Gradient sólo sobre la infraestructura común.
 
 ## 8. `pywizlight`
@@ -484,8 +674,9 @@ exacta empaquetada.
    futuras integraciones usan el mismo `LightController`.
 3. **Color Studio es la fuente de verdad** para selección, calibración,
    conversión y comportamiento RGB/White.
-4. **Usar capabilities para dispositivos.** No asumir RGB, White, RGBIC,
-   número de zonas o Kelvin sólo por la vista activa o por un nombre frágil.
+4. **Usar capabilities para dispositivos.** No asumir RGB, White, RGBIC o
+   Kelvin sólo por la vista activa o por un nombre frágil. La cantidad de
+   segmentos físicos instalados pertenece a calibración, no al modelo.
 5. **Toda salida WiZ pasa por `LightController` y `WizProtocol`.** Ningún
    Effects Engine, Screen Sync, plugin o UI abre UDP directamente.
 6. **`ActionSequenceExecutor` es el motor de acciones discretas.** No
@@ -503,23 +694,36 @@ exacta empaquetada.
     implementación modular propia.
 12. **Cambios a módulos protegidos requieren alcance explícito**, tests y
     justificación antes de editar.
+13. **La portabilidad se decide por capacidades efectivas, no sólo por OS.**
+    Los adapters futuros implementan contratos compartidos; no crear forks ni
+    filtrar APIs nativas hacia el core WiZ.
 
 ## 10. Roadmap futuro
 
 ### Corto plazo
 
+- revisar y aprobar Cross-platform Foundation Phase 1;
+- congelar mediante tests el comportamiento Windows antes de encapsularlo;
 - terminar la validación profesional del Quick Panel;
 - realizar smoke manual completo con tray, ventana y luces físicas;
 - validar experiencia, foco, espaciado, targeting y multi-monitor;
 - revisar la foundation de efectos sin confundirla con una feature terminada;
+- ejecutar validación end-to-end del beta validator contra el hardware
+  comunitario y revisar el artefacto sanitizado generado;
 - decidir cierre e integración de Quick Panel v1.2.
 
 ### Mediano plazo
 
+- encapsular las integraciones Windows detrás de los contratos aprobados sin
+  cambiar su comportamiento;
+- crear fallbacks UI capability-driven en una fase explícita;
+- diseñar y validar adapters Linux antes del estado beta;
+- añadir build/test macOS en CI antes de adapters experimentales;
 - diseñar e implementar el Effects Engine común;
 - añadir contrato realtime en `LightController`;
 - implementar Gradient sobre el scheduler común;
-- validar RGBIC con capabilities y hardware;
+- diseñar calibración y `PhysicalMapper`;
+- validar RGBIC con capabilities, calibración y hardware;
 - implementar MVP de Screen Sync y después ampliar por plataforma.
 
 ### Largo plazo
@@ -537,7 +741,9 @@ Siempre:
 1. inspeccionar `git status`, rama activa y commits recientes antes de editar;
 2. trabajar por ramas de feature/release con alcance claro;
 3. usar Codex para implementación y revisión reproducible;
-4. crear reportes de continuidad en `docs/codex/queries/`;
+4. clasificar documentación según
+   `docs/codex/DOCUMENTATION_GUIDE.md`, usando `queries/` para resultados y
+   `plans/` para pasos de ejecución;
 5. conservar cambios preexistentes del usuario y no mezclar trabajo ajeno;
 6. escribir tests antes o junto con cambios de comportamiento;
 7. validar tests focalizados y suite completa en proporción al riesgo;
@@ -550,7 +756,8 @@ Siempre:
 
 Un reporte `docs/codex/queries/YYYY-MM-DD-NN-tema.md` debe registrar como
 mínimo: rama/base, objetivo, restricciones, decisiones, archivos, validación,
-riesgos manuales y próximos pasos.
+riesgos manuales y próximos pasos. Evidencia externa, permisos y créditos
+pertenecen a `docs/third-party/`.
 
 ## 12. Problemas conocidos, pendientes y riesgos
 
@@ -570,9 +777,23 @@ riesgos manuales y próximos pasos.
 - `LightController.set_rgb()` actual está pensado para acciones, no para
   streaming de vídeo;
 - discovery y capabilities productivas aún no reconocen RGBIC;
-- no existe adapter productivo de `RGBICFrame` a `sceneId`/`elm`;
-- `sceneId: 257`, `elm.steps` y `weight` no están documentados como API oficial;
-- no hay validación de payload con hardware RGBIC real;
+- la foundation actual ya separa frame lógico, calibración y steps físicos,
+  pero el mapper sólo cubre distribución uniforme y no está conectado a
+  hardware;
+- existe un encoder puro a params de `setPilot`, pero no hay persistencia/
+  flujo de calibración ni soporte productivo de streaming;
+- existe un puente experimental de envío único y un validador beta manual,
+  pero no selección automática de slot ni validación visual automática;
+- los slots observados 257/258, `elm.steps`, `width` y `modifier` no están
+  documentados como API oficial;
+- el slot puede depender del firmware y del estado interno del dispositivo;
+- `transport success` no equivale a `effect applied`;
+- salvo el comportamiento observado de 100 y el rango aparente 101–125, los
+  modifiers globales no tienen semántica estable confirmada;
+- no se conoce automáticamente la cantidad de segmentos físicos instalados;
+- existen fixtures sanitizados reales y validación revisada para
+  `ESP25_MHORGB_01` fw `1.38.0`, pero no validación amplia de payloads en más
+  dispositivos o firmwares;
 - alta frecuencia puede saturar LAN/dispositivo o disparar demasiadas
   verificaciones de estado.
 
@@ -584,6 +805,17 @@ riesgos manuales y próximos pasos.
 - HDR, DPI, fullscreen, multi-monitor y hotplug son riesgos;
 - Wayland requiere un backend/portal específico;
 - no adoptar PyQt6 ni un segundo runtime UI como atajo.
+
+### Cross-platform
+
+- `core/platform/` sólo contiene contratos y fakes; ningún backend existente
+  está conectado;
+- `degraded` significa utilizable con limitaciones, no disponibilidad plena;
+- el backend productivo de hotkeys para Linux/macOS sigue sin decidirse;
+- tray, foco, work area y Quick Panel requieren validación X11/Wayland;
+- instancia única Unix todavía necesita una decisión de IPC para activación;
+- macOS CI no sustituye pruebas reales de menu bar, permisos, autostart y LAN;
+- no prometer Linux beta o macOS experimental sólo por aprobar Phase 1.
 
 ### Dependencias y arquitectura
 
@@ -597,11 +829,11 @@ riesgos manuales y próximos pasos.
 
 ### Estado de validación conocido
 
-- Quick Panel Premium: reporte final con `227 passed`, compilación correcta,
-  auditoría i18n con 579 claves ES/EN y cero strings sospechosos.
-- Foundation de efectos/RGBIC: reporte final con `259 passed`, 32 tests
-  focalizados, compilación correcta y auditoría i18n limpia.
-- Las 98 advertencias registradas eran deprecaciones Flet preexistentes.
+Los resultados concretos de cada fase viven en sus reportes bajo
+`docs/codex/queries/`; no se duplican aquí porque dejan de representar el
+worktree en cuanto cambia la rama.
 
-Estos números son evidencia histórica, no sustituyen ejecutar la validación en
-la rama que una nueva sesión vaya a modificar.
+Antes de modificar o integrar, ejecutar la validación requerida por la fase y
+contrastar siempre rama, commit, `git status` y diff actuales. Las
+deprecaciones Flet conocidas pertenecen a la UI existente y deben evaluarse
+contra la salida fresca de tests, no contra un conteo histórico.

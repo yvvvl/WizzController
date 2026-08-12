@@ -1,5 +1,7 @@
 # Prueba manual de UI responsive y Color Studio
 
+Status: Completed
+
 Esta versión no cambia el ciclo de vida de ventana/bandeja ni la lógica WiZ. La prueba se concentra en el layout y en el seguimiento del puntero del picker.
 
 ## 1. Color Studio: bordes y esquinas

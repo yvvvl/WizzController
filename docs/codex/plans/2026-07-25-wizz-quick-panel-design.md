@@ -1,5 +1,7 @@
 # WizZ Quick Panel design
 
+Status: Completed
+
 ## Objective
 
 Design and implement the first Quick Panel for WizZ Desktop v1.2.0. The panel
@@ -351,7 +353,7 @@ git diff --check
   and all-light targeting, ON/OFF, RGB/White/Scene/Brightness favorites,
   localization changes, one-window transitions, tray callbacks, Windows click
   arbitration, Linux primary action, and the visible menu fallback.
-- `docs/codex/quick-panel-design.md` records the approved architecture and this
+- `docs/codex/plans/2026-07-25-wizz-quick-panel-design.md` records the approved architecture and this
   implementation.
 
 No protected module, WiZ protocol implementation, favorite contract or JSON
@@ -420,7 +422,7 @@ mutate Flet controls from the tray thread after an exposed session loop stops.
 
 ### Task 1 checkpoint: compact Color Studio adapter
 
-Status: completed.
+Status: Completed
 
 Files changed:
 
@@ -444,7 +446,7 @@ Checkpoint validation:
 
 ### Task 2 checkpoint: premium card shell
 
-Status: completed.
+Status: Completed
 
 Files changed:
 
@@ -468,7 +470,7 @@ Checkpoint validation:
 
 ### Task 3 checkpoint: premium overlay behavior
 
-Status: completed.
+Status: Completed
 
 Files changed:
 
@@ -497,7 +499,7 @@ Checkpoint validation:
 
 ### Task 4 checkpoint: review hardening and final validation
 
-Status: completed.
+Status: Completed
 
 Final architecture and UX:
 

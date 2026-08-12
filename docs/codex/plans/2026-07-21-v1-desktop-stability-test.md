@@ -1,5 +1,7 @@
 # Cierre de v1 — estabilidad desktop
 
+Status: Completed
+
 Ejecuta estas pruebas en Windows con una sola carpeta de WizZ Desktop.
 
 ## 1. Instancia única

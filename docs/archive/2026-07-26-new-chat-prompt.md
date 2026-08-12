@@ -1,5 +1,11 @@
 # Prompt de continuidad para un nuevo chat
 
+Status: Archived
+
+Archivado porque `docs/codex/PROJECT_CONTEXT.md` y
+`docs/codex/DOCUMENTATION_GUIDE.md` pasan a ser las fuentes canónicas de
+continuidad y clasificación documental.
+
 Estoy continuando el desarrollo de WizZ Desktop. Usa este documento como
 contexto principal y lee completo `docs/codex/PROJECT_CONTEXT.md` antes de
 proponer o realizar cambios. Contrasta siempre el contexto con la rama activa,
@@ -127,10 +133,10 @@ Quick Panel v1.2 antes de declarar su release.
 Se investigó el repositorio externo
 `TechAntohere/WizScreenSyncController`, revisión
 `0feb5749a28389bc6971639467f6cb7fd464ebe2`. El autor reportado es
-TechAntohere. Se recibió/reportó permiso para integrar la lógica con créditos,
-pero el repositorio no tiene licencia y los términos de modificación y
-redistribución deben quedar archivados con evidencia escrita. Los créditos
-definitivos siguen pendientes.
+TechAntohere. Existe un permiso reportado, pero el repositorio no tiene
+licencia y el alcance de modificación/redistribución debe formalizarse con
+evidencia escrita. El permiso/licencia y los créditos definitivos siguen
+pendientes.
 
 Regla: **no copies código de ese repositorio**. Adapta sólo conceptos mediante
 una implementación propia y modular. No incorpores su UI PyQt6, discovery,
@@ -139,20 +145,27 @@ tray, persistencia ni sockets.
 Hallazgos técnicos:
 
 - RGBIC usa `setPilot`;
-- `sceneId: 257` actúa como contenedor;
+- 257 y 258 se observaron como contenedores en estados distintos; ningún
+  `sceneId` es una constante;
 - `elm` contiene datos dinámicos;
-- `elm.steps` contiene zonas;
-- se observaron 12 zonas;
-- `width`/`weight` representa distribución relativa, no cantidad de LEDs.
+- `elm.steps` contiene steps físicos secuenciales, no zonas lógicas;
+- se observaron hasta 12 steps por payload, sin que eso determine la longitud
+  física de la tira;
+- `width` es un span absoluto: 1 ocupa un segmento físico, 2 ocupa dos, etc.;
+- una tira cortada puede conservar el mismo modelo y el firmware no conoce
+  necesariamente la longitud instalada;
+- no se debe crear una tabla fija `modelo -> cantidad de segmentos`.
+- tampoco se debe crear una tabla `firmware -> sceneId` ni confundir éxito de
+  transporte con efecto aplicado.
 
 Son observaciones no oficiales. Requieren fixtures, capabilities y hardware
 real antes de convertirse en comportamiento productivo.
 
-Screen Sync debe ser un engine puro que produzca frames. No puede importar
-sockets, `WizProtocol`, Flet ni Qt. Debe usar `latest wins`, rate limiting,
-deduplicación, ownership y errores visibles. La recomendación es empezar con
-un MVP Windows de una zona por bombilla y validar Linux/Wayland y RGBIC en
-fases separadas.
+Screen Sync debe ser una fuente pura que produzca frames lógicos. No puede
+importar sockets, `WizProtocol`, Flet ni Qt ni decidir spans físicos. Debe
+usar `latest wins`, rate limiting, deduplicación, ownership y errores
+visibles. La recomendación es empezar con un MVP Windows de una zona por
+bombilla y validar Linux/Wayland y RGBIC en fases separadas.
 
 ## Effects Engine
 
@@ -163,30 +176,38 @@ fases separadas.
 - `RGBICZone`;
 - `RGBICFrame`;
 - `DeviceCapabilities`;
-- simulador puro de 12 zonas.
+- simulador puro de 12 entradas modeladas como zonas; no representa longitud
+  ni cobertura física.
+
+`RGBICZone.weight` fue creado bajo el supuesto ahora corregido de una
+proporción relativa. El modelo y el simulador no son un contrato físico y no
+deben conectarse a hardware antes de separar intención y salida.
 
 La arquitectura futura obligatoria es:
 
 ```text
-core/effects/
-├── EffectFrame / RGBICFrame
-├── engine y scheduler compartidos
-├── Screen Sync
-├── Gradient
-└── futuros efectos
-
-Effects Engine
+Effect Source (Screen Sync, Gradient, Music)
       |
-      v
+Logical Effect Frame
+      |
+Physical Mapper  <---------------- Calibration Profile
+      |
+RGBIC Steps (color + width absoluto)
+      |
 LightController
       |
-      v
 WizProtocol
 ```
 
-Effects nunca debe mandar UDP directamente. El trabajo pendiente es diseñar
-el scheduler, una sesión realtime en `LightController`, el adapter
-`RGBICFrame` -> `sceneId`/`elm`, capabilities RGBIC y validación con hardware.
+Las zonas lógicas expresan intención —por ejemplo, izquierda, centro y
+derecha— y no conocen LEDs ni segmentos. El mapper usa una calibración por
+instalación para resolver steps físicos secuenciales. Effects nunca debe
+mandar UDP directamente y `LightController` sigue siendo el único dueño de la
+salida.
+
+El trabajo pendiente es diseñar el scheduler, una sesión realtime en
+`LightController`, el flujo de calibración, `PhysicalMapper`, el encoder de
+steps a `sceneId`/`elm`, capabilities RGBIC y validación con hardware.
 
 ## `pywizlight`
 
