@@ -218,7 +218,8 @@ dist/release/WizZDesktop-v1.0.0-windows-x64.zip.sha256
 .\scripts\test_windows_build.ps1 -LaunchSecondInstance
 ```
 
-La guía completa está en [`docs/WINDOWS_BUILD.md`](docs/WINDOWS_BUILD.md).
+La guía completa está en
+[`docs/codex/plans/2026-07-21-windows-build.md`](docs/codex/plans/2026-07-21-windows-build.md).
 
 ---
 

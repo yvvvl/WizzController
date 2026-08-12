@@ -33,8 +33,12 @@ INTERNAL DRAFT — NOT A FINAL DISTRIBUTION NOTICE
 
 Dynamic Effects / RGBIC research
 
-Technical observations about WiZ RGBIC behavior were shared by TechAntohere
-with WizScreenSyncController as the referenced research project.
+Technical observations about WiZ RGBIC behavior were shared by TechAntohere,
+with WizScreenSyncController as the referenced research project. The
+observations cover variable `sceneId` slots, `elm.steps`, sequential steps,
+`width` as an absolute physical-segment span, experimental `modifier` values,
+and behavior that may depend on firmware and device state. A successful
+transport operation does not by itself confirm that an effect was applied.
 
 WizZ Desktop has adapted only the documented concepts and has not copied
 source code from WizScreenSyncController.
