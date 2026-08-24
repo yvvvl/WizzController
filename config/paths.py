@@ -1,11 +1,6 @@
 """Rutas persistentes y assets para desarrollo y builds de Flet.
 
-En desarrollo se conserva el comportamiento histórico y los JSON viven en
-``config/json`` dentro del repositorio. En una app generada con ``flet build``
-se usa ``FLET_APP_STORAGE_DATA``, que Flet mantiene entre actualizaciones.
-
-Se admite ``WIZZ_CONFIG_DIR`` como override exacto para tests, diagnósticos y
-modo portable controlado.
+Soporte multiplataforma (Linux, Windows, macOS).
 """
 
 from __future__ import annotations
@@ -44,27 +39,43 @@ def is_flet_build() -> bool:
 def config_dir() -> Path:
     """Directorio writable para los JSON reales de la aplicación."""
 
+    # 1. Override explícito por variable de entorno (para tests o portable)
     override = str(os.environ.get("WIZZ_CONFIG_DIR") or "").strip()
     if override:
         target = Path(override).expanduser().resolve()
         return _prepare(target, migrate=False)
 
     flet_storage = str(os.environ.get("FLET_APP_STORAGE_DATA") or "").strip()
-    if flet_storage:
-        target = Path(flet_storage).expanduser().resolve() / "config"
-        return _prepare(target, migrate=True)
 
-    # Compatibilidad con el flujo actual ``python main.py``.
+    # 2. Si es una build empaquetada (AppImage / PyInstaller / Flet Build)
+    if is_flet_build():
+        if flet_storage:
+            target = Path(flet_storage).expanduser().resolve() / "config"
+            return _prepare(target, migrate=True)
+
+        # Estándar Linux XDG si no hay ruta Flet explícita
+        if sys.platform.startswith("linux"):
+            xdg_config = os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))
+            target = Path(xdg_config) / APP_ARTIFACT / "config"
+            return _prepare(target, migrate=True)
+
+    # 3. Modo Desarrollo Local (Guarda en el propio repo config/json)
     target = project_root() / "config" / "json"
     return _prepare(target, migrate=False)
 
 
 def logs_dir() -> Path:
+    """Directorio para los logs de la aplicación."""
     flet_storage = str(os.environ.get("FLET_APP_STORAGE_DATA") or "").strip()
+
     if flet_storage:
         target = Path(flet_storage).expanduser().resolve() / "logs"
+    elif sys.platform.startswith("linux") and is_flet_build():
+        xdg_config = os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))
+        target = Path(xdg_config) / APP_ARTIFACT / "logs"
     else:
         target = project_root() / "logs"
+
     target.mkdir(parents=True, exist_ok=True)
     return target
 
@@ -75,8 +86,7 @@ def console_log_path() -> Path | None:
 
 
 def executable_dir() -> Path:
-    """Mejor aproximación al directorio del launcher actual."""
-
+    """Directorio base del ejecutable/launcher."""
     candidate = Path(sys.executable).resolve()
     return candidate.parent
 
@@ -94,13 +104,7 @@ def _prepare(target: Path, *, migrate: bool) -> Path:
 
 
 def _migrate_legacy_json(target: Path) -> None:
-    """Copia config dev existente en el primer arranque empaquetado.
-
-    Solo actúa cuando el destino aún no tiene JSON reales. No copia ejemplos ni
-    sobrescribe archivos. Es útil cuando el ejecutable se prueba desde el mismo
-    repositorio que antes se ejecutaba con ``python main.py``.
-    """
-
+    """Migra configuraciones de desarrollo en el primer arranque empaquetado."""
     if any(p.is_file() and not p.name.endswith(".example.json") for p in target.glob("*.json")):
         return
 
