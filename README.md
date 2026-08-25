@@ -129,7 +129,7 @@ Get-FileHash .\WizZDesktop-v1.1.0-windows-x64.zip -Algorithm SHA256
 Compara el resultado con el contenido de:
 
 ```text
-WizZDesktop-v1.0.0-windows-x64.zip.sha256
+WizZDesktop-v1.1.0-windows-x64.zip.sha256
 ```
 
 ---
