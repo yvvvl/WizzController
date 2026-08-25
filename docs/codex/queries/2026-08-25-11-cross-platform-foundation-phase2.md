@@ -16,6 +16,8 @@ the existing Windows runtime, or the RGBIC contracts.
 - Added a callback-based Linux window boundary for future Flet/compositor wiring.
 - Added tests for Wayland permission degradation, autostart, folder opening and
   independent window capabilities.
+- Added a CI smoke matrix for Ubuntu, macOS and Windows that compiles and tests
+  the platform boundary without starting the desktop application.
 
 ## Deliberate limitations
 
@@ -36,7 +38,8 @@ the existing Windows runtime, or the RGBIC contracts.
 
 ## Validation
 
-Focused platform tests: 25 passed.  
+Focused platform tests: 25 passed locally.
+
 Full-suite validation is required before merging.
 
 ## Next steps
