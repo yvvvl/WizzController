@@ -10,6 +10,12 @@ desde el commit previo que contiene la foundation RGBIC y multiplataforma. La
 suite local queda en `318 passed` con warnings de deprecación de Flet; no se
 introduce soporte productivo RGBIC, scheduler ni streaming en esta fase.
 
+La siguiente fase activa es `feature/cross-platform-foundation-phase2`. Ya
+incluye detección explícita de capacidades Linux, autostart XDG, apertura de
+carpetas mediante `xdg-open` y una frontera de ventana basada en callbacks.
+Estos servicios todavía no están conectados al runtime principal; el tray,
+las hotkeys globales y el packaging Linux siguen pendientes de validación.
+
 Este documento es la fuente principal de continuidad para nuevas sesiones de
 ChatGPT/Codex. Antes de modificar el proyecto, se debe leer completo y
 contrastar la rama activa, `git status`, los commits recientes y los reportes
