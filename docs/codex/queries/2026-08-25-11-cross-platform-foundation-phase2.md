@@ -83,9 +83,24 @@ The WizZ `LinuxTrayBackend` remains intentionally unwired and requires a
 separate run-loop integration design before product use; its lifecycle tests
 are not evidence of visual desktop integration.
 
+### Hotkey strategy decision (2026-08-27)
+
+The Ubuntu validation session is GNOME on Wayland. Capability detection
+therefore reports global registration and recording as
+`permission_required`, rather than claiming that the existing Windows
+implementation is portable. Wayland hotkeys remain an optional capability:
+the application must continue to work through its UI and tray when permission
+or a safe backend is unavailable. X11 may be reported as degraded until a
+backend and permission model are validated on a real desktop session.
+
+No replacement hotkey library is selected in this phase. A future spike must
+evaluate registration, recording, conflict handling and user-facing recovery
+separately for X11, Wayland and macOS.
+
 ## Next steps
 
 1. Design and test a main-thread tray run-loop bridge for the WizZ adapter.
-2. Decide the X11/Wayland hotkey strategy and permission messaging.
+2. Validate the hotkey permission and messaging flow on representative X11 and
+   Wayland sessions.
 3. Add Linux/macOS CI smoke jobs.
 4. Wire services only after manual Linux desktop validation.
