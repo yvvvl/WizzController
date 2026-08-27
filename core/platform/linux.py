@@ -155,17 +155,24 @@ class LinuxTrayBackend:
         factory = self.icon_factory or self._default_icon
         try:
             self.icon = factory(menu)
+            run_detached = getattr(self.icon, "run_detached", None)
             run = getattr(self.icon, "run")
         except (AttributeError, OSError, RuntimeError):
             self.icon = None
             return False
-        self._thread = threading.Thread(
-            target=self._run_icon,
-            args=(run,),
-            name="WizZLinuxTray",
-            daemon=True,
-        )
-        self._thread.start()
+        if callable(run_detached):
+            # GTK-based pystray backends must own their event loop; detached
+            # startup avoids running GTK from an arbitrary worker thread.
+            run_detached()
+            self._thread = None
+        else:
+            self._thread = threading.Thread(
+                target=self._run_icon,
+                args=(run,),
+                name="WizZLinuxTray",
+                daemon=True,
+            )
+            self._thread.start()
         self._running = True
         return True
 

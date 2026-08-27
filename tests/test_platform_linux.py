@@ -101,6 +101,11 @@ class _FakeIcon:
         self.stopped = True
 
 
+class _DetachedFakeIcon(_FakeIcon):
+    def run_detached(self):
+        self.started = True
+
+
 def test_linux_tray_backend_owns_lifecycle_without_real_desktop():
     created = []
 
@@ -128,3 +133,24 @@ def test_linux_tray_backend_rejects_unavailable_desktop():
 
     assert not backend.start([])
     assert not backend.running
+
+
+def test_linux_tray_backend_prefers_detached_event_loop_when_available():
+    created = []
+
+    def factory(menu):
+        icon = _DetachedFakeIcon(menu)
+        created.append(icon)
+        return icon
+
+    backend = LinuxTrayBackend(
+        capabilities=DesktopCapabilities(
+            tray=CapabilityState.available("test desktop")
+        ),
+        icon_factory=factory,
+    )
+
+    assert backend.start([])
+    assert created[0].started
+    backend.stop()
+    assert created[0].stopped

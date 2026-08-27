@@ -16,6 +16,9 @@ the existing Windows runtime, or the RGBIC contracts.
 - Added a callback-based Linux window boundary for future Flet/compositor wiring.
 - Added an isolated `LinuxTrayBackend` with injectable icon factory and
   lifecycle tests; it is not wired into the product runtime yet.
+- The first Wayland manual probe showed a visible icon with no menu response.
+  The adapter now prefers pystray's `run_detached()` when available so GTK
+  owns its event loop; interactive validation remains pending.
 - Added tests for Wayland permission degradation, autostart, folder opening and
   independent window capabilities.
 - Added a CI smoke matrix for Ubuntu, macOS and Windows that compiles and tests
@@ -40,7 +43,7 @@ the existing Windows runtime, or the RGBIC contracts.
 
 ## Validation
 
-Focused platform tests: 27 passed locally.
+Focused platform tests: 28 passed locally.
 
 Full-suite validation on the Ubuntu 22.04 VM: 323 passed, 98 warnings.
 
