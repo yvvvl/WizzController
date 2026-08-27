@@ -28,6 +28,7 @@ from .linux import (
     LinuxWindowService,
     detect_linux_capabilities,
 )
+from .composition import PlatformServices, build_platform_services
 
 __all__ = [
     "AutostartService",
@@ -50,4 +51,6 @@ __all__ = [
     "TrayBackend",
     "WindowService",
     "detect_linux_capabilities",
+    "PlatformServices",
+    "build_platform_services",
 ]
