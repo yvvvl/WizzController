@@ -11,9 +11,11 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
+from importlib.util import find_spec
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Sequence
 
 from .capabilities import CapabilityState, DesktopCapabilities
 from .contracts import SystemIntegrationService, WindowService, WorkArea
@@ -36,9 +38,12 @@ def detect_linux_capabilities() -> DesktopCapabilities:
     has_display = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
     xdg_open = shutil.which("xdg-open")
     tray = (
-        CapabilityState.available("desktop session detected")
+        CapabilityState.available("desktop session and pystray detected")
         if has_display
-        else CapabilityState.unavailable("no graphical desktop session")
+        and find_spec("pystray") is not None
+        else CapabilityState.unavailable(
+            "pystray is not installed" if has_display else "no graphical desktop session"
+        )
     )
     hotkey = (
         CapabilityState.permission_required("global input permission may be required")
@@ -127,6 +132,79 @@ class LinuxAutostartService:
 
 
 @dataclass(slots=True)
+class LinuxTrayBackend:
+    """Run a pystray icon without coupling the application to pystray."""
+
+    capabilities: DesktopCapabilities | None = None
+    icon_factory: Callable[[Sequence[object]], object] | None = None
+    icon: object | None = None
+    _thread: threading.Thread | None = None
+    _running: bool = False
+
+    def __post_init__(self) -> None:
+        if self.capabilities is None:
+            self.capabilities = detect_linux_capabilities()
+
+    @property
+    def running(self) -> bool:
+        return self._running
+
+    def start(self, menu: Sequence[object]) -> bool:
+        if self._running or not self.capabilities.tray.is_usable:
+            return False
+        factory = self.icon_factory or self._default_icon
+        try:
+            self.icon = factory(menu)
+            run = getattr(self.icon, "run")
+        except (AttributeError, OSError, RuntimeError):
+            self.icon = None
+            return False
+        self._thread = threading.Thread(
+            target=self._run_icon,
+            args=(run,),
+            name="WizZLinuxTray",
+            daemon=True,
+        )
+        self._thread.start()
+        self._running = True
+        return True
+
+    def update_menu(self, menu: Sequence[object]) -> bool:
+        if not self._running or self.icon is None:
+            return False
+        try:
+            setattr(self.icon, "menu", tuple(menu))
+        except Exception:
+            return False
+        return True
+
+    def stop(self) -> None:
+        icon = self.icon
+        self._running = False
+        self.icon = None
+        self._thread = None
+        if icon is not None:
+            try:
+                icon.stop()
+            except Exception:
+                pass
+
+    def _run_icon(self, run: Callable[[], object]) -> None:
+        try:
+            run()
+        except Exception:
+            self._running = False
+
+    @staticmethod
+    def _default_icon(menu: Sequence[object]) -> object:
+        import pystray
+        from PIL import Image
+
+        image = Image.new("RGBA", (64, 64), (99, 102, 241, 255))
+        return pystray.Icon("wizz-desktop", image, "WizZ Desktop", pystray.Menu(*menu))
+
+
+@dataclass(slots=True)
 class LinuxSystemIntegrationService(SystemIntegrationService):
     """Open folders through the user's XDG desktop helper."""
 
@@ -186,6 +264,7 @@ class LinuxWindowService(WindowService):
 __all__ = [
     "LinuxAutostartService",
     "LinuxSystemIntegrationService",
+    "LinuxTrayBackend",
     "LinuxWindowService",
     "detect_linux_capabilities",
 ]

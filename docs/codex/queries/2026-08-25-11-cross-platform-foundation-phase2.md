@@ -14,6 +14,8 @@ the existing Windows runtime, or the RGBIC contracts.
 - Added an XDG user autostart service.
 - Added an `xdg-open` system integration service.
 - Added a callback-based Linux window boundary for future Flet/compositor wiring.
+- Added an isolated `LinuxTrayBackend` with injectable icon factory and
+  lifecycle tests; it is not wired into the product runtime yet.
 - Added tests for Wayland permission degradation, autostart, folder opening and
   independent window capabilities.
 - Added a CI smoke matrix for Ubuntu, macOS and Windows that compiles and tests
@@ -38,7 +40,7 @@ the existing Windows runtime, or the RGBIC contracts.
 
 ## Validation
 
-Focused platform tests: 25 passed locally.
+Focused platform tests: 27 passed locally.
 
 Full-suite validation on the Ubuntu 22.04 VM: 323 passed, 98 warnings.
 
@@ -69,7 +71,7 @@ documented inspection method.
 
 ## Next steps
 
-1. Add a Linux tray adapter with an injectable menu/action boundary.
+1. Test the tray adapter manually on the Ubuntu Wayland VM.
 2. Decide the X11/Wayland hotkey strategy and permission messaging.
 3. Add Linux/macOS CI smoke jobs.
 4. Wire services only after manual Linux desktop validation.

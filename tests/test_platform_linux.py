@@ -4,6 +4,7 @@ from core.platform.capabilities import CapabilityStatus, CapabilityState, Deskto
 from core.platform.linux import (
     LinuxAutostartService,
     LinuxSystemIntegrationService,
+    LinuxTrayBackend,
     LinuxWindowService,
     detect_linux_capabilities,
 )
@@ -85,3 +86,45 @@ def test_linux_window_service_delegates_only_usable_operations():
     assert not service.focus()
     assert service.get_work_area() == (0, 0, 1920, 1080)
     assert calls == ["show", "hide"]
+
+
+class _FakeIcon:
+    def __init__(self, menu):
+        self.menu = tuple(menu)
+        self.stopped = False
+        self.started = False
+
+    def run(self):
+        self.started = True
+
+    def stop(self):
+        self.stopped = True
+
+
+def test_linux_tray_backend_owns_lifecycle_without_real_desktop():
+    created = []
+
+    def factory(menu):
+        icon = _FakeIcon(menu)
+        created.append(icon)
+        return icon
+
+    caps = DesktopCapabilities(
+        tray=CapabilityState.available("test desktop")
+    )
+    backend = LinuxTrayBackend(capabilities=caps, icon_factory=factory)
+
+    assert backend.start(["open", "quit"])
+    assert backend.running
+    assert created[0].started
+    assert backend.update_menu(["open", "settings", "quit"])
+    backend.stop()
+    assert created[0].stopped
+    assert not backend.running
+
+
+def test_linux_tray_backend_rejects_unavailable_desktop():
+    backend = LinuxTrayBackend(capabilities=DesktopCapabilities())
+
+    assert not backend.start([])
+    assert not backend.running

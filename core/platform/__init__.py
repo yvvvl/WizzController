@@ -24,6 +24,7 @@ from .fakes import (
 from .linux import (
     LinuxAutostartService,
     LinuxSystemIntegrationService,
+    LinuxTrayBackend,
     LinuxWindowService,
     detect_linux_capabilities,
 )
@@ -41,6 +42,7 @@ __all__ = [
     "FakeWindowService",
     "LinuxAutostartService",
     "LinuxSystemIntegrationService",
+    "LinuxTrayBackend",
     "LinuxWindowService",
     "HotkeyService",
     "SingleInstanceService",
