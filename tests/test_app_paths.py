@@ -64,6 +64,72 @@ def test_windows_frozen_build_uses_local_appdata(monkeypatch, tmp_path):
     assert (target / "config.json").exists()
 
 
+def test_windows_packaged_executable_is_detected_without_frozen_flag(monkeypatch, tmp_path):
+    local_app_data = tmp_path / "LocalAppData"
+    monkeypatch.delenv("WIZZ_CONFIG_DIR", raising=False)
+    monkeypatch.delenv("FLET_APP_STORAGE_DATA", raising=False)
+    monkeypatch.setenv("LOCALAPPDATA", str(local_app_data))
+    monkeypatch.setattr(paths.sys, "platform", "win32")
+    monkeypatch.setattr(paths.sys, "executable", str(tmp_path / "WizZDesktop.exe"))
+    monkeypatch.setattr(paths.sys, "frozen", False, raising=False)
+    _reset_paths()
+
+    assert paths.is_flet_build()
+    assert paths.config_dir() == (local_app_data / paths.APP_ARTIFACT / "config").resolve()
+
+
+def test_windows_embedded_runtime_detects_neighboring_app_executable(monkeypatch, tmp_path):
+    local_app_data = tmp_path / "LocalAppData"
+    runtime_dir = tmp_path / "build" / "windows"
+    runtime_dir.mkdir(parents=True)
+    (runtime_dir / "WizZDesktop.exe").write_bytes(b"marker")
+    monkeypatch.delenv("WIZZ_CONFIG_DIR", raising=False)
+    monkeypatch.delenv("FLET_APP_STORAGE_DATA", raising=False)
+    monkeypatch.setenv("LOCALAPPDATA", str(local_app_data))
+    monkeypatch.setattr(paths.sys, "platform", "win32")
+    monkeypatch.setattr(paths.sys, "executable", str(runtime_dir / "python.exe"))
+    monkeypatch.setattr(paths.sys, "frozen", False, raising=False)
+    _reset_paths()
+
+    assert paths.is_flet_build()
+    assert paths.config_dir() == (local_app_data / paths.APP_ARTIFACT / "config").resolve()
+
+
+def test_windows_launcher_argument_detects_packaged_runtime(monkeypatch, tmp_path):
+    local_app_data = tmp_path / "LocalAppData"
+    monkeypatch.delenv("WIZZ_CONFIG_DIR", raising=False)
+    monkeypatch.delenv("FLET_APP_STORAGE_DATA", raising=False)
+    monkeypatch.setenv("LOCALAPPDATA", str(local_app_data))
+    monkeypatch.setattr(paths.sys, "platform", "win32")
+    monkeypatch.setattr(paths.sys, "executable", str(tmp_path / "python.exe"))
+    monkeypatch.setattr(paths.sys, "argv", [str(tmp_path / "WizZDesktop.exe")])
+    monkeypatch.setattr(paths.sys, "frozen", False, raising=False)
+    _reset_paths()
+
+    assert paths.is_flet_build()
+    assert paths.config_dir() == (local_app_data / paths.APP_ARTIFACT / "config").resolve()
+
+
+def test_flet_embedded_app_zip_detects_packaged_runtime(monkeypatch, tmp_path):
+    local_app_data = tmp_path / "LocalAppData"
+    monkeypatch.delenv("WIZZ_CONFIG_DIR", raising=False)
+    monkeypatch.delenv("FLET_APP_STORAGE_DATA", raising=False)
+    monkeypatch.setenv("LOCALAPPDATA", str(local_app_data))
+    monkeypatch.setattr(paths.sys, "platform", "win32")
+    monkeypatch.setattr(paths.sys, "executable", str(tmp_path / "python.exe"))
+    monkeypatch.setattr(paths.sys, "argv", ["main.py"])
+    monkeypatch.setattr(paths.sys, "frozen", False, raising=False)
+    monkeypatch.setattr(
+        paths,
+        "__file__",
+        str(tmp_path / "flutter_assets" / "app.zip" / "config" / "paths.pyc"),
+    )
+    _reset_paths()
+
+    assert paths.is_flet_build()
+    assert paths.config_dir() == (local_app_data / paths.APP_ARTIFACT / "config").resolve()
+
+
 def test_json_manager_uses_override_and_atomic_save(monkeypatch, tmp_path):
     monkeypatch.setenv("WIZZ_CONFIG_DIR", str(tmp_path))
     monkeypatch.delenv("FLET_APP_STORAGE_DATA", raising=False)
