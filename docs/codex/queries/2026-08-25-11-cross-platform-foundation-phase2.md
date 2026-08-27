@@ -83,6 +83,13 @@ The WizZ `LinuxTrayBackend` remains intentionally unwired and requires a
 separate run-loop integration design before product use; its lifecycle tests
 are not evidence of visual desktop integration.
 
+A follow-up smoke test exercised `LinuxTrayBackend.run_foreground()` directly
+with the AppIndicator backend. The icon appeared in GNOME's indicator area,
+the menu was interactive, and `Cerrar prueba` stopped the loop. Process
+inspection after closing showed no remaining WizZ process. GNOME may keep the
+indicator overflow menu open until it is dismissed, but the backend itself was
+stopped.
+
 ### Hotkey strategy decision (2026-08-27)
 
 The Ubuntu validation session is GNOME on Wayland. Capability detection
