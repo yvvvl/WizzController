@@ -97,10 +97,21 @@ No replacement hotkey library is selected in this phase. A future spike must
 evaluate registration, recording, conflict handling and user-facing recovery
 separately for X11, Wayland and macOS.
 
+### Autostart and folder integration validation (2026-08-27)
+
+The Linux autostart service was exercised with a temporary configuration
+directory: `is_enabled()` started false, enabling returned true and created the
+entry, and disabling returned true and removed it. No user autostart
+configuration was changed.
+
+The system integration service reported `open_folder: available`; opening the
+home directory returned true and launched the file manager, while a nonexistent
+path correctly returned false.
+
 ## Next steps
 
 1. Design and test a main-thread tray run-loop bridge for the WizZ adapter.
 2. Validate the hotkey permission and messaging flow on representative X11 and
    Wayland sessions.
 3. Add Linux/macOS CI smoke jobs.
-4. Wire services only after manual Linux desktop validation.
+4. Design the tray run-loop bridge and only then consider service wiring.
