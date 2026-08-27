@@ -40,7 +40,32 @@ the existing Windows runtime, or the RGBIC contracts.
 
 Focused platform tests: 25 passed locally.
 
-Full-suite validation is required before merging.
+Full-suite validation on the Ubuntu 22.04 VM: 323 passed, 98 warnings.
+
+### Real VM evidence (2026-08-27)
+
+The VM reports:
+
+- Python 3.11.0rc1;
+- `XDG_SESSION_TYPE=wayland`;
+- `DISPLAY=:0`;
+- `WAYLAND_DISPLAY=wayland-0`;
+- `/usr/bin/xdg-open` available.
+
+Capability detection returned:
+
+- hotkey registration and recording: `permission_required`;
+- tray: `available`;
+- tray default action: `degraded`;
+- start at login: `available` through XDG autostart;
+- window operations and work-area positioning: `degraded`;
+- single-instance exclusion: `degraded`;
+- single-instance activation: `unavailable`;
+- folder opening: `available` through `xdg-open`.
+
+The first probe using `vars()` failed because `DesktopCapabilities` uses
+slotted dataclasses. The dataclass `fields()` probe succeeded and is now the
+documented inspection method.
 
 ## Next steps
 
