@@ -21,6 +21,7 @@ from core.quick_panel_controller import QuickPanelController
 from core.single_instance import SingleInstanceGuard
 from core.windows_window import restore_window
 from core.logging_setup import configure_logging
+from core.platform import PlatformRuntime
 from config.paths import assets_dir, config_dir, logs_dir
 from localization import RuntimeLanguagePreference, get_manager
 from ui.quick_panel_view import QuickPanelView
@@ -101,6 +102,10 @@ def main(page: ft.Page):
         page.window.min_height = 540
 
         runtime = AppRuntimeManager()
+        platform_runtime = PlatformRuntime.create()
+        # Capability snapshot is exposed for future UI integration; no
+        # platform service is started from this bootstrap step.
+        page._wizz_platform_runtime = platform_runtime
         i18n = get_manager()
         i18n.set_preference(RuntimeLanguagePreference(runtime).load())
 
