@@ -255,10 +255,9 @@ class TrayService:
         if os.name == "nt" and has_quick_panel:
             primary_action_items.append(
                 item(
-                    self._t("tray.toggle_app"),
+                    self._t("tray.quick_panel"),
                     lambda icon, it: self._handle_tray_primary_click(),
                     default=True,
-                    visible=False,
                 )
             )
         if has_quick_panel:
@@ -670,6 +669,14 @@ class TrayService:
         del event loop de Flet ni llama ``Window.to_front()`` desde un thread de
         pystray. Después se sincroniza el modelo de Flet de forma oportunista.
         """
+
+        # The Quick Panel reuses the main native window. A tray activation
+        # must leave compact mode before restoring/focusing it.
+        quick_controller = getattr(self.page, "_wizz_quick_panel", None)
+        if getattr(quick_controller, "window_mode", "full") in {"quick", "hidden"}:
+            open_full = getattr(quick_controller, "open_full", None)
+            if callable(open_full):
+                return bool(open_full())
 
         now = time.monotonic()
         if now - self._last_show_request < 0.12:

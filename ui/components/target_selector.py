@@ -32,7 +32,6 @@ class TargetSelector(ft.Container):
             spacing=8,
             wrap=True,
             run_spacing=8,
-            expand=True,
             alignment=ft.MainAxisAlignment.START,
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
         )
@@ -95,7 +94,6 @@ class TargetSelector(ft.Container):
             label=ft.Text(name, size=12, color=ft.Colors.WHITE if is_selected else Theme.TEXT),
             on_click=lambda e, target_ip=ip: self.toggle_selection(target_ip),
             bgcolor=Theme.ACCENT if is_selected else ft.Colors.with_opacity(0.15, Theme.SURFACE_VARIANT),
-            checkable=False,
             elevation=2 if is_selected else 0,
             shape=ft.RoundedRectangleBorder(radius=8),
             padding=ft.Padding(8, 4, 8, 4),

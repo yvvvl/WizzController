@@ -35,7 +35,7 @@ class QuickPanelView(ft.Column):
 
         set_viewport = getattr(self.color_adapter, "set_viewport", None)
         if callable(set_viewport):
-            set_viewport(390, 620)
+            set_viewport(350, 540)
 
         self.title = ft.Text(
             self._t("quick.title"),
@@ -150,14 +150,14 @@ class QuickPanelView(ft.Column):
             icon=ft.Icons.POWER_SETTINGS_NEW_ROUNDED,
             bgcolor=Theme.PRIMARY,
             color="white",
-            height=48,
+            height=42,
             on_click=lambda event: self.controller.turn_on(),
             expand=True,
         )
         self.power_off = ft.OutlinedButton(
             self._t("home.off"),
             icon=ft.Icons.POWER_OFF_ROUNDED,
-            height=48,
+            height=42,
             on_click=lambda event: self.controller.turn_off(),
             expand=True,
         )
