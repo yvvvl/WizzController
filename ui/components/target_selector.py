@@ -149,7 +149,9 @@ class TargetSelector(ft.Container):
             if hasattr(self.wiz, "set_target_mode"):
                 self.wiz.set_target_mode("single")
         elif self.selected_targets:
-            if hasattr(self.wiz, "set_active_bulb"):
+            if len(self.selected_targets) > 1 and hasattr(self.wiz, "set_target_selection"):
+                self.wiz.set_target_selection(self.selected_targets)
+            elif hasattr(self.wiz, "set_active_bulb"):
                 self.wiz.set_active_bulb(self.selected_targets[0])
 
     def _update_chips(self):

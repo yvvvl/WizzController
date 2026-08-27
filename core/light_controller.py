@@ -93,6 +93,11 @@ class LightController:
         control_cfg = self.config.get("control", {}) or {}
         self._target_mode = self._normalise_mode(control_cfg.get("mode", "single"))
         self._active_ip = control_cfg.get("active_ip")
+        raw_selected = control_cfg.get("selected_ips", [])
+        self._selected_ips = {
+            str(ip).strip() for ip in raw_selected
+            if isinstance(ip, str) and str(ip).strip()
+        } if isinstance(raw_selected, (list, tuple, set)) else set()
         try:
             self._slider_interval_ms = int(control_cfg.get("slider_interval_ms", 65))
         except Exception:
@@ -365,10 +370,12 @@ class LightController:
             }
 
     # ------------------------------------------------------------------ #
-    # Targeting: una ampolleta / todas
+    # Targeting: una ampolleta / selección rápida / todas
     # ------------------------------------------------------------------ #
     def _normalise_mode(self, mode: Any) -> str:
         m = str(mode or "single").lower().strip()
+        if m in {"selected", "selection", "seleccionadas"}:
+            return "selected"
         return "all" if m in {"all", "multi", "group", "todas"} else "single"
 
     def _save_control_config(self) -> None:
@@ -377,6 +384,7 @@ class LightController:
             {
                 "mode": self._target_mode,
                 "active_ip": self._active_ip,
+                "selected_ips": sorted(self._selected_ips),
                 "slider_interval_ms": self._slider_interval_ms,
             },
         )
@@ -458,12 +466,40 @@ class LightController:
             ip = self._ensure_active_ip()
             return {ip} if ip else set()
 
+        if self._target_mode == "selected":
+            reachable = self._reachable_targets()
+            selected = self._selected_ips & (reachable or self._saved_targets())
+            return selected
+
         # Modo todas: prioriza solo dispositivos vivos/descubiertos; fallback a guardados si nada responde.
         return reachable or self._saved_targets()
 
     def set_target_mode(self, mode: str) -> None:
         self._target_mode = self._normalise_mode(mode)
         self._ensure_active_ip()
+        self._save_control_config()
+        self._fire_callback()
+
+    def set_target_selection(self, ips: list[str] | set[str] | tuple[str, ...]) -> None:
+        """Apply a transient multi-target selection without creating a group."""
+        selected: set[str] = set()
+        for value in ips:
+            ip = str(value or "").strip()
+            try:
+                ipaddress.ip_address(ip)
+            except ValueError:
+                continue
+            if not self._is_removed_bulb(ip, self._device_mac(ip)):
+                selected.add(ip)
+        if len(selected) <= 1:
+            self._selected_ips = selected
+            if selected:
+                self.set_active_bulb(next(iter(selected)))
+            return
+        self._selected_ips = selected
+        self._target_mode = "selected"
+        self._active_ip = sorted(selected)[0]
+        self.bulb_ips.update(selected)
         self._save_control_config()
         self._fire_callback()
 
@@ -476,6 +512,7 @@ class LightController:
         if self._is_removed_bulb(ip, self._device_mac(ip)):
             return
         self._active_ip = ip
+        self._selected_ips = {ip}
         self.bulb_ips.add(ip)
         self._target_mode = "single"
         self._save_control_config()
