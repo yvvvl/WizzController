@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-07-26
 - Scope: Desktop platform integration, packaging and validation
-- Product targets: Windows stable, Linux beta, macOS experimental
+- Product targets: Windows stable, Linux beta; macOS deferred
 
 ## Context
 
@@ -28,8 +28,8 @@ The target support levels are deliberately different:
 - **Windows stable:** the existing supported product and release gate;
 - **Linux beta:** a native desktop build with documented desktop-environment
   limitations and graceful feature degradation;
-- **macOS experimental:** buildable and testable in CI, with real-machine or
-  community validation required before a stronger support promise.
+- **macOS:** explicitly deferred. No build, packaging or runtime support is
+  promised until a maintainer or community tester can provide a real Mac.
 
 This ADR defines contracts and ownership only. It does not authorize
 production code, dependency, UI, workflow or packaging changes.
@@ -116,6 +116,14 @@ LightController -> WizProtocol -> WiZ devices
 No feature, screen or WiZ control path will be forked by OS. Platform adapters
 may differ, as packaging necessarily does, but the product behavior and domain
 model remain shared.
+
+### Scope amendment: macOS deferred
+
+The project currently has no macOS hardware or maintainer environment for
+interactive validation. macOS is therefore removed from the active support
+matrix and CI smoke workflow. The platform-neutral contracts remain future
+compatible, but no macOS adapter, package or support claim should be added
+until a real validation environment is available.
 
 ### Desktop capability model
 
@@ -290,13 +298,11 @@ desktop adapter contracts.
 - second-instance exclusion cannot fail open silently;
 - local WiZ discovery/control is smoke-tested on a real Linux LAN before beta.
 
-### macOS experimental
+### macOS deferred
 
-- tests and a native macOS artifact are produced on a macOS CI runner;
-- unsupported capabilities are reported without blocking the main UI;
-- at least one real or community Mac validates launch, menu-bar lifecycle,
-  window behavior, required permissions and local WiZ networking;
-- signing/notarization and broad architecture coverage are not implied.
+No macOS build, package or runtime adapter is maintained in the current
+roadmap. The neutral contracts may remain portable, but implementation and
+support require a real Mac validation environment first.
 
 ## Explicitly rejected
 
@@ -304,11 +310,11 @@ desktop adapter contracts.
 - Importing Windows helpers from the portable WiZ core.
 - Changing `LightController` or `WizProtocol` to solve desktop integration.
 - Treating Flet property availability as proof of identical OS behavior.
-- Treating `keyboard` as a verified Linux/macOS production backend.
+- Treating `keyboard` as a verified Linux production backend.
 - Assuming every Linux desktop has a compatible tray.
 - Depending on tray primary-click behavior for essential navigation.
 - Calling Ubuntu Server or WSL a Linux desktop acceptance environment.
-- Calling a successful macOS CI build real-hardware or UX validation.
+- Treating any future macOS CI build as real-hardware or UX validation.
 - Enabling “close to tray” when no operational tray is present.
 - Promising exact Quick Panel placement on every window manager/compositor.
 - Building a single monolithic platform service with unrelated concerns.
@@ -327,7 +333,7 @@ Costs:
 
 - desktop capabilities and fallback states need explicit UI treatment;
 - Linux requires validation across at least Wayland and X11;
-- macOS needs real-machine or community testing beyond CI;
+- macOS work is deferred until a real machine or community tester is available;
 - current Windows-specific responsibilities must eventually move behind
   contracts;
 - package metadata, dependencies and native permissions require per-target
@@ -341,9 +347,8 @@ Costs:
 3. Remove platform checks from consumers and add graceful UI fallbacks.
 4. Add a Linux native build and Ubuntu Desktop smoke matrix.
 5. Spike Linux tray, hotkey, autostart, window and single-instance adapters.
-6. Add macOS CI build/test packaging.
-7. Validate macOS desktop behavior with a real machine or community testers.
-8. Decide package formats, signing, notarization and architecture coverage in
+6. Revisit macOS only after a real machine or community tester is available.
+7. Decide package formats and architecture coverage in
    separate release ADRs.
 
 Each step is a separate implementation phase. None is part of this
