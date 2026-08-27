@@ -259,7 +259,8 @@ activación de instancia única son capacidades distintas.
 
 Ningún consumidor existente usa todavía esta frontera. El comportamiento
 Windows continúa en sus módulos actuales y no fue movido ni modificado. Esta
-foundation no demuestra soporte Linux/macOS por sí sola.
+foundation no demuestra soporte Linux por sí sola; macOS está fuera del
+alcance operativo actual.
 
 ## 4. UI actual
 
@@ -732,7 +733,7 @@ exacta empaquetada.
   cambiar su comportamiento;
 - crear fallbacks UI capability-driven en una fase explícita;
 - diseñar y validar adapters Linux antes del estado beta;
-- añadir build/test macOS en CI antes de adapters experimentales;
+- mantener macOS diferido hasta disponer de un equipo o tester comunitario;
 - diseñar e implementar el Effects Engine común;
 - añadir contrato realtime en `LightController`;
 - implementar Gradient sobre el scheduler común;
@@ -825,11 +826,11 @@ pertenecen a `docs/third-party/`.
 - `core/platform/` sólo contiene contratos y fakes; ningún backend existente
   está conectado;
 - `degraded` significa utilizable con limitaciones, no disponibilidad plena;
-- el backend productivo de hotkeys para Linux/macOS sigue sin decidirse;
+- el backend productivo de hotkeys para Linux sigue sin decidirse;
 - tray, foco, work area y Quick Panel requieren validación X11/Wayland;
 - instancia única Unix todavía necesita una decisión de IPC para activación;
-- macOS CI no sustituye pruebas reales de menu bar, permisos, autostart y LAN;
-- no prometer Linux beta o macOS experimental sólo por aprobar Phase 1.
+- macOS no tiene soporte ni CI activo hasta disponer de validación real;
+- no prometer Linux beta sólo por aprobar Phase 1.
 
 ### Dependencias y arquitectura
 

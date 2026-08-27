@@ -21,7 +21,7 @@ the existing Windows runtime, or the RGBIC contracts.
   owns its event loop; interactive validation remains pending.
 - Added tests for Wayland permission degradation, autostart, folder opening and
   independent window capabilities.
-- Added a CI smoke matrix for Ubuntu, macOS and Windows that compiles and tests
+- Added a CI smoke matrix for Ubuntu and Windows that compiles and tests
   the platform boundary without starting the desktop application.
 
 ## Deliberate limitations
@@ -32,7 +32,8 @@ the existing Windows runtime, or the RGBIC contracts.
   required on Wayland; no backend replacement was introduced.
 - Single-instance activation is explicitly unavailable until a portable
   activation mechanism is designed.
-- No Linux package or macOS backend is produced in this phase.
+- No Linux package or macOS backend is produced in this phase. macOS support is
+  currently deferred because no real validation environment is available.
 
 ## Decisions preserved
 
@@ -120,5 +121,5 @@ path correctly returned false.
 1. Design and test a main-thread tray run-loop bridge for the WizZ adapter.
 2. Validate the hotkey permission and messaging flow on representative X11 and
    Wayland sessions.
-3. Add Linux/macOS CI smoke jobs.
+3. Keep CI focused on Windows and Linux until macOS validation is available.
 4. Design the tray run-loop bridge and only then consider service wiring.
