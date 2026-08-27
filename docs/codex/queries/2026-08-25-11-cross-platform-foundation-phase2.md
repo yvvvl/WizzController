@@ -72,9 +72,20 @@ The first probe using `vars()` failed because `DesktopCapabilities` uses
 slotted dataclasses. The dataclass `fields()` probe succeeded and is now the
 documented inspection method.
 
+### Tray smoke validation (2026-08-27)
+
+On Ubuntu 22.04 GNOME/Wayland with `PYSTRAY_BACKEND=appindicator`, a direct
+pystray smoke test using `icon.run()` on the main thread produced a visible
+indicator and an interactive menu. The `Cerrar prueba` action stopped the
+icon successfully. This validates the desktop/AppIndicator installation.
+
+The WizZ `LinuxTrayBackend` remains intentionally unwired and requires a
+separate run-loop integration design before product use; its lifecycle tests
+are not evidence of visual desktop integration.
+
 ## Next steps
 
-1. Test the tray adapter manually on the Ubuntu Wayland VM.
+1. Design and test a main-thread tray run-loop bridge for the WizZ adapter.
 2. Decide the X11/Wayland hotkey strategy and permission messaging.
 3. Add Linux/macOS CI smoke jobs.
 4. Wire services only after manual Linux desktop validation.
