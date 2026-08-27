@@ -45,6 +45,25 @@ def test_flet_storage_migrates_legacy_json_once(monkeypatch, tmp_path):
     assert json.loads((target / "hotkeys.json").read_text(encoding="utf-8")) == {"enabled": False}
 
 
+def test_windows_frozen_build_uses_local_appdata(monkeypatch, tmp_path):
+    local_app_data = tmp_path / "LocalAppData"
+    legacy = tmp_path / "legacy"
+    legacy.mkdir()
+    (legacy / "config.json").write_text("{\"language\": \"es\"}", encoding="utf-8")
+
+    monkeypatch.delenv("WIZZ_CONFIG_DIR", raising=False)
+    monkeypatch.delenv("FLET_APP_STORAGE_DATA", raising=False)
+    monkeypatch.setenv("LOCALAPPDATA", str(local_app_data))
+    monkeypatch.setenv("WIZZ_LEGACY_CONFIG_DIR", str(legacy))
+    monkeypatch.setattr(paths.sys, "platform", "win32")
+    monkeypatch.setattr(paths.sys, "frozen", True, raising=False)
+    _reset_paths()
+
+    target = paths.config_dir()
+    assert target == (local_app_data / paths.APP_ARTIFACT / "config").resolve()
+    assert (target / "config.json").exists()
+
+
 def test_json_manager_uses_override_and_atomic_save(monkeypatch, tmp_path):
     monkeypatch.setenv("WIZZ_CONFIG_DIR", str(tmp_path))
     monkeypatch.delenv("FLET_APP_STORAGE_DATA", raising=False)
