@@ -154,3 +154,24 @@ def test_linux_tray_backend_prefers_detached_event_loop_when_available():
     assert created[0].started
     backend.stop()
     assert created[0].stopped
+
+
+def test_linux_tray_backend_can_run_foreground_loop():
+    created = []
+
+    def factory(menu):
+        icon = _FakeIcon(menu)
+        created.append(icon)
+        return icon
+
+    backend = LinuxTrayBackend(
+        capabilities=DesktopCapabilities(
+            tray=CapabilityState.available("test desktop")
+        ),
+        icon_factory=factory,
+    )
+
+    assert backend.run_foreground(["quit"])
+    assert created[0].started
+    assert not backend.running
+    assert backend.icon is None

@@ -176,6 +176,33 @@ class LinuxTrayBackend:
         self._running = True
         return True
 
+    def run_foreground(self, menu: Sequence[object]) -> bool:
+        """Run the tray loop on the caller's thread.
+
+        Linux GTK/AppIndicator backends require ownership of a toolkit event
+        loop.  This explicit blocking entry point lets a future composition
+        root provide that ownership without pretending that ``start`` can
+        safely move the loop to an arbitrary worker thread.
+        """
+        if self._running or not self.capabilities.tray.is_usable:
+            return False
+        factory = self.icon_factory or self._default_icon
+        try:
+            icon = factory(menu)
+            run = getattr(icon, "run")
+        except (AttributeError, OSError, RuntimeError):
+            return False
+        self.icon = icon
+        self._running = True
+        try:
+            run()
+        except Exception:
+            return False
+        finally:
+            self._running = False
+            self.icon = None
+        return True
+
     def update_menu(self, menu: Sequence[object]) -> bool:
         if not self._running or self.icon is None:
             return False
