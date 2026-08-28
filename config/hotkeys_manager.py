@@ -147,7 +147,7 @@ class HotkeysManager(JsonManager):
         # compatible y nunca intenta registrar hooks.
         if sys.platform.startswith("linux"):
             return False
-        return os.name == "nt" or _keyboard is not None
+        return sys.platform.startswith("win") or _keyboard is not None
 
     @property
     def can_record(self) -> bool:
@@ -159,7 +159,7 @@ class HotkeysManager(JsonManager):
     def dependency_message(self) -> str:
         if sys.platform.startswith("linux"):
             return self._t("hotkeys.dependency.linux_unavailable")
-        if os.name == "nt":
+        if sys.platform.startswith("win"):
             if _keyboard is None:
                 return self._t("hotkeys.dependency.native_recording_missing", error=_IMPORT_ERROR)
             return self._t("hotkeys.dependency.native_ready")
@@ -593,7 +593,7 @@ class HotkeysManager(JsonManager):
             native_success: list[dict[str, Any]] = []
             native_failed: list[dict[str, Any]] = []
 
-            if os.name == "nt" and preference in {"auto", "native"}:
+            if sys.platform.startswith("win") and preference in {"auto", "native"}:
                 try:
                     self._native_backend.start(entries)
                     native_success = self._native_backend.successful_entries
