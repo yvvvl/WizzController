@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/v1.2.0-linux-beta
+      - "release/**"
   pull_request:
     paths:
       - "**.py"
@@ -43,6 +44,24 @@ jobs:
 
       - name: Test and package Linux beta
         run: bash scripts/build_linux.sh --output dist/linux
+
+      - name: Verify application-menu installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          export XDG_DATA_HOME="$RUNNER_TEMP/wizz-xdg-data"
+          bash dist/linux/install.sh
+
+          desktop_file="$XDG_DATA_HOME/applications/io.github.yvvvl.wizz-controller.desktop"
+          installed_app="$XDG_DATA_HOME/WizZDesktop/WizZDesktop"
+          test -f "$desktop_file"
+          test -x "$installed_app"
+          grep -F "Exec=$installed_app" "$desktop_file"
+          grep -F "Icon=$XDG_DATA_HOME/WizZDesktop/assets/icon.png" "$desktop_file"
+
+          bash "$XDG_DATA_HOME/WizZDesktop/uninstall.sh"
+          test ! -e "$desktop_file"
+          test ! -e "$XDG_DATA_HOME/WizZDesktop"
 
       - uses: actions/upload-artifact@v4
         with:
