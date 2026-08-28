@@ -58,6 +58,21 @@ if [[ -z "$FLET" || ! -x "$FLET" ]]; then
   exit 1
 fi
 
+# Flutter native assets resolve the linker beside the selected clang binary.
+# Ubuntu splits it into the lld package; without it Flet fails much later with
+# an unhelpful empty tool-name error from dart_build.
+CLANG_PATH="$(readlink -f "$(command -v clang || true)")"
+if [[ -z "$CLANG_PATH" || ! -x "$CLANG_PATH" ]]; then
+  echo "clang was not found. Install: sudo apt install -y clang cmake ninja-build pkg-config libgtk-3-dev" >&2
+  exit 1
+fi
+LLVM_BIN="$(dirname "$CLANG_PATH")"
+if [[ ! -x "$LLVM_BIN/ld.lld" && ! -x "$LLVM_BIN/ld" ]]; then
+  echo "LLVM linker was not found beside clang at $LLVM_BIN." >&2
+  echo "On Ubuntu install it with: sudo apt install -y lld-14" >&2
+  exit 1
+fi
+
 export PYTHONUTF8=1
 export PYTHONIOENCODING=utf-8
 export FLET_CLI_NO_RICH_OUTPUT=true
