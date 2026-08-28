@@ -186,6 +186,7 @@ CATALOG: dict[str, str] = {
     "runtime.close_to_tray": "Cerrar a bandeja",
     "runtime.open_minimized": "Abrir minimizado",
     "runtime.start_with_windows": "Iniciar con Windows",
+    "runtime.start_at_login": "Iniciar al iniciar sesión",
     "runtime.saved": "Configuración de segundo plano guardada.",
 
     # Acerca de
@@ -221,6 +222,7 @@ CATALOG: dict[str, str] = {
     'runtime.close_to_tray.description': 'La X oculta la ventana en vez de salir.',
     'runtime.open_minimized.description': 'Inicia oculto cuando la bandeja está activa.',
     'runtime.start_with_windows.description': 'Registra o quita el inicio automático.',
+    'runtime.start_at_login.description': 'Registra o quita el inicio automático para este usuario.',
     'runtime.restart_hint': 'Los cambios de bandeja se aplican mejor al reiniciar la app. El modo desarrollo no fuerza restaurar ventanas.',
     'about.storage_hint': 'En la app empaquetada, configuraciones y logs viven en el almacenamiento persistente y se conservan entre actualizaciones.',
     'common.information': 'Información',
@@ -289,6 +291,7 @@ CATALOG.update({
     "bulbs.offline_detail": "○ sin respuesta",
     "bulbs.ip_example": "192.168.1.20",
     "runtime.startup.windows_only": "Inicio con Windows solo está disponible en Windows.",
+    "runtime.startup.linux_unavailable": "El inicio automático no está disponible en este escritorio Linux.",
     "runtime.startup.update_error": "No se pudo modificar Inicio con Windows: {error}",
     "runtime.startup.updated": "Inicio con Windows actualizado.",
     "runtime.startup.disabled": "Inicio con Windows desactivado.",

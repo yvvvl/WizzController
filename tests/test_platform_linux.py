@@ -1,3 +1,5 @@
+import importlib
+import os
 from pathlib import Path
 
 from core.platform.capabilities import CapabilityStatus, CapabilityState, DesktopCapabilities
@@ -8,6 +10,7 @@ from core.platform.linux import (
     LinuxWindowService,
     detect_linux_capabilities,
 )
+from core.background.tray_service import TrayService
 
 
 def test_linux_capabilities_are_explicit_and_do_not_touch_network(monkeypatch):
@@ -175,3 +178,26 @@ def test_linux_tray_backend_can_run_foreground_loop():
     assert created[0].started
     assert not backend.running
     assert backend.icon is None
+
+
+def test_tray_service_prefers_appindicator_on_ubuntu_gnome(monkeypatch):
+    tray_module = importlib.import_module("core.background.tray_service")
+    monkeypatch.setattr(tray_module.sys, "platform", "linux")
+    monkeypatch.delenv("PYSTRAY_BACKEND", raising=False)
+    monkeypatch.setenv("XDG_SESSION_TYPE", "wayland")
+    monkeypatch.setenv("XDG_CURRENT_DESKTOP", "ubuntu:GNOME")
+
+    TrayService._configure_linux_backend()
+
+    assert os.environ["PYSTRAY_BACKEND"] == "appindicator"
+
+
+def test_tray_service_keeps_explicit_linux_backend_choice(monkeypatch):
+    tray_module = importlib.import_module("core.background.tray_service")
+    monkeypatch.setattr(tray_module.sys, "platform", "linux")
+    monkeypatch.setenv("PYSTRAY_BACKEND", "xorg")
+    monkeypatch.setenv("XDG_SESSION_TYPE", "wayland")
+
+    TrayService._configure_linux_backend()
+
+    assert os.environ["PYSTRAY_BACKEND"] == "xorg"

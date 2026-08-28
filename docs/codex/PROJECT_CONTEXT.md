@@ -746,7 +746,8 @@ exacta empaquetada.
 - estabilizar en Home la experiencia de selección transitoria
   `single`/`selected`/`all`;
 - integrar una notificación de actualización read-only y tolerante a fallos;
-- completar suite, build, smoke manual y artefacto Windows de `v1.2.0`;
+- conservar el candidato Windows validado y completar el artefacto Linux beta
+  de `v1.2.0` desde el mismo commit de release;
 - actualizar versión, changelog y documentación pública sólo al entrar en
   release candidate;
 - probar el artefacto descargado desde CI antes de fusionar y etiquetar;
@@ -757,7 +758,8 @@ exacta empaquetada.
 
 - continuar el Quick Panel como ventana temporal independiente en una rama
   aislada, después de validar un mecanismo nativo compatible;
-- completar wiring, lifecycle y packaging Linux antes del estado beta;
+- completar el smoke de Ubuntu Desktop, artefacto, checksum y documentación de
+  limitaciones para cerrar Linux beta;
 - mantener macOS diferido hasta disponer de un equipo o tester comunitario;
 - diseñar descarga, verificación, instalación y rollback antes de llamar
   “autoactualizador” al cliente de releases;
@@ -853,14 +855,16 @@ pertenecen a `docs/third-party/`.
 
 ### Cross-platform
 
-- `core/platform/` contiene contratos, fakes y servicios Linux aislados; el
-  runtime principal todavía no los conecta como soporte de producto;
+- `core/platform/` contiene contratos, fakes y servicios Linux; el runtime
+  principal ahora entrega sus servicios a Ajustes, usa XDG para autostart y
+  carpetas, y selecciona AppIndicator en GNOME/Wayland antes de iniciar tray;
 - `degraded` significa utilizable con limitaciones, no disponibilidad plena;
 - el backend productivo de hotkeys para Linux sigue sin decidirse;
 - tray, foco, work area y Quick Panel requieren validación X11/Wayland;
 - instancia única Unix todavía necesita una decisión de IPC para activación;
 - macOS no tiene soporte ni CI activo hasta disponer de validación real;
-- no prometer Linux beta sólo por aprobar Phase 1.
+- Linux sigue siendo beta hasta superar smoke real, build nativa y prueba de
+  control LAN en Ubuntu Desktop; no inferir ese estado sólo desde CI o tests.
 
 ### Dependencias y arquitectura
 

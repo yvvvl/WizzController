@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import os
+import sys
 import threading
 import time
 from typing import Any, Callable
@@ -66,6 +67,7 @@ class TrayService:
         self._double_click_seconds = self._system_double_click_seconds()
         self._unsubscribe_i18n = self.i18n.subscribe(lambda language: self.refresh_menu())
         try:
+            self._configure_linux_backend()
             import pystray  # type: ignore
             from PIL import Image, ImageDraw  # type: ignore
 
@@ -76,6 +78,24 @@ class TrayService:
         except Exception as exc:
             self.available = False
             self.last_error = f"pystray/Pillow no disponible: {exc}"
+
+    @staticmethod
+    def _configure_linux_backend() -> None:
+        """Prefer the desktop-status-item backend on GNOME/Wayland.
+
+        Ubuntu GNOME exposes AppIndicator items through its indicator
+        extension.  The generic Xorg backend can create an inert icon there,
+        so select AppIndicator before pystray is imported.  An explicit user
+        choice always wins and non-Linux platforms are untouched.
+        """
+        if not sys.platform.startswith("linux"):
+            return
+        if str(os.environ.get("PYSTRAY_BACKEND") or "").strip():
+            return
+        session = str(os.environ.get("XDG_SESSION_TYPE") or "").strip().lower()
+        desktop = str(os.environ.get("XDG_CURRENT_DESKTOP") or "").casefold()
+        if session == "wayland" or "gnome" in desktop or "ubuntu" in desktop:
+            os.environ["PYSTRAY_BACKEND"] = "appindicator"
 
     def _t(self, key: str, **values) -> str:
         return self.i18n.translate(key, **values)

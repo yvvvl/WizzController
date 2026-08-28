@@ -27,6 +27,9 @@ org = "io.github.yvvvl"
 [tool.flet.windows]
 artifact = "WizZDesktop"
 
+[tool.flet.linux]
+artifact = "WizZDesktop"
+
 [tool.flet.app]
 path = "."
 module = "main"

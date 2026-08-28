@@ -3,19 +3,20 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shlex
 import subprocess
 import sys
 import threading
 from pathlib import Path
 from typing import Any, Iterable
 
-from app_meta import APP_REGISTRY_NAME
+from app_meta import APP_PRODUCT, APP_REGISTRY_NAME
 from config.paths import config_dir, project_root
 from localization import LocalizationManager
 
 
 class AppRuntimeManager:
-    """Configuración de arranque, bandeja e inicio con Windows.
+    """Configuración de arranque, bandeja e inicio de sesión del escritorio.
 
     En desarrollo guarda en ``config/json``. En un build Flet usa el storage
     persistente de la aplicación y resuelve el launcher real para el registro
@@ -97,31 +98,41 @@ class AppRuntimeManager:
             self._save_dict(self.data)
 
     # ------------------------------------------------------------------ #
-    # Windows Startup
+    # Desktop startup
     # ------------------------------------------------------------------ #
     def _startup_command(self) -> str:
         packaged = resolve_packaged_executable()
         if packaged is not None:
-            return subprocess.list2cmdline([str(packaged)])
+            if os.name == "nt":
+                return subprocess.list2cmdline([str(packaged)])
+            return shlex.join([str(packaged)])
 
         main_py = project_root() / "main.py"
         py = Path(sys.executable)
         pythonw = py.with_name("pythonw.exe") if os.name == "nt" else py
         executable = pythonw if pythonw.exists() else py
-        return subprocess.list2cmdline([str(executable), str(main_py)])
+        if os.name == "nt":
+            return subprocess.list2cmdline([str(executable), str(main_py)])
+        return shlex.join([str(executable), str(main_py)])
 
     def _sync_startup_registration(self) -> None:
         """Mantiene coherente el JSON y el valor ``Run`` de Windows.
 
         Si el usuario ya activó el arranque automático y mueve/actualiza la
-        build, se reescribe la ruta con el launcher actual. En otros sistemas
-        la preferencia se normaliza a ``False``.
+        build, se reescribe la ruta con el launcher actual. En Linux se
+        mantiene una entrada XDG por usuario; otras plataformas no se fuerzan.
         """
 
+        if sys.platform.startswith("linux"):
+            if not bool(self.data.get("startup_with_windows")):
+                return
+            try:
+                self._linux_autostart_service().set_enabled(True)
+            except Exception as exc:
+                logging.warning("[Startup] No se pudo sincronizar inicio Linux: %s", exc)
+            return
+
         if os.name != "nt":
-            if self.data.get("startup_with_windows"):
-                self.data["startup_with_windows"] = False
-                self._save_dict(self.data)
             return
 
         if not bool(self.data.get("startup_with_windows")):
@@ -137,6 +148,24 @@ class AppRuntimeManager:
             logging.warning("[Startup] No se pudo sincronizar inicio con Windows: %s", exc)
 
     def set_startup_with_windows(self, enabled: bool) -> tuple[bool, str]:
+        """Persist legacy key while applying the native platform mechanism.
+
+        The persisted key keeps backwards compatibility with v1.1 settings.
+        Its user-facing meaning is now "start at login" on supported desktops.
+        """
+        if sys.platform.startswith("linux"):
+            try:
+                ok = self._linux_autostart_service().set_enabled(enabled)
+            except Exception as exc:
+                return False, self._t("runtime.startup.update_error", error=exc)
+            if not ok:
+                return False, self._t("runtime.startup.linux_unavailable")
+            with self._lock:
+                self.data["startup_with_windows"] = bool(enabled)
+                self._save_dict(self.data)
+            key = "runtime.startup.updated" if enabled else "runtime.startup.disabled"
+            return True, self._t(key)
+
         if os.name != "nt":
             with self._lock:
                 self.data["startup_with_windows"] = False
@@ -156,6 +185,15 @@ class AppRuntimeManager:
             self._save_dict(self.data)
         key = "runtime.startup.updated" if enabled else "runtime.startup.disabled"
         return True, self._t(key)
+
+    def _linux_autostart_service(self):
+        """Create the XDG adapter lazily so Windows stays independent of it."""
+        from core.platform.linux import LinuxAutostartService
+
+        return LinuxAutostartService(
+            desktop_entry=self._startup_command(),
+            application_name=APP_PRODUCT,
+        )
 
 
 def _registry_key_path() -> str:

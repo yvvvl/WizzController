@@ -24,11 +24,18 @@ class WizzApp(ft.Container):
     vida de ventana/tray.
     """
 
-    def __init__(self, page: ft.Page, wiz_controller, hotkeys_manager=None):
+    def __init__(
+        self,
+        page: ft.Page,
+        wiz_controller,
+        hotkeys_manager=None,
+        platform_services=None,
+    ):
         super().__init__()
         self.page_ref = page
         self.wiz = wiz_controller
         self.hotkeys_manager = hotkeys_manager
+        self.platform_services = platform_services
         self.runtime = AppRuntimeManager()
         self.i18n = get_manager()
         self.language_preference = RuntimeLanguagePreference(self.runtime)
@@ -52,6 +59,7 @@ class WizzApp(ft.Container):
                 i18n=self.i18n,
                 on_language_change=self.set_language_preference,
                 runtime=self.runtime,
+                platform_services=self.platform_services,
             ),
             HotkeysPanel(self.wiz, manager=self.hotkeys_manager, i18n=self.i18n),
         ]

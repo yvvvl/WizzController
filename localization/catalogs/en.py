@@ -187,6 +187,7 @@ CATALOG: dict[str, str] = {
     "runtime.close_to_tray": "Close to tray",
     "runtime.open_minimized": "Open minimized",
     "runtime.start_with_windows": "Start with Windows",
+    "runtime.start_at_login": "Start at login",
     "runtime.saved": "Background settings saved.",
 
     # About
@@ -222,6 +223,7 @@ CATALOG: dict[str, str] = {
     'runtime.close_to_tray.description': 'The X hides the window instead of exiting.',
     'runtime.open_minimized.description': 'Start hidden when the tray is enabled.',
     'runtime.start_with_windows.description': 'Add or remove automatic startup.',
+    'runtime.start_at_login.description': 'Add or remove automatic startup for this user.',
     'runtime.restart_hint': 'Tray changes work best after restarting the app. Development mode does not force window restoration.',
     'about.storage_hint': 'In the packaged app, settings and logs live in persistent application storage and survive updates.',
     'common.information': 'Information',
@@ -290,6 +292,7 @@ CATALOG.update({
     "bulbs.offline_detail": "○ no response",
     "bulbs.ip_example": "192.168.1.20",
     "runtime.startup.windows_only": "Start with Windows is only available on Windows.",
+    "runtime.startup.linux_unavailable": "Automatic startup is unavailable on this Linux desktop.",
     "runtime.startup.update_error": "Could not update Start with Windows: {error}",
     "runtime.startup.updated": "Start with Windows updated.",
     "runtime.startup.disabled": "Start with Windows disabled.",

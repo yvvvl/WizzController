@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import sys
+import subprocess
 import threading
 from urllib.parse import urlparse
 
@@ -28,7 +30,16 @@ class SettingsPanel(ft.Column):
     # estado luminoso permanezca igual. WizzApp usa esta marca para no
     # descartar el callback final de una búsqueda.
     refresh_on_equal_state = True
-    def __init__(self, wiz, *, i18n=None, on_language_change=None, runtime=None, release_client=None):
+    def __init__(
+        self,
+        wiz,
+        *,
+        i18n=None,
+        on_language_change=None,
+        runtime=None,
+        release_client=None,
+        platform_services=None,
+    ):
         super().__init__(scroll=ft.ScrollMode.AUTO, spacing=18, expand=True)
         self.wiz = wiz
         self.i18n = i18n or get_manager()
@@ -36,6 +47,7 @@ class SettingsPanel(ft.Column):
         self.runtime = runtime or AppRuntimeManager(i18n=self.i18n)
         self.runtime.i18n = self.i18n
         self.release_client = release_client or ReleaseClient()
+        self.platform_services = platform_services
         self._update_check_in_progress = False
         self._available_release: ReleaseInfo | None = None
         self.language_preference = RuntimeLanguagePreference(self.runtime)
@@ -256,7 +268,11 @@ class SettingsPanel(ft.Column):
                 self._runtime_option(self._t("runtime.tray_enabled"), self._t("runtime.tray_enabled.description"), self.tray_enabled_switch),
                 self._runtime_option(self._t("runtime.close_to_tray"), self._t("runtime.close_to_tray.description"), self.minimize_to_tray_switch),
                 self._runtime_option(self._t("runtime.open_minimized"), self._t("runtime.open_minimized.description"), self.open_minimized_switch),
-                self._runtime_option(self._t("runtime.start_with_windows"), self._t("runtime.start_with_windows.description"), self.startup_switch),
+                self._runtime_option(
+                    self._t("runtime.start_at_login") if sys.platform.startswith("linux") else self._t("runtime.start_with_windows"),
+                    self._t("runtime.start_at_login.description") if sys.platform.startswith("linux") else self._t("runtime.start_with_windows.description"),
+                    self.startup_switch,
+                ),
             ],
         )
         runtime_card = self._card(
@@ -543,7 +559,13 @@ class SettingsPanel(ft.Column):
             if os.name == "nt":
                 os.startfile(folder)  # type: ignore[attr-defined]
             else:
+                system = getattr(self.platform_services, "system", None)
+                opener = getattr(system, "open_folder", None)
+                opened = bool(opener(folder)) if callable(opener) else False
+                if not opened:
+                    subprocess.Popen(["xdg-open", folder])
                 self.runtime_status.value = folder
+                self.runtime_status.color = Theme.FAINT
                 supdate(self.runtime_status)
         except Exception as exc:
             self.runtime_status.value = self._t("settings.open_folder_error", error=exc)
