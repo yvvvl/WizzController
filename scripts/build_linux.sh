@@ -14,7 +14,8 @@ Usage: ./scripts/build_linux.sh [--clean] [--skip-tests] [--output DIR]
 
 Builds WizZ Desktop for Linux. Run it on Linux or WSL after installing the
 system dependencies required by Flet/Flutter. It produces a tar.gz archive and
-a SHA-256 checksum under dist/release.
+a SHA-256 checksum under dist/release. The archive includes install.sh, which
+installs a launcher for the current user without sudo.
 EOF
 }
 
@@ -120,6 +121,16 @@ if [[ -z "$EXECUTABLE" ]]; then
   exit 1
 fi
 
+# The release bundle is portable but also includes a first-class per-user
+# installer. Keep the launcher icon explicit so the menu entry does not rely
+# on the desktop guessing where Flet stored application assets.
+mkdir -p "$OUTPUT_DIR/assets"
+if [[ ! -f "$OUTPUT_DIR/assets/icon.png" ]]; then
+  cp "$ROOT/assets/icon.png" "$OUTPUT_DIR/assets/icon.png"
+fi
+install -m 755 "$ROOT/scripts/linux_install.sh" "$OUTPUT_DIR/install.sh"
+install -m 755 "$ROOT/scripts/linux_uninstall.sh" "$OUTPUT_DIR/uninstall.sh"
+
 COMMIT="$(git rev-parse --short=12 HEAD 2>/dev/null || echo no-git)"
 DIRTY=false
 if ! git diff --quiet 2>/dev/null; then
@@ -136,7 +147,8 @@ cat > "$OUTPUT_DIR/BUILD_INFO.json" <<EOF
   "python": "$PYTHON_VERSION",
   "flet": "$FLET_VERSION",
   "commit": "$COMMIT",
-  "dirty": $DIRTY
+  "dirty": $DIRTY,
+  "installer": "install.sh"
 }
 EOF
 

@@ -11,6 +11,8 @@
   necesitar hardware múltiple.
 - Beta Linux para Ubuntu Desktop: paquete nativo, persistencia XDG,
   AppIndicator, apertura de Datos/Logs y arranque automático por usuario.
+- Instalador Linux sin `sudo`, con lanzador en el menú de aplicaciones y
+  desinstalación que conserva los datos personales.
 
 ### Changed
 

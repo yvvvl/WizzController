@@ -126,9 +126,18 @@ La descarga incluye un archivo `.sha256` para comprobar la integridad del paquet
 ### Linux beta — Ubuntu Desktop
 
 La beta Linux se distribuye como `WizZDesktop-v1.2.0-linux-x64.tar.gz` con su
-archivo `.sha256`. Extrae el archivo y ejecuta `WizZDesktop` desde la carpeta
-extraída. La plataforma validada es Ubuntu Desktop con GNOME; en Wayland, la
-posición de ventana la decide el compositor.
+archivo `.sha256`. Extrae el archivo, abre una terminal dentro de la carpeta
+extraída y ejecuta `./install.sh`. No requiere `sudo`: instala la app para tu
+usuario, crea el acceso **WizZ Desktop** en Aplicaciones y conserva tus datos
+al actualizar. Luego puedes abrirla desde Actividades y anclarla al dock.
+
+Para retirar la aplicación instalada, ejecuta
+`~/.local/share/WizZDesktop/uninstall.sh`. Esto elimina la app y su lanzador,
+pero conserva tus configuraciones, ampolletas, favoritos y logs.
+
+También puedes ejecutar `./WizZDesktop` directamente desde la carpeta
+extraída si prefieres usarla en modo portable. La plataforma validada es Ubuntu
+Desktop con GNOME; en Wayland, la posición de ventana la decide el compositor.
 
 La bandeja requiere un escritorio compatible con AppIndicator. Si no está
 disponible, la aplicación sigue siendo usable como ventana normal. Los hotkeys
@@ -269,6 +278,8 @@ Las salidas son:
 ```text
 dist/linux/WizZDesktop
 dist/linux/BUILD_INFO.json
+dist/linux/install.sh
+dist/linux/uninstall.sh
 dist/release/WizZDesktop-v1.2.0-linux-x64.tar.gz
 dist/release/WizZDesktop-v1.2.0-linux-x64.tar.gz.sha256
 ```
