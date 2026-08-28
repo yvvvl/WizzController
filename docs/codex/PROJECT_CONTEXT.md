@@ -7,7 +7,9 @@
 `v1.2.0` fue publicado desde `90f05d0` y fusionado en `main` mediante PR #8 en
 `7eda835`. Windows es el canal estable y Linux x64 continúa etiquetado como
 beta. La próxima fase pública es el refactor UI v1.3 descrito en
-`docs/codex/plans/2026-08-28-v1.3-ui-refactor-and-branch-cleanup.md`.
+`docs/codex/plans/2026-08-28-v1.3-ui-refactor-and-branch-cleanup.md`, con su
+proceso visual y de implementación detallado en
+`docs/codex/plans/2026-08-28-v1.3-ui-design-execution-plan.md`.
 
 La rama ya incorpora targeting transitorio `single`/`selected`/`all`, consulta
 read-only de GitHub Releases, persistencia empaquetada fuera del directorio de
