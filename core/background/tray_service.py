@@ -279,7 +279,9 @@ class TrayService:
                 item(
                     self._t("tray.show_app"),
                     lambda icon, it: self.show_window(),
-                    default=os.name != "nt",
+                    # The public desktop build has one clear tray action:
+                    # restore the full application on every supported OS.
+                    default=True,
                 )
             )
 
@@ -493,23 +495,15 @@ class TrayService:
             return 0.5
 
     def _handle_tray_primary_click(self) -> bool:
-        """Resuelve click simple del panel y doble click de la app completa."""
+        """Handle the tray primary click.
+
+        The active desktop composition has no Quick Panel.  A click must
+        therefore restore the normal application immediately instead of
+        waiting for a double-click gesture.
+        """
 
         if not callable(self.on_open_quick):
-            if os.name != "nt":
-                return self.toggle_window()
-
-            now = time.monotonic()
-            should_toggle = False
-            with self._tray_click_lock:
-                elapsed = now - self._last_tray_click
-                if 0.0 < elapsed <= self._double_click_seconds:
-                    self._last_tray_click = 0.0
-                    should_toggle = True
-                else:
-                    self._last_tray_click = now
-
-            return self.toggle_window() if should_toggle else False
+            return self.show_window()
 
         if os.name != "nt":
             return self._open_quick_from_tray()
@@ -669,14 +663,6 @@ class TrayService:
         del event loop de Flet ni llama ``Window.to_front()`` desde un thread de
         pystray. Después se sincroniza el modelo de Flet de forma oportunista.
         """
-
-        # The Quick Panel reuses the main native window. A tray activation
-        # must leave compact mode before restoring/focusing it.
-        quick_controller = getattr(self.page, "_wizz_quick_panel", None)
-        if getattr(quick_controller, "window_mode", "full") in {"quick", "hidden"}:
-            open_full = getattr(quick_controller, "open_full", None)
-            if callable(open_full):
-                return bool(open_full())
 
         now = time.monotonic()
         if now - self._last_show_request < 0.12:

@@ -9,7 +9,7 @@ from core.background import tray_service as tray_module
 from core.background.tray_service import TrayService
 from core.quick_panel_controller import QuickPanelController
 from localization import LocalizationManager
-from main import _update_runtime_views
+from main import _update_runtime_view
 from ui.components.quick_color_studio_adapter import ColorStudioQuickAdapter
 from ui.quick_panel_view import QuickPanelView
 from ui.theme import Theme
@@ -290,15 +290,13 @@ class _StateConsumer:
         self.states.append(dict(state))
 
 
-def test_runtime_state_updates_full_and_quick_views() -> None:
+def test_runtime_state_updates_main_view() -> None:
     full = _StateConsumer()
-    quick = _StateConsumer()
     state = {"state": True, "dimming": 72}
 
-    _update_runtime_views(full, quick, state)
+    _update_runtime_view(full, state)
 
     assert full.states == [state]
-    assert quick.states == [state]
 
 
 def test_controller_selects_one_device_and_refreshes_snapshot() -> None:

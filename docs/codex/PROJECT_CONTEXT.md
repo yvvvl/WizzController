@@ -64,9 +64,10 @@ implemente su propio protocolo, discovery o controlador.
 - **Versión estable:** `v1.1.0`, publicada desde `main` y marcada por el tag
   `v1.1.0`.
 - **Desarrollo principal declarado:** release pública Windows `v1.2.0`.
-- **Estado de Quick Panel:** foundation y UI compacta implementadas; el
-  comportamiento actual se estabiliza para la release, mientras el rediseño
-  como ventana temporal independiente permanece aprobado pero diferido.
+- **Estado de Quick Panel:** retirado de la composición activa de v1.2.0 tras
+  fallos reales de geometría y foco. La bandeja restaura únicamente la ventana
+  principal. Su código experimental queda fuera del flujo público hasta que
+  exista una implementación independiente y validada.
 - **Targeting:** selección transitoria de una, varias o todas las luces
   implementada y cubierta por tests; no requiere grupos persistentes.
 - **Fixture DEV de múltiples luces:** `WIZZ_DEV_VIRTUAL_BULBS=<1..12>` permite
