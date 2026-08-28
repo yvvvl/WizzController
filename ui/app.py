@@ -113,8 +113,9 @@ class WizzApp(ft.Container):
                     label=self._t("nav.routines"),
                 ),
                 ft.NavigationRailDestination(icon=ft.Icons.SETTINGS_OUTLINED, selected_icon=ft.Icons.SETTINGS_ROUNDED, label=self._t("nav.settings")),
-                self._hotkeys_destination(),
+                *([self._hotkeys_destination()] if self.hotkeys_available else []),
             ],
+            trailing=self._disabled_hotkeys_indicator() if not self.hotkeys_available else None,
             on_change=self._on_nav,
         )
 
@@ -141,26 +142,33 @@ class WizzApp(ft.Container):
         return self.i18n.translate(key, **values)
 
     def _hotkeys_destination(self):
-        unavailable = not self.hotkeys_available
-        reason = self._t("hotkeys.linux_disabled_tooltip")
-        destination = ft.NavigationRailDestination(
-            icon=(
-                ft.Icon(ft.Icons.KEYBOARD_OUTLINED, color=Theme.MUTED, tooltip=reason)
-                if unavailable
-                else ft.Icons.KEYBOARD_OUTLINED
-            ),
-            selected_icon=(
-                ft.Icon(ft.Icons.KEYBOARD_ROUNDED, color=Theme.MUTED, tooltip=reason)
-                if unavailable
-                else ft.Icons.KEYBOARD_ROUNDED
-            ),
-            label=(
-                ft.Text(self._t("nav.hotkeys"), color=Theme.MUTED)
-                if unavailable
-                else self._t("nav.hotkeys")
+        return ft.NavigationRailDestination(
+            icon=ft.Icons.KEYBOARD_OUTLINED,
+            selected_icon=ft.Icons.KEYBOARD_ROUNDED,
+            label=self._t("nav.hotkeys"),
+        )
+
+    def _disabled_hotkeys_indicator(self):
+        """A non-interactive, explanatory Linux beta capability indicator."""
+        self.hotkeys_trailing_label = ft.Text(
+            self._t("nav.hotkeys"), color=Theme.MUTED, size=11, text_align=ft.TextAlign.CENTER
+        )
+        self.hotkeys_trailing_status = ft.Text(
+            self._t("hotkeys.linux_disabled_short"), color=Theme.FAINT, size=9, text_align=ft.TextAlign.CENTER
+        )
+        return ft.Container(
+            tooltip=self._t("hotkeys.linux_disabled_tooltip"),
+            padding=ft.Padding.only(top=10, bottom=14),
+            content=ft.Column(
+                [
+                    ft.Icon(ft.Icons.KEYBOARD_OUTLINED, color=Theme.MUTED, size=22),
+                    self.hotkeys_trailing_label,
+                    self.hotkeys_trailing_status,
+                ],
+                spacing=2,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             ),
         )
-        return destination
 
     def set_language_preference(self, preference: str) -> str:
         normalized = self.language_preference.save(preference)
@@ -171,12 +179,12 @@ class WizzApp(ft.Container):
 
     def _on_language_changed(self, language: str) -> None:
         labels = translated_navigation(self.i18n)
-        for index, (destination, label) in enumerate(zip(self.rail.destinations, labels)):
-            destination.label = (
-                ft.Text(label, color=Theme.MUTED)
-                if index == 6 and not self.hotkeys_available
-                else label
-            )
+        visible_labels = labels if self.hotkeys_available else labels[:-1]
+        for destination, label in zip(self.rail.destinations, visible_labels):
+            destination.label = label
+        if not self.hotkeys_available:
+            self.hotkeys_trailing_label.value = self._t("nav.hotkeys")
+            self.hotkeys_trailing_status.value = self._t("hotkeys.linux_disabled_short")
 
         try:
             self.page_ref.title = self._t("app.name")

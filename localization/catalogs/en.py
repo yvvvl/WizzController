@@ -519,6 +519,7 @@ CATALOG.update({
     "hotkeys.linux_disabled_title": "Hotkeys are unavailable in Linux beta",
     "hotkeys.linux_disabled_body": "Wayland protects global keyboard input. WizZ does not run with sudo or capture system input. The editor will return when a safe desktop-portal integration is available.",
     "hotkeys.linux_disabled_tooltip": "Hotkeys are disabled: Linux beta does not yet have a safe global-shortcut backend.",
+    "hotkeys.linux_disabled_short": "Unavailable",
     "hotkeys.validation.empty": "The shortcut is empty.",
     "hotkeys.validation.reserved": "{combo} is reserved by the system or too dangerous.",
     "hotkeys.validation.main_key": "A main key is required in addition to ctrl/alt/shift/win.",

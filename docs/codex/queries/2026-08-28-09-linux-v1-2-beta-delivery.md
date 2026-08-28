@@ -46,8 +46,10 @@ explicitly beta; macOS stays deferred.
   future XDG GlobalShortcuts portal backend is required.
 - The tray menu also omits hotkey re-registration on Linux while that feature
   is unavailable, so it cannot imply that a root-only workaround exists.
-- The disabled Hotkeys rail item uses a muted icon and exposes the reason in a
-  hover tooltip; selecting it is blocked rather than opening an unusable editor.
+- The disabled Hotkeys status uses a muted, non-interactive rail indicator and
+  exposes the reason in a hover tooltip; it is deliberately not a navigation
+  destination, so clicking it cannot cause selection flicker or open an
+  unusable editor.
 - The existing file-lock single-instance exclusion is retained for beta. It
   prevents duplicate controllers even where foreground activation is not yet
   portable.
