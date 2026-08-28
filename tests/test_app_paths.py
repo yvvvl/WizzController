@@ -21,21 +21,26 @@ def test_config_dir_override_is_exact(monkeypatch, tmp_path):
     assert target.is_dir()
 
 
-def test_flet_storage_migrates_legacy_json_once(monkeypatch, tmp_path):
+def test_linux_packaged_build_uses_xdg_and_migrates_flet_storage(monkeypatch, tmp_path):
     storage = tmp_path / "app-data"
-    legacy = tmp_path / "legacy"
-    legacy.mkdir()
+    legacy = storage / "config"
+    legacy.mkdir(parents=True)
     (legacy / "hotkeys.json").write_text(json.dumps({"enabled": True}), encoding="utf-8")
     (legacy / "hotkeys.example.json").write_text("{}", encoding="utf-8")
+    xdg_config = tmp_path / "xdg-config"
+    xdg_state = tmp_path / "xdg-state"
 
     monkeypatch.delenv("WIZZ_CONFIG_DIR", raising=False)
     monkeypatch.setenv("FLET_APP_STORAGE_DATA", str(storage))
-    monkeypatch.setenv("WIZZ_LEGACY_CONFIG_DIR", str(legacy))
+    monkeypatch.delenv("WIZZ_LEGACY_CONFIG_DIR", raising=False)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_config))
+    monkeypatch.setenv("XDG_STATE_HOME", str(xdg_state))
+    monkeypatch.setattr(paths.sys, "frozen", True, raising=False)
     monkeypatch.setattr(paths.sys, "platform", "linux")
     _reset_paths()
 
     target = paths.config_dir()
-    assert target == (storage / "config").resolve()
+    assert target == (xdg_config / paths.APP_ARTIFACT / "config").resolve()
     assert json.loads((target / "hotkeys.json").read_text(encoding="utf-8")) == {"enabled": True}
     assert not (target / "hotkeys.example.json").exists()
 
@@ -44,6 +49,7 @@ def test_flet_storage_migrates_legacy_json_once(monkeypatch, tmp_path):
     _reset_paths()
     assert paths.config_dir() == target
     assert json.loads((target / "hotkeys.json").read_text(encoding="utf-8")) == {"enabled": False}
+    assert paths.logs_dir() == (xdg_state / paths.APP_ARTIFACT / "logs").resolve()
 
 
 def test_windows_frozen_build_uses_local_appdata(monkeypatch, tmp_path):

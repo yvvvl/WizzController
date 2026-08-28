@@ -29,6 +29,11 @@ explicitly beta; macOS stays deferred.
   icon can report as started while remaining invisible.
 - Settings uses the platform system service to open data and log folders; the
   Linux fallback is `xdg-open`.
+- Packaged Linux builds store configuration in the XDG configuration directory
+  (`~/.config/WizZDesktop` by default) and logs in the XDG state directory
+  (`~/.local/state/WizZDesktop` by default). `XDG_CONFIG_HOME` and
+  `XDG_STATE_HOME` are honored, while older Flet storage remains a migration
+  source. This avoids desktop-environment-specific paths.
 - The existing persisted `startup_with_windows` key is retained for v1.1 data
   compatibility, but on Linux it means start at login and creates/removes the
   user's XDG autostart entry.
@@ -41,6 +46,8 @@ explicitly beta; macOS stays deferred.
   future XDG GlobalShortcuts portal backend is required.
 - The tray menu also omits hotkey re-registration on Linux while that feature
   is unavailable, so it cannot imply that a root-only workaround exists.
+- The disabled Hotkeys rail item uses a muted icon and exposes the reason in a
+  hover tooltip; selecting it is blocked rather than opening an unusable editor.
 - The existing file-lock single-instance exclusion is retained for beta. It
   prevents duplicate controllers even where foreground activation is not yet
   portable.

@@ -141,15 +141,25 @@ class WizzApp(ft.Container):
         return self.i18n.translate(key, **values)
 
     def _hotkeys_destination(self):
+        unavailable = not self.hotkeys_available
+        reason = self._t("hotkeys.linux_disabled_tooltip")
         destination = ft.NavigationRailDestination(
-            icon=ft.Icons.KEYBOARD_OUTLINED,
-            selected_icon=ft.Icons.KEYBOARD_ROUNDED,
-            label=self._t("nav.hotkeys"),
+            icon=(
+                ft.Icon(ft.Icons.KEYBOARD_OUTLINED, color=Theme.MUTED, tooltip=reason)
+                if unavailable
+                else ft.Icons.KEYBOARD_OUTLINED
+            ),
+            selected_icon=(
+                ft.Icon(ft.Icons.KEYBOARD_ROUNDED, color=Theme.MUTED, tooltip=reason)
+                if unavailable
+                else ft.Icons.KEYBOARD_ROUNDED
+            ),
+            label=(
+                ft.Text(self._t("nav.hotkeys"), color=Theme.MUTED)
+                if unavailable
+                else self._t("nav.hotkeys")
+            ),
         )
-        # Flet renders disabled rail destinations in the platform's muted
-        # color and prevents opening the editor on Linux beta sessions.
-        if not self.hotkeys_available:
-            destination.disabled = True
         return destination
 
     def set_language_preference(self, preference: str) -> str:
@@ -161,8 +171,12 @@ class WizzApp(ft.Container):
 
     def _on_language_changed(self, language: str) -> None:
         labels = translated_navigation(self.i18n)
-        for destination, label in zip(self.rail.destinations, labels):
-            destination.label = label
+        for index, (destination, label) in enumerate(zip(self.rail.destinations, labels)):
+            destination.label = (
+                ft.Text(label, color=Theme.MUTED)
+                if index == 6 and not self.hotkeys_available
+                else label
+            )
 
         try:
             self.page_ref.title = self._t("app.name")
@@ -266,7 +280,12 @@ class WizzApp(ft.Container):
                 pass
 
     def _on_nav(self, e):
-        self.navigate_to(int(e.control.selected_index or 0))
+        index = int(e.control.selected_index or 0)
+        if index == 6 and not self.hotkeys_available:
+            e.control.selected_index = self.selected_index
+            supdate(e.control)
+            return
+        self.navigate_to(index)
 
     def navigate_to(self, idx: int) -> None:
         """Cambia de panel conservando el viewport y el estado sincronizado.
@@ -278,6 +297,8 @@ class WizzApp(ft.Container):
         """
 
         idx = max(0, min(len(self.panels) - 1, int(idx)))
+        if idx == 6 and not self.hotkeys_available:
+            return
         self.rail.selected_index = idx
         self.selected_index = idx
         self.content_area.content = self.panels[idx]
