@@ -75,7 +75,8 @@ implemente su propio protocolo, discovery o controlador.
   y controles sin hardware múltiple. El repaint continuo de escenas dinámicas
   en Flet 0.85.2 es irregular; no debe usarse como evidencia de fades reales.
 - **Actualizaciones:** selección de canal y cliente GitHub read-only
-  implementados; todavía no existe descarga, instalación, reinicio ni
+  implementados, con comprobación manual visible en Ajustes y enlace validado
+  a la release oficial. Todavía no existe descarga, instalación, reinicio ni
   rollback automático.
 - **Persistencia empaquetada:** validada mediante el storage por usuario que
   Flet expone en runtime; los datos sobreviven al reemplazo del build.

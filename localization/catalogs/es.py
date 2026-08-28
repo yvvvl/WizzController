@@ -3,6 +3,16 @@ from __future__ import annotations
 CATALOG: dict[str, str] = {
     # Aplicación / navegación
     "app.name": "WizZ Desktop",
+    "updates.title": "ACTUALIZACIONES",
+    "updates.idle": "Ejecutando {version}. Revisa manualmente; WizZ nunca instala actualizaciones automáticamente.",
+    "updates.check": "Buscar actualización",
+    "updates.checking": "Consultando la página oficial de lanzamientos…",
+    "updates.available": "La versión {version} está disponible.",
+    "updates.current": "Ya tienes la versión actual ({version}).",
+    "updates.no_release": "Aún no hay una versión estable disponible.",
+    "updates.unavailable": "El servicio de actualizaciones no está disponible. Inténtalo más tarde.",
+    "updates.open_release": "Abrir lanzamiento",
+    "updates.open_failed": "No se pudo abrir la página oficial del lanzamiento.",
     "dev.virtual.title": "DEV · AMPOLLETAS VIRTUALES",
     "dev.virtual.no_network": "Sin tráfico WiZ de red",
     "dev.virtual.hint": "Usa esta vista para verificar selección, color y brillo sin hardware. Toca una ampolleta para seleccionarla sola.",

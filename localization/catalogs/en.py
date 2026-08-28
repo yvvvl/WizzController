@@ -3,6 +3,16 @@ from __future__ import annotations
 CATALOG: dict[str, str] = {
     # Application / navigation
     "app.name": "WizZ Desktop",
+    "updates.title": "UPDATES",
+    "updates.idle": "Running {version}. Check manually; WizZ never installs updates automatically.",
+    "updates.check": "Check for updates",
+    "updates.checking": "Checking the official release page…",
+    "updates.available": "Version {version} is available.",
+    "updates.current": "You are up to date ({version}).",
+    "updates.no_release": "No stable release is available yet.",
+    "updates.unavailable": "The update service is unavailable. Try again later.",
+    "updates.open_release": "Open release",
+    "updates.open_failed": "Could not open the official release page.",
     "dev.virtual.title": "DEV · VIRTUAL BULBS",
     "dev.virtual.no_network": "No WiZ network traffic",
     "dev.virtual.hint": "Use this preview to verify targeting, color and brightness without hardware. Select a bulb here to target it alone.",
