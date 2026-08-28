@@ -72,6 +72,7 @@ def test_stale_instance_is_replaced_after_window_timeout(monkeypatch):
 
     monkeypatch.setattr(app_main, "_INSTANCE_GUARD", guard)
     monkeypatch.setattr(app_main.os, "name", "nt")
+    monkeypatch.setattr(app_main.sys, "platform", "win32")
     monkeypatch.setattr(app_main.time, "monotonic", lambda: next(ticks))
     monkeypatch.setattr(app_main.time, "sleep", lambda _seconds: None)
     monkeypatch.setattr(

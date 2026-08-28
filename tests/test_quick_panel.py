@@ -1094,6 +1094,7 @@ def test_windows_single_click_waits_then_opens_quick_panel(monkeypatch) -> None:
     _Timer.instances.clear()
 
     monkeypatch.setattr(tray_module.os, "name", "nt")
+    monkeypatch.setattr(tray_module.sys, "platform", "win32")
     monkeypatch.setattr(tray_module.threading, "Timer", _Timer)
 
     assert tray._handle_tray_primary_click() is False
@@ -1118,6 +1119,7 @@ def test_windows_double_click_cancels_quick_panel_and_opens_full_app(
     ticks = iter((10.0, 10.2))
 
     monkeypatch.setattr(tray_module.os, "name", "nt")
+    monkeypatch.setattr(tray_module.sys, "platform", "win32")
     monkeypatch.setattr(tray_module.threading, "Timer", _Timer)
     monkeypatch.setattr(tray_module.time, "monotonic", lambda: next(ticks))
 
@@ -1134,6 +1136,7 @@ def test_non_windows_primary_click_toggles_quick_panel(monkeypatch) -> None:
     tray = _quick_tray(calls)
 
     monkeypatch.setattr(tray_module.os, "name", "posix")
+    monkeypatch.setattr(tray_module.sys, "platform", "linux")
 
     assert tray._handle_tray_primary_click() is True
     assert calls == ["quick"]

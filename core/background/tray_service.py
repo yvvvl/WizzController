@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import os
+import sys
 import threading
 import time
 from typing import Any, Callable
@@ -66,6 +67,7 @@ class TrayService:
         self._double_click_seconds = self._system_double_click_seconds()
         self._unsubscribe_i18n = self.i18n.subscribe(lambda language: self.refresh_menu())
         try:
+            self._configure_linux_backend()
             import pystray  # type: ignore
             from PIL import Image, ImageDraw  # type: ignore
 
@@ -76,6 +78,24 @@ class TrayService:
         except Exception as exc:
             self.available = False
             self.last_error = f"pystray/Pillow no disponible: {exc}"
+
+    @staticmethod
+    def _configure_linux_backend() -> None:
+        """Prefer the desktop-status-item backend on GNOME/Wayland.
+
+        Ubuntu GNOME exposes AppIndicator items through its indicator
+        extension.  The generic Xorg backend can create an inert icon there,
+        so select AppIndicator before pystray is imported.  An explicit user
+        choice always wins and non-Linux platforms are untouched.
+        """
+        if not sys.platform.startswith("linux"):
+            return
+        if str(os.environ.get("PYSTRAY_BACKEND") or "").strip():
+            return
+        session = str(os.environ.get("XDG_SESSION_TYPE") or "").strip().lower()
+        desktop = str(os.environ.get("XDG_CURRENT_DESKTOP") or "").casefold()
+        if session == "wayland" or "gnome" in desktop or "ubuntu" in desktop:
+            os.environ["PYSTRAY_BACKEND"] = "appindicator"
 
     def _t(self, key: str, **values) -> str:
         return self.i18n.translate(key, **values)
@@ -169,11 +189,7 @@ class TrayService:
                 menu=self._build_menu(),
             )
 
-            if hasattr(self.icon, "run_detached"):
-                self.icon.run_detached()
-            else:
-                self._thread = threading.Thread(target=self.icon.run, name="WizZTray", daemon=True)
-                self._thread.start()
+            self._start_icon_loop()
 
             self.started = True
             self.last_error = None
@@ -185,6 +201,25 @@ class TrayService:
             self.icon = None
             self._log(self.last_error)
             return False
+
+    def _start_icon_loop(self) -> None:
+        """Start the native tray loop using the correct ownership model.
+
+        ``run_detached()`` only works when the host UI provides the same
+        GObject main loop. Flet does not, so AppIndicator on Linux remains
+        invisible when merely prepared as detached. Run its loop in a dedicated
+        worker thread instead. Windows keeps its existing detached integration.
+        """
+        assert self.icon is not None
+        if sys.platform.startswith("linux") or not hasattr(self.icon, "run_detached"):
+            self._thread = threading.Thread(
+                target=self.icon.run,
+                name="WizZTray",
+                daemon=True,
+            )
+            self._thread.start()
+            return
+        self.icon.run_detached()
 
     def _build_menu(self):
         pystray = self._pystray
@@ -358,7 +393,7 @@ class TrayService:
         pystray = self._pystray
         assert pystray is not None
         item = pystray.MenuItem
-        if self.hotkeys_manager is None:
+        if self.hotkeys_manager is None or not self.hotkeys_manager.available:
             return []
         status = self._t(
             "tray.hotkeys_status",
@@ -388,6 +423,13 @@ class TrayService:
         ImageDraw = self._ImageDraw
         assert Image is not None and ImageDraw is not None
 
+        # AppIndicator reduces status icons aggressively. The branded PNG is
+        # legible on Windows but can become visually empty on Ubuntu GNOME.
+        # Use a compact opaque glyph there; it is intentionally independent
+        # from the window/taskbar artwork.
+        if sys.platform.startswith("linux"):
+            return self._make_linux_indicator_icon(Image, ImageDraw)
+
         for filename in ("tray_icon.png", "icon_windows.png", "icon.png"):
             try:
                 path = assets_dir() / filename
@@ -406,6 +448,16 @@ class TrayService:
         d.ellipse((22, 13, 42, 35), fill=(255, 255, 255, 255))
         d.rounded_rectangle((26, 33, 38, 48), radius=4, fill=(91, 140, 255, 255))
         d.rectangle((22, 47, 42, 51), fill=(167, 139, 250, 255))
+        return img
+
+    @staticmethod
+    def _make_linux_indicator_icon(Image, ImageDraw):
+        """Create a high-contrast status glyph for AppIndicator."""
+        img = Image.new("RGBA", (64, 64), (82, 121, 242, 255))
+        d = ImageDraw.Draw(img)
+        d.ellipse((20, 10, 44, 34), fill=(255, 255, 255, 255))
+        d.rounded_rectangle((25, 31, 39, 48), radius=4, fill=(255, 255, 255, 255))
+        d.rectangle((21, 47, 43, 52), fill=(18, 28, 58, 255))
         return img
 
     def is_running(self) -> bool:

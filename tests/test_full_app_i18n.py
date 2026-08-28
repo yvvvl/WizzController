@@ -67,7 +67,10 @@ def isolated_config(tmp_path, monkeypatch):
     monkeypatch.setattr(app_paths, "_INITIALIZED_DIRS", set())
 
 
-def test_remaining_primary_panels_render_english() -> None:
+def test_remaining_primary_panels_render_english(monkeypatch) -> None:
+    # The editor contract is platform-independent; emulate a supported
+    # desktop backend when this suite runs on Linux CI.
+    monkeypatch.setattr("config.hotkeys_manager.sys.platform", "win32")
     i18n = LocalizationManager(preference="en")
     wiz = FakeWiz()
     hotkeys = HotkeysManager(wiz, auto_apply=False, i18n=i18n)
@@ -84,7 +87,8 @@ def test_remaining_primary_panels_render_english() -> None:
     assert "Toggle power" in hotkeys_text
 
 
-def test_remaining_panels_update_after_language_change() -> None:
+def test_remaining_panels_update_after_language_change(monkeypatch) -> None:
+    monkeypatch.setattr("config.hotkeys_manager.sys.platform", "win32")
     i18n = LocalizationManager(preference="es")
     wiz = FakeWiz()
     hotkeys = HotkeysManager(wiz, auto_apply=False, i18n=i18n)
@@ -162,7 +166,8 @@ def test_tray_status_and_target_are_localized() -> None:
     assert tray._target_label() == "Target: 1 light · 192.168.1.20"
 
 
-def test_standalone_panels_keep_spanish_compatibility() -> None:
+def test_standalone_panels_keep_spanish_compatibility(monkeypatch) -> None:
+    monkeypatch.setattr("config.hotkeys_manager.sys.platform", "win32")
     wiz = FakeWiz()
     hotkeys = HotkeysManager(wiz, auto_apply=False)
 

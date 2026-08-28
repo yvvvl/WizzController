@@ -15,6 +15,8 @@ dependencies = [
   "pystray>=0.19.5",
   "Pillow>=10.0.0",
   "certifi==2026.6.17",
+  "pycairo==1.26.1; sys_platform == 'linux'",
+  "PyGObject==3.48.2; sys_platform == 'linux'",
 ]
 
 [tool.flet]
@@ -25,6 +27,9 @@ build_number = 2
 org = "io.github.yvvvl"
 
 [tool.flet.windows]
+artifact = "WizZDesktop"
+
+[tool.flet.linux]
 artifact = "WizZDesktop"
 
 [tool.flet.app]

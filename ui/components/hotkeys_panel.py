@@ -78,6 +78,9 @@ class HotkeysPanel(ft.Column):
 
     def _build(self):
         self._cards = []
+        if not self.manager.available:
+            self._build_unavailable()
+            return
         self.status_dot = ft.Container(width=9, height=9, border_radius=5, bgcolor=Theme.MUTED)
         self.status_text = ft.Text("", color=Theme.MUTED, size=12, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS)
         self.warning_text = ft.Text("", color=Theme.WARNING, size=12, max_lines=3, overflow=ft.TextOverflow.ELLIPSIS)
@@ -299,6 +302,42 @@ class HotkeysPanel(ft.Column):
 
         self.controls = [self.header, status_card, creator, defaults, assigned]
         self._render()
+
+    def _build_unavailable(self) -> None:
+        """Show an honest, non-interactive capability state on Linux."""
+        reason = self.manager.dependency_message()
+        self.controls = [
+            ft.Container(
+                expand=True,
+                alignment=ft.Alignment.CENTER,
+                content=ft.Container(
+                    width=560,
+                    padding=28,
+                    border_radius=Theme.R_MD,
+                    bgcolor=Theme.CARD,
+                    border=ft.Border.all(1, Theme.STROKE),
+                    shadow=Theme.SHADOW,
+                    content=ft.Column(
+                        [
+                            ft.Container(
+                                width=58,
+                                height=58,
+                                border_radius=18,
+                                bgcolor=ft.Colors.with_opacity(0.14, Theme.MUTED),
+                                alignment=ft.Alignment.CENTER,
+                                content=ft.Icon(ft.Icons.KEYBOARD_OUTLINED, color=Theme.MUTED, size=30),
+                            ),
+                            ft.Text(self._t("hotkeys.linux_disabled_title"), style=Theme.H1),
+                            ft.Text(self._t("hotkeys.linux_disabled_body"), color=Theme.MUTED, size=13),
+                            ft.Container(height=4),
+                            ft.Text(reason, color=Theme.FAINT, size=12),
+                        ],
+                        spacing=12,
+                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    ),
+                ),
+            )
+        ]
 
     # ------------------------------------------------------------------ #
     def _card(self, content):

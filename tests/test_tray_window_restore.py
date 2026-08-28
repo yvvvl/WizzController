@@ -187,6 +187,7 @@ def test_windows_tray_primary_action_restores_main_window_immediately(monkeypatc
     calls: list[bool] = []
 
     monkeypatch.setattr(tray_module.os, "name", "nt")
+    monkeypatch.setattr(tray_module.sys, "platform", "win32")
     monkeypatch.setattr(
         tray,
         "show_window",
@@ -202,6 +203,7 @@ def test_non_windows_tray_primary_action_restores_main_window_immediately(monkey
     calls: list[bool] = []
 
     monkeypatch.setattr(tray_module.os, "name", "posix")
+    monkeypatch.setattr(tray_module.sys, "platform", "linux")
     monkeypatch.setattr(
         tray,
         "show_window",

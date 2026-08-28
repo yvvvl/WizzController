@@ -1,0 +1,87 @@
+# Linux v1.2.0 beta delivery
+
+Status: Validated; publication pending
+
+Date: 2026-08-28
+
+## Objective
+
+Extend the already prepared v1.2.0 Windows candidate with a Linux beta. The
+release remains one product and one WiZ core: Windows is stable; Linux is
+explicitly beta; macOS stays deferred.
+
+## Existing foundation
+
+- The shared WiZ core, Flet UI, persistence model and automated tests already
+  run on Ubuntu Desktop.
+- Linux capability contracts, XDG autostart, `xdg-open`, window callbacks and
+  a pystray adapter exist under `core/platform`.
+- Earlier Ubuntu GNOME/Wayland validation showed that pystray's AppIndicator
+  backend provides a visible, interactive tray menu, while another backend can
+  expose an inert icon.
+
+## Implementation decisions
+
+- The normal tray service selects `PYSTRAY_BACKEND=appindicator` only on Linux
+  GNOME/Ubuntu or Wayland and only when the user did not select another backend.
+- AppIndicator runs its own worker loop on Linux. `run_detached()` is not used
+  there because Flet does not provide the GObject loop it requires; a detached
+  icon can report as started while remaining invisible.
+- Settings uses the platform system service to open data and log folders; the
+  Linux fallback is `xdg-open`.
+- Packaged Linux builds store configuration in the XDG configuration directory
+  (`~/.config/WizZDesktop` by default) and logs in the XDG state directory
+  (`~/.local/state/WizZDesktop` by default). `XDG_CONFIG_HOME` and
+  `XDG_STATE_HOME` are honored, while older Flet storage remains a migration
+  source. This avoids desktop-environment-specific paths.
+- The existing persisted `startup_with_windows` key is retained for v1.1 data
+  compatibility, but on Linux it means start at login and creates/removes the
+  user's XDG autostart entry.
+- Linux does not claim exact window placement under Wayland. This is governed
+  by the compositor, not by the app.
+- Global hotkeys are intentionally disabled for the Linux beta. The legacy
+  `keyboard` backend requires root access to Linux input devices and is not a
+  safe desktop integration. The app neither asks the user to run with `sudo`
+  nor attempts registration; the disabled Hotkeys destination explains that a
+  future XDG GlobalShortcuts portal backend is required.
+- The tray menu also omits hotkey re-registration on Linux while that feature
+  is unavailable, so it cannot imply that a root-only workaround exists.
+- The disabled Hotkeys status uses a muted, non-interactive rail indicator and
+  exposes the reason in a hover tooltip; it is deliberately not a navigation
+  destination, so clicking it cannot cause selection flicker or open an
+  unusable editor.
+- The existing file-lock single-instance exclusion is retained for beta. It
+  prevents duplicate controllers even where foreground activation is not yet
+  portable.
+- The packaged app has its own Python runtime. Therefore Linux tray support
+  explicitly bundles `PyGObject==3.48.2` and `pycairo==1.26.1`; the build
+  checks for the native `gi` extension before it creates a release archive.
+
+## Validation executed
+
+1. Ubuntu Desktop automated suite: `368 passed, 98 warnings`.
+2. i18n audit: `608` `en`/`es` keys and no hardcoded UI strings.
+3. Native Flet Linux build completed and generated the compressed archive plus
+   its SHA-256 sidecar.
+4. The extracted package was launched outside the repository on Ubuntu 22.04
+   GNOME/Wayland.
+5. AppIndicator tray, hide/restore, real exit, XDG persistence and Linux
+   autostart were manually tested.
+6. Discovery and controlled power, brightness, RGB, Kelvin and built-in-scene
+   commands were sent successfully to the authorized WiZ light `192.168.1.5`.
+7. Packaged tray support was repaired by bundling `PyGObject==3.48.2` and
+   `pycairo==1.26.1`; the generated artifact verifies the native `gi` module.
+
+## Remaining publication work
+
+- Copy the measured Linux SHA-256 value into the final release record.
+- Rebuild Windows and Linux from the same approved release commit before
+  creating a public tag or GitHub Release.
+
+## Out of scope
+
+- New WiZ protocol behavior, RGBIC product support, Screen Sync, streaming or
+  scheduler work.
+- A Quick Panel, forced window placement, or a Linux promise for global
+  hotkeys on Wayland. Running WizZ with `sudo` is not a supported workaround.
+- macOS support.

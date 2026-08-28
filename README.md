@@ -4,7 +4,7 @@
 
 # WizZ Desktop
 
-### Control local, rápido y privado para ampolletas WiZ en Windows
+### Control local, rápido y privado para ampolletas WiZ
 
 [![Release](https://img.shields.io/github/v/release/yvvvl/WizzController?label=release)](https://github.com/yvvvl/WizzController/releases/latest)
 [![CI](https://github.com/yvvvl/WizzController/actions/workflows/ci.yml/badge.svg)](https://github.com/yvvvl/WizzController/actions/workflows/ci.yml)
@@ -24,7 +24,9 @@
 
 Las acciones normales se envían por **UDP LAN nativo**, por lo que el control no depende de la nube de WiZ y mantiene una respuesta rápida incluso cuando la conexión a Internet no está disponible.
 
-La aplicación está diseñada para Windows y combina control de iluminación, automatizaciones, hotkeys globales y una interfaz moderna en un único programa portable.
+La aplicación combina control de iluminación, automatizaciones y una interfaz
+moderna en un único programa portable. Windows es la plataforma estable;
+Linux se entrega como beta para Ubuntu Desktop y otros escritorios compatibles.
 
 > Candidato de release actual: **v1.2.0 · build 2**
 
@@ -36,6 +38,8 @@ La aplicación está diseñada para Windows y combina control de iluminación, a
 - Restauración más predecible de la ventana desde la bandeja.
 - Validación real de control WiZ, tray, hotkeys, instancia única y ejecutable
   aislado en Windows.
+- Beta Linux: persistencia XDG, bandeja AppIndicator en GNOME/Wayland,
+  apertura de Datos/Logs y arranque automático por usuario.
 
 > RGBIC, Screen Sync, streaming y actualización automática no están incluidos
 > en esta versión estable.
@@ -103,7 +107,7 @@ La aplicación está diseñada para Windows y combina control de iluminación, a
 
 ## Instalación para usuarios
 
-### Requisitos
+### Windows estable — requisitos
 
 - Windows 10 u 11 de 64 bits.
 - Una ampolleta WiZ conectada a la misma red local que el PC.
@@ -118,6 +122,18 @@ La aplicación está diseñada para Windows y combina control de iluminación, a
 > No ejecutes el programa directamente dentro del ZIP y no separes el `.exe` de las DLL ni de la carpeta `data`.
 
 La descarga incluye un archivo `.sha256` para comprobar la integridad del paquete.
+
+### Linux beta — Ubuntu Desktop
+
+La beta Linux se distribuye como `WizZDesktop-v1.2.0-linux-x64.tar.gz` con su
+archivo `.sha256`. Extrae el archivo y ejecuta `WizZDesktop` desde la carpeta
+extraída. La plataforma validada es Ubuntu Desktop con GNOME; en Wayland, la
+posición de ventana la decide el compositor.
+
+La bandeja requiere un escritorio compatible con AppIndicator. Si no está
+disponible, la aplicación sigue siendo usable como ventana normal. Los hotkeys
+globales están deshabilitados intencionalmente en Linux beta hasta contar con
+un backend seguro basado en el portal XDG.
 
 ### Verificar SHA-256 en PowerShell
 
@@ -151,7 +167,8 @@ Si eliminas una ampolleta, permanecerá fuera de la lista hasta que realices una
 
 - Python `>=3.11,<3.14`.
 - Flet `0.85.2`.
-- Windows para tray, hotkeys nativas y build final.
+- Windows para la build estable de Windows.
+- Ubuntu Desktop o WSL para la build beta Linux.
 
 ### Preparar el entorno
 
@@ -222,6 +239,42 @@ La guía completa está en
 
 ---
 
+## Build nativa para Linux beta
+
+En Ubuntu 22.04 instala las dependencias de compilación y AppIndicator:
+
+```bash
+sudo apt install -y clang cmake ninja-build pkg-config libgtk-3-dev \
+  lld-14 libcairo2-dev libgirepository1.0-dev \
+  gir1.2-ayatanaappindicator3-0.1
+```
+
+Luego crea el entorno Python del proyecto e instala sus dependencias:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt -r requirements-dev.txt -r requirements-build.txt
+```
+
+Finalmente ejecuta:
+
+```bash
+source .venv/bin/activate
+bash scripts/build_linux.sh --clean
+```
+
+Las salidas son:
+
+```text
+dist/linux/WizZDesktop
+dist/linux/BUILD_INFO.json
+dist/release/WizZDesktop-v1.2.0-linux-x64.tar.gz
+dist/release/WizZDesktop-v1.2.0-linux-x64.tar.gz.sha256
+```
+
+---
+
 ## Datos y privacidad
 
 WizZ Desktop no necesita una cuenta propia ni una base de datos remota para controlar las luces por LAN.
@@ -240,6 +293,10 @@ En el ejecutable Windows, configuraciones y logs se guardan en:
 
 Las instalaciones Flet previas se migran automáticamente la primera vez que
 se ejecuta esta versión.
+
+En la build Linux, Flet proporciona el almacenamiento de usuario. Cuando no
+existe ese directorio, WizZ usa la ruta XDG del usuario bajo
+`~/.config/WizZDesktop`.
 
 Puedes abrir las ubicaciones reales desde:
 

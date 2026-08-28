@@ -75,15 +75,18 @@ def config_dir() -> Path:
             target = Path(local_app_data) / APP_ARTIFACT / "config"
             return _prepare(target, migrate=True)
 
-        # Other packaged platforms honor Flet's explicit storage directory.
-        if flet_storage:
-            target = Path(flet_storage).expanduser().resolve() / "config"
-            return _prepare(target, migrate=True)
-
-        # Estándar Linux XDG si no hay ruta Flet explícita
+        # Linux packages use the freedesktop.org XDG location even when Flet
+        # supplies an internal storage folder. That keeps data predictable
+        # across GNOME, KDE, XFCE and other desktop environments. The Flet
+        # folder remains a one-time migration source below.
         if sys.platform.startswith("linux"):
             xdg_config = os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))
             target = Path(xdg_config) / APP_ARTIFACT / "config"
+            return _prepare(target, migrate=True)
+
+        # Other packaged platforms honor Flet's explicit storage directory.
+        if flet_storage:
+            target = Path(flet_storage).expanduser().resolve() / "config"
             return _prepare(target, migrate=True)
 
     # 3. Modo Desarrollo Local (Guarda en el propio repo config/json)
@@ -100,16 +103,11 @@ def logs_dir() -> Path:
             "LOCALAPPDATA", str(Path.home() / "AppData" / "Local")
         )
         target = Path(local_app_data) / APP_ARTIFACT / "logs"
+    elif sys.platform.startswith("linux") and is_flet_build():
+        xdg_state = os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local" / "state"))
+        target = Path(xdg_state) / APP_ARTIFACT / "logs"
     elif flet_storage:
         target = Path(flet_storage).expanduser().resolve() / "logs"
-    elif sys.platform.startswith("linux") and is_flet_build():
-        xdg_config = os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))
-        target = Path(xdg_config) / APP_ARTIFACT / "logs"
-    elif sys.platform.startswith("win") and is_flet_build():
-        local_app_data = os.environ.get(
-            "LOCALAPPDATA", str(Path.home() / "AppData" / "Local")
-        )
-        target = Path(local_app_data) / APP_ARTIFACT / "logs"
     else:
         target = project_root() / "logs"
 

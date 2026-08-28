@@ -15,7 +15,7 @@ from .manager import (
 # Labels intentionally remain bilingual/native so the user can always recover
 # the selector even after choosing an unfamiliar interface language.
 _LANGUAGE_CHOICES: tuple[tuple[str, str], ...] = (
-    (LANGUAGE_SYSTEM, "Automático — Windows / Automatic — Windows"),
+    (LANGUAGE_SYSTEM, "Automático / Automatic"),
     (LANGUAGE_SPANISH, "Español"),
     (LANGUAGE_ENGLISH, "English"),
 )

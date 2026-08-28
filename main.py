@@ -143,7 +143,12 @@ def main(page: ft.Page):
             _safe(hotkeys.stop)
             _safe(wiz.stop)
 
-        app = WizzApp(page, wiz, hotkeys_manager=hotkeys)
+        app = WizzApp(
+            page,
+            wiz,
+            hotkeys_manager=hotkeys,
+            platform_services=platform_runtime.services,
+        )
         page.on_resize = app.handle_page_resize
         # PHASE32_RUNTIME_TRAY_SAFE
         tray = None
