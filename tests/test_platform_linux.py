@@ -217,3 +217,26 @@ def test_linux_indicator_icon_is_compact_and_opaque(monkeypatch):
     assert image.size == (64, 64)
     assert image.mode == "RGBA"
     assert image.getpixel((0, 0))[3] == 255
+
+
+def test_linux_tray_service_runs_appindicator_loop_in_worker_thread(monkeypatch):
+    import threading
+
+    tray_module = importlib.import_module("core.background.tray_service")
+    tray = TrayService(object(), object(), object())
+    started = threading.Event()
+
+    class _Icon:
+        def run(self):
+            started.set()
+
+        def run_detached(self):  # pragma: no cover - must not be chosen on Linux
+            raise AssertionError("Linux must own a worker loop")
+
+    tray.icon = _Icon()
+    monkeypatch.setattr(tray_module.sys, "platform", "linux")
+
+    tray._start_icon_loop()
+
+    assert started.wait(1.0)
+    assert tray._thread is not None

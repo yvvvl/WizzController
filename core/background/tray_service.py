@@ -189,11 +189,7 @@ class TrayService:
                 menu=self._build_menu(),
             )
 
-            if hasattr(self.icon, "run_detached"):
-                self.icon.run_detached()
-            else:
-                self._thread = threading.Thread(target=self.icon.run, name="WizZTray", daemon=True)
-                self._thread.start()
+            self._start_icon_loop()
 
             self.started = True
             self.last_error = None
@@ -205,6 +201,25 @@ class TrayService:
             self.icon = None
             self._log(self.last_error)
             return False
+
+    def _start_icon_loop(self) -> None:
+        """Start the native tray loop using the correct ownership model.
+
+        ``run_detached()`` only works when the host UI provides the same
+        GObject main loop. Flet does not, so AppIndicator on Linux remains
+        invisible when merely prepared as detached. Run its loop in a dedicated
+        worker thread instead. Windows keeps its existing detached integration.
+        """
+        assert self.icon is not None
+        if sys.platform.startswith("linux") or not hasattr(self.icon, "run_detached"):
+            self._thread = threading.Thread(
+                target=self.icon.run,
+                name="WizZTray",
+                daemon=True,
+            )
+            self._thread.start()
+            return
+        self.icon.run_detached()
 
     def _build_menu(self):
         pystray = self._pystray

@@ -24,6 +24,9 @@ explicitly beta; macOS stays deferred.
 
 - The normal tray service selects `PYSTRAY_BACKEND=appindicator` only on Linux
   GNOME/Ubuntu or Wayland and only when the user did not select another backend.
+- AppIndicator runs its own worker loop on Linux. `run_detached()` is not used
+  there because Flet does not provide the GObject loop it requires; a detached
+  icon can report as started while remaining invisible.
 - Settings uses the platform system service to open data and log folders; the
   Linux fallback is `xdg-open`.
 - The existing persisted `startup_with_windows` key is retained for v1.1 data
