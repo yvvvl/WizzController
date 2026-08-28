@@ -4,11 +4,12 @@
 
 ## Nota de auditoría del checkout actual
 
-La rama de trabajo de Linux beta es `feature/v1.2.0-linux-beta`. El baseline
-documentado para la planificación de release es `f158d30`, con los gates de
-endurecimiento Windows completados. La versión pública estable continúa siendo
-`v1.1.0`; el candidato actual es `v1.2.0` (build 2) y no debe anunciarse como
-publicado hasta el tag y la release de GitHub.
+`v1.2.0` fue publicado desde `90f05d0` y fusionado en `main` mediante PR #8 en
+`7eda835`. Windows es el canal estable y Linux x64 continúa etiquetado como
+beta. La próxima fase pública es el refactor UI v1.3 descrito en
+`docs/codex/plans/2026-08-28-v1.3-ui-refactor-and-branch-cleanup.md`, con su
+proceso visual y de implementación detallado en
+`docs/codex/plans/2026-08-28-v1.3-ui-design-execution-plan.md`.
 
 La rama ya incorpora targeting transitorio `single`/`selected`/`all`, consulta
 read-only de GitHub Releases, persistencia empaquetada fuera del directorio de
@@ -19,12 +20,10 @@ artefacto. Las instalaciones Flet anteriores se migran desde su ubicación
 legacy al primer arranque.
 
 Linux tiene una beta nativa validada en Ubuntu 22.04 GNOME/Wayland: wiring
-productivo, paquete extraído, tray AppIndicator, XDG persistence/autostart y
-control WiZ LAN. Los hotkeys globales permanecen deshabilitados
-intencionalmente por seguridad. Antes de publicar, ambos artefactos deben
-reconstruirse desde el mismo commit de release. macOS está diferido. RGBIC
-continúa como beta cerrada experimental; no forma parte del soporte público de
-v1.2.0.
+productivo, paquete e instalador por usuario, tray AppIndicator, persistencia
+XDG/autostart y control WiZ LAN. Los hotkeys globales permanecen deshabilitados
+intencionalmente por seguridad. macOS está diferido. RGBIC continúa como beta
+cerrada experimental; no forma parte del soporte público estable.
 
 Este documento es la fuente principal de continuidad para nuevas sesiones de
 ChatGPT/Codex. Antes de modificar el proyecto, se debe leer completo y
@@ -35,7 +34,7 @@ definen en `docs/codex/DOCUMENTATION_GUIDE.md`.
 ## 1. Resumen del proyecto
 
 **WizZ Desktop** es una aplicación de escritorio para controlar luces WiZ
-desde Windows mediante la red local. La aplicación principal está construida
+desde Windows y Linux mediante la red local. La aplicación principal está construida
 con Flet y reúne control de iluminación, Color Studio, escenas, favoritos,
 rutinas, hotkeys globales, bandeja del sistema y administración de
 dispositivos.
@@ -48,12 +47,12 @@ capacidades permanecen fuera del camino de baja latencia.
 El proyecto resuelve varios problemas de la experiencia de escritorio:
 
 - control local aunque Internet no esté disponible;
-- acceso rápido desde hotkeys, tray y Quick Panel;
+- acceso rápido desde hotkeys compatibles y la bandeja del sistema;
 - una única representación de acciones para UI, favoritos y rutinas;
 - reproducción de color adaptada a los canales físicos RGBTW de WiZ;
 - descubrimiento y selección de dispositivos sin depender de una cuenta
   remota;
-- distribución portable para Windows.
+- distribución portable para Windows y beta instalable por usuario en Linux.
 
 La visión futura es convertir WizZ Desktop en una plataforma extensible de
 iluminación local: Quick Panel profesional, Effects Engine, RGBIC, Screen
@@ -65,10 +64,10 @@ implemente su propio protocolo, discovery o controlador.
 
 ### Versiones y fase de desarrollo
 
-- **Versión estable:** `v1.1.0`, publicada desde `main` y marcada por el tag
-  `v1.1.0`.
-- **Desarrollo principal declarado:** consolidación del release público
-  `v1.2.0` (Windows estable + Linux beta) desde un commit común aprobado.
+- **Versión pública:** `v1.2.0`, Windows estable + Linux beta, tag en
+  `90f05d0` e integrada en `main` mediante `7eda835`.
+- **Desarrollo principal declarado:** limpieza segura de ramas y refactor UI
+  v1.3 compartido entre Windows y Linux.
 - **Estado de Quick Panel:** retirado de la composición activa de v1.2.0 tras
   fallos reales de geometría y foco. La bandeja restaura únicamente la ventana
   principal. Su código experimental queda fuera del flujo público hasta que
@@ -108,32 +107,23 @@ implemente su propio protocolo, discovery o controlador.
 
 | Rama | Estado y propósito |
 | --- | --- |
-| `main` | Release estable `v1.1.0` en `0a902d0` |
-| `release/v1.1.0` | Preparación de release en `50a4b84` |
-| `feature/v1.2.0-quick-panel` | Foundation del Quick Panel; apunta a `1838eca` |
-| `feature/v1.2.0-quick-panel-design` | Rediseño Premium terminado en `ec9da58` |
-| `feature/v1.3.0-effects-engine-foundation` | Modelos y simulador base de efectos/RGBIC en `0a09163`; pendiente de revisión |
-| `release/v1.2.0-windows` | Release candidate pública Windows; baseline planificado `f158d30` |
-| `feature/cross-platform-foundation-phase2` | Foundation Linux validada en CI/VM, sin wiring productivo |
-| `feature/v1.1.0-pywizlight-capabilities` | Auditoría, atribución y packaging de `pywizlight` |
+| `main` | Línea canónica; contiene PR #8 y la release pública v1.2.0 |
+| `feature/v1.3.0-ui-foundation` | Rama corta activa para documentación y fundación UI v1.3 |
 
-La historia de la rama actual pasa por `ea1cc0e` (foundation del Quick Panel),
-`ec9da58` (Premium UI) y `0a09163` (foundation de efectos). Existe además el
-puntero de rama `feature/v1.2.0-quick-panel` a un commit equivalente de la
-foundation (`1838eca`). No asumir que una rama está integrada en `main` sólo
-porque su implementación esté completa.
+La limpieza del 2026-08-28 dejó `main` como única rama remota permanente. La
+historia divergente de Color Studio y el prototipo Quick Panel se conservan en
+los tags `archive/color-studio-v2-legacy` y
+`archive/quick-panel-flet-spike`; no deben fusionarse directamente.
 
 ### Últimos commits importantes
 
 | Commit | Importancia |
 | --- | --- |
-| `0a09163` | `feat: add dynamic effects foundation`; crea modelos inmutables, simulador RGBIC y tests de transporte genérico |
-| `ec9da58` | `feat: redesign WizZ Quick Panel UI`; implementa UI Premium, adapter compacto y comportamiento de overlay |
-| `ea1cc0e` | `feat: add WizZ Quick Panel foundation`; integra una sola ventana, controller, view y acciones desde tray |
-| `0a902d0` | merge de la release `v1.1.0` a `main` y tag estable |
-| `50a4b84` | `release: prepare WizZ Desktop v1.1.0` |
-| `5948d12` | rediseño de favoritos por capacidades |
-| `7ed2923` | inclusión de avisos de terceros para `pywizlight` |
+| `7eda835` | merge de la release v1.2.0 en `main` mediante PR #8 |
+| `90f05d0` | commit etiquetado `v1.2.0`; valida el instalador Linux en CI |
+| `a376e3a` | añade instalador/desinstalador Linux y lanzador de aplicaciones |
+| `84d4b8d` | integra la beta Linux aprobada en la rama de release |
+| `72656ad` | estabiliza dependencias y pruebas Linux en CI |
 
 ### Features terminadas en la versión estable
 
@@ -154,7 +144,7 @@ porque su implementación esté completa.
 ### Flujo principal
 
 ```text
-Main UI / Quick Panel / Tray / Hotkeys / Favoritos / Rutinas
+Main UI / Tray / Hotkeys / Favoritos / Rutinas
                               |
                               v
                    ActionSequenceExecutor
@@ -294,11 +284,11 @@ alcance operativo actual.
 
 - La Main App usa **Flet**.
 - Existe una sola `Page` y una sola ventana nativa.
-- Main App y Quick Panel comparten el mismo `LightController`.
-- La foundation del Quick Panel existe.
-- La UI Premium del Quick Panel fue desarrollada.
-- La UI completa sigue siendo la fuente para navegación, edición y
-  configuración; Quick Panel es una superficie rápida, no un reemplazo.
+- La aplicación pública usa la Main App como única superficie de ventana.
+- La bandeja restaura la ventana completa; Quick Panel no está compuesto en
+  el runtime v1.2.0.
+- La foundation y el diseño histórico del Quick Panel se conservan sólo como
+  material experimental archivado.
 
 ### Decisiones tomadas
 
@@ -343,9 +333,11 @@ alcance operativo actual.
 
 ### Estado
 
-- **Foundation:** implementada.
-- **Rediseño Premium:** implementado.
-- **Release:** no cerrado; pendiente de revisión y pruebas manuales.
+- **Foundation histórica:** implementada en una rama experimental.
+- **Runtime público:** retirado de v1.2.0 por problemas reales de geometría,
+  foco y restauración.
+- **Próxima decisión:** pausada hasta diseñar una ventana temporal nativa o
+  una arquitectura equivalente con lifecycle comprobable.
 
 ### Arquitectura y componentes
 
@@ -744,24 +736,18 @@ exacta empaquetada.
 ### Corto plazo
 
 - ejecutar el plan
-  `docs/codex/plans/2026-08-27-v1.2-public-release-and-rgbic-beta-roadmap.md`;
-- estabilizar en Home la experiencia de selección transitoria
-  `single`/`selected`/`all`;
-- integrar una notificación de actualización read-only y tolerante a fallos;
-- conservar el candidato Windows validado y completar el artefacto Linux beta
-  de `v1.2.0` desde el mismo commit de release;
-- actualizar versión, changelog y documentación pública sólo al entrar en
-  release candidate;
-- probar el artefacto descargado desde CI antes de fusionar y etiquetar;
-- crear la beta RGBIC desde la base estable `v1.2.0`, nunca mezclándola con el
-  cierre del release público.
+  `docs/codex/plans/2026-08-28-v1.3-ui-refactor-and-branch-cleanup.md`;
+- limpiar ramas ya integradas y archivar Color Studio legacy/Quick Panel;
+- crear `feature/v1.3.0-ui-foundation` desde `main` actualizado;
+- consolidar tokens visuales, accesibilidad y controles Flet no deprecados;
+- refactorizar primero Home y la selección `single`/`selected`/`all`;
+- mantener la beta RGBIC separada de la rama UI pública.
 
 ### Mediano plazo
 
-- continuar el Quick Panel como ventana temporal independiente en una rama
-  aislada, después de validar un mecanismo nativo compatible;
-- completar el smoke de Ubuntu Desktop, artefacto, checksum y documentación de
-  limitaciones para cerrar Linux beta;
+- evaluar Quick Panel sólo después de una decisión separada sobre ventana
+  temporal, foco y lifecycle nativo;
+- ampliar la matriz Linux beta a otras distribuciones mediante testers;
 - mantener macOS diferido hasta disponer de un equipo o tester comunitario;
 - diseñar descarga, verificación, instalación y rollback antes de llamar
   “autoactualizador” al cliente de releases;
