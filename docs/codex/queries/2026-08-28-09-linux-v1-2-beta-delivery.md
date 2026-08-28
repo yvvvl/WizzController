@@ -53,6 +53,9 @@ explicitly beta; macOS stays deferred.
 - The existing file-lock single-instance exclusion is retained for beta. It
   prevents duplicate controllers even where foreground activation is not yet
   portable.
+- The packaged app has its own Python runtime. Therefore Linux tray support
+  explicitly bundles `PyGObject==3.48.2` and `pycairo==1.26.1`; the build
+  checks for the native `gi` extension before it creates a release archive.
 
 ## Validation required before release
 

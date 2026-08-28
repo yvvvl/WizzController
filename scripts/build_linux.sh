@@ -73,6 +73,18 @@ if [[ ! -x "$LLVM_BIN/ld.lld" && ! -x "$LLVM_BIN/ld" ]]; then
   exit 1
 fi
 
+if ! "$PYTHON" - <<'PY'
+import gi
+gi.require_version("AyatanaAppIndicator3", "0.1")
+from gi.repository import AyatanaAppIndicator3  # noqa: F401
+print("Linux tray build dependency: PyGObject/AppIndicator OK")
+PY
+then
+  echo "Linux tray dependencies are missing from the build environment." >&2
+  echo "Install PyGObject 3.48.2, pycairo 1.26.1 and the Ayatana AppIndicator typelib." >&2
+  exit 1
+fi
+
 export PYTHONUTF8=1
 export PYTHONIOENCODING=utf-8
 export FLET_CLI_NO_RICH_OUTPUT=true
@@ -95,6 +107,12 @@ fi
 
 mkdir -p "$RELEASE_DIR"
 "$FLET" build linux . --output "$OUTPUT_DIR" --yes --no-rich-output
+
+BUNDLED_GI="$(find "$OUTPUT_DIR" -type f -path '*/gi/_gi*.so' -print -quit)"
+if [[ -z "$BUNDLED_GI" ]]; then
+  echo "Build completed without bundled PyGObject; Linux tray would be unavailable." >&2
+  exit 1
+fi
 
 EXECUTABLE="$(find "$OUTPUT_DIR" -type f -name "$ARTIFACT" -perm -u+x -print -quit)"
 if [[ -z "$EXECUTABLE" ]]; then
