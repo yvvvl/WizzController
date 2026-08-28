@@ -201,3 +201,19 @@ def test_tray_service_keeps_explicit_linux_backend_choice(monkeypatch):
     TrayService._configure_linux_backend()
 
     assert os.environ["PYSTRAY_BACKEND"] == "xorg"
+
+
+def test_linux_indicator_icon_is_compact_and_opaque(monkeypatch):
+    from PIL import Image, ImageDraw
+
+    tray_module = importlib.import_module("core.background.tray_service")
+    monkeypatch.setattr(tray_module.sys, "platform", "linux")
+
+    tray = TrayService(object(), object(), object())
+    tray._Image = Image
+    tray._ImageDraw = ImageDraw
+    image = tray._make_icon()
+
+    assert image.size == (64, 64)
+    assert image.mode == "RGBA"
+    assert image.getpixel((0, 0))[3] == 255

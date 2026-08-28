@@ -408,6 +408,13 @@ class TrayService:
         ImageDraw = self._ImageDraw
         assert Image is not None and ImageDraw is not None
 
+        # AppIndicator reduces status icons aggressively. The branded PNG is
+        # legible on Windows but can become visually empty on Ubuntu GNOME.
+        # Use a compact opaque glyph there; it is intentionally independent
+        # from the window/taskbar artwork.
+        if sys.platform.startswith("linux"):
+            return self._make_linux_indicator_icon(Image, ImageDraw)
+
         for filename in ("tray_icon.png", "icon_windows.png", "icon.png"):
             try:
                 path = assets_dir() / filename
@@ -426,6 +433,16 @@ class TrayService:
         d.ellipse((22, 13, 42, 35), fill=(255, 255, 255, 255))
         d.rounded_rectangle((26, 33, 38, 48), radius=4, fill=(91, 140, 255, 255))
         d.rectangle((22, 47, 42, 51), fill=(167, 139, 250, 255))
+        return img
+
+    @staticmethod
+    def _make_linux_indicator_icon(Image, ImageDraw):
+        """Create a high-contrast status glyph for AppIndicator."""
+        img = Image.new("RGBA", (64, 64), (82, 121, 242, 255))
+        d = ImageDraw.Draw(img)
+        d.ellipse((20, 10, 44, 34), fill=(255, 255, 255, 255))
+        d.rounded_rectangle((25, 31, 39, 48), radius=4, fill=(255, 255, 255, 255))
+        d.rectangle((21, 47, 43, 52), fill=(18, 28, 58, 255))
         return img
 
     def is_running(self) -> bool:
