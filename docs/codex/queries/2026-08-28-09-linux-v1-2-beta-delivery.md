@@ -1,6 +1,6 @@
 # Linux v1.2.0 beta delivery
 
-Status: In Progress
+Status: Validated; publication pending
 
 Date: 2026-08-28
 
@@ -57,18 +57,26 @@ explicitly beta; macOS stays deferred.
   explicitly bundles `PyGObject==3.48.2` and `pycairo==1.26.1`; the build
   checks for the native `gi` extension before it creates a release archive.
 
-## Validation required before release
+## Validation executed
 
-1. Run the full automated suite on Ubuntu Desktop.
-2. Launch the source app on GNOME Wayland and confirm normal UI, tray menu,
-   hide/restore and real exit.
-3. Confirm Settings > Datos and Logs opens the XDG storage folders.
-4. Toggle start at login and inspect the generated desktop entry.
-5. Build natively with `flet build linux`, launch the extracted output outside
-   the repository and repeat the smoke checks.
-6. Perform WiZ discovery and a controlled power/brightness/RGB/Kelvin/scene
-   smoke on a Linux LAN when compatible hardware is available.
-7. Produce an archive plus SHA-256 only after the above evidence is recorded.
+1. Ubuntu Desktop automated suite: `368 passed, 98 warnings`.
+2. i18n audit: `608` `en`/`es` keys and no hardcoded UI strings.
+3. Native Flet Linux build completed and generated the compressed archive plus
+   its SHA-256 sidecar.
+4. The extracted package was launched outside the repository on Ubuntu 22.04
+   GNOME/Wayland.
+5. AppIndicator tray, hide/restore, real exit, XDG persistence and Linux
+   autostart were manually tested.
+6. Discovery and controlled power, brightness, RGB, Kelvin and built-in-scene
+   commands were sent successfully to the authorized WiZ light `192.168.1.5`.
+7. Packaged tray support was repaired by bundling `PyGObject==3.48.2` and
+   `pycairo==1.26.1`; the generated artifact verifies the native `gi` module.
+
+## Remaining publication work
+
+- Copy the measured Linux SHA-256 value into the final release record.
+- Rebuild Windows and Linux from the same approved release commit before
+  creating a public tag or GitHub Release.
 
 ## Out of scope
 

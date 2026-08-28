@@ -125,14 +125,15 @@ La descarga incluye un archivo `.sha256` para comprobar la integridad del paquet
 
 ### Linux beta — Ubuntu Desktop
 
-La beta Linux se publicará como `WizZDesktop-v1.2.0-linux-x64.tar.gz` con su
+La beta Linux se distribuye como `WizZDesktop-v1.2.0-linux-x64.tar.gz` con su
 archivo `.sha256`. Extrae el archivo y ejecuta `WizZDesktop` desde la carpeta
-extraída. La primera validación objetivo es Ubuntu Desktop con GNOME; en
-Wayland, la posición de ventana la decide el compositor.
+extraída. La plataforma validada es Ubuntu Desktop con GNOME; en Wayland, la
+posición de ventana la decide el compositor.
 
-La bandeja requiere que el escritorio soporte AppIndicator. Si no está
-disponible, la aplicación sigue siendo usable como ventana normal; no dependas
-de la bandeja para navegar.
+La bandeja requiere un escritorio compatible con AppIndicator. Si no está
+disponible, la aplicación sigue siendo usable como ventana normal. Los hotkeys
+globales están deshabilitados intencionalmente en Linux beta hasta contar con
+un backend seguro basado en el portal XDG.
 
 ### Verificar SHA-256 en PowerShell
 
@@ -240,8 +241,23 @@ La guía completa está en
 
 ## Build nativa para Linux beta
 
-En Ubuntu instala las dependencias de Flet indicadas en su guía oficial y crea
-el entorno Python del proyecto. Luego ejecuta:
+En Ubuntu 22.04 instala las dependencias de compilación y AppIndicator:
+
+```bash
+sudo apt install -y clang cmake ninja-build pkg-config libgtk-3-dev \
+  lld-14 libcairo2-dev libgirepository1.0-dev \
+  gir1.2-ayatanaappindicator3-0.1
+```
+
+Luego crea el entorno Python del proyecto e instala sus dependencias:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt -r requirements-dev.txt -r requirements-build.txt
+```
+
+Finalmente ejecuta:
 
 ```bash
 source .venv/bin/activate

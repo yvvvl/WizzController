@@ -4,11 +4,11 @@
 
 ## Nota de auditoría del checkout actual
 
-La rama activa es `release/v1.2.0-windows`. El baseline documentado para la
-planificación de release es `f158d30`, con los gates de endurecimiento Windows
-completados. La versión pública estable continúa siendo `v1.1.0`; el candidato
-actual es `v1.2.0` (build 2) y no debe anunciarse como publicado hasta el tag y
-la release de GitHub.
+La rama de trabajo de Linux beta es `feature/v1.2.0-linux-beta`. El baseline
+documentado para la planificación de release es `f158d30`, con los gates de
+endurecimiento Windows completados. La versión pública estable continúa siendo
+`v1.1.0`; el candidato actual es `v1.2.0` (build 2) y no debe anunciarse como
+publicado hasta el tag y la release de GitHub.
 
 La rama ya incorpora targeting transitorio `single`/`selected`/`all`, consulta
 read-only de GitHub Releases, persistencia empaquetada fuera del directorio de
@@ -18,11 +18,13 @@ Flet expone `FLET_APP_STORAGE_DATA`; no se deben incluir JSON reales en el
 artefacto. Las instalaciones Flet anteriores se migran desde su ubicación
 legacy al primer arranque.
 
-Linux conserva estado beta/foundation: detección de capacidades, autostart
-XDG, apertura de carpetas y tray AppIndicator fueron probados de forma
-aislada, pero el wiring productivo y el packaging siguen pendientes. macOS
-está diferido. RGBIC continúa como beta cerrada experimental; no forma parte
-del soporte público de v1.2.0.
+Linux tiene una beta nativa validada en Ubuntu 22.04 GNOME/Wayland: wiring
+productivo, paquete extraído, tray AppIndicator, XDG persistence/autostart y
+control WiZ LAN. Los hotkeys globales permanecen deshabilitados
+intencionalmente por seguridad. Antes de publicar, ambos artefactos deben
+reconstruirse desde el mismo commit de release. macOS está diferido. RGBIC
+continúa como beta cerrada experimental; no forma parte del soporte público de
+v1.2.0.
 
 Este documento es la fuente principal de continuidad para nuevas sesiones de
 ChatGPT/Codex. Antes de modificar el proyecto, se debe leer completo y
@@ -65,8 +67,8 @@ implemente su propio protocolo, discovery o controlador.
 
 - **Versión estable:** `v1.1.0`, publicada desde `main` y marcada por el tag
   `v1.1.0`.
-- **Desarrollo principal declarado:** preparación de metadata y artefacto para
-  release pública Windows `v1.2.0` (build 2).
+- **Desarrollo principal declarado:** consolidación del release público
+  `v1.2.0` (Windows estable + Linux beta) desde un commit común aprobado.
 - **Estado de Quick Panel:** retirado de la composición activa de v1.2.0 tras
   fallos reales de geometría y foco. La bandeja restaura únicamente la ventana
   principal. Su código experimental queda fuera del flujo público hasta que
@@ -97,10 +99,10 @@ implemente su propio protocolo, discovery o controlador.
   desarrollador; ya existen fixtures sanitizados y evidencia revisada para un
   dispositivo, además de un validador beta local para registrar nuevos casos.
   Esto sigue sin equivaler a soporte productivo.
-- **Cross-platform Foundation:** contratos, fakes, detección Linux y servicios
-  aislados de autostart, carpetas, ventana y tray existen. No hay wiring
-  productivo Linux, hotkeys Wayland resueltas ni package beta. macOS está
-  explícitamente diferido.
+- **Linux beta:** contratos y servicios están conectados al runtime; Ubuntu
+  validó build nativa, tray AppIndicator, persistencia XDG, autostart y WiZ
+  LAN. Los hotkeys Wayland no están resueltos y se muestran como no
+  disponibles. macOS está explícitamente diferido.
 
 ### Ramas relevantes
 
