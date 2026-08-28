@@ -132,7 +132,7 @@ class AppRuntimeManager:
                 logging.warning("[Startup] No se pudo sincronizar inicio Linux: %s", exc)
             return
 
-        if os.name != "nt":
+        if not sys.platform.startswith("win"):
             return
 
         if not bool(self.data.get("startup_with_windows")):
@@ -166,7 +166,7 @@ class AppRuntimeManager:
             key = "runtime.startup.updated" if enabled else "runtime.startup.disabled"
             return True, self._t(key)
 
-        if os.name != "nt":
+        if not sys.platform.startswith("win"):
             with self._lock:
                 self.data["startup_with_windows"] = False
                 self._save_dict(self.data)
