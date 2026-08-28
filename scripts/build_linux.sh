@@ -49,6 +49,14 @@ PYTHON="${PYTHON:-$ROOT/.venv/bin/python}"
 if [[ ! -x "$PYTHON" ]]; then
   PYTHON="$(command -v python3)"
 fi
+FLET="${FLET:-$ROOT/.venv/bin/flet}"
+if [[ ! -x "$FLET" ]]; then
+  FLET="$(command -v flet || true)"
+fi
+if [[ -z "$FLET" || ! -x "$FLET" ]]; then
+  echo "Flet CLI was not found. Install flet[cli] in the active environment." >&2
+  exit 1
+fi
 
 export PYTHONUTF8=1
 export PYTHONIOENCODING=utf-8
@@ -71,7 +79,7 @@ if [[ "$SKIP_TESTS" != true ]]; then
 fi
 
 mkdir -p "$RELEASE_DIR"
-"$PYTHON" -m flet build linux . --output "$OUTPUT_DIR" --yes --no-rich-output
+"$FLET" build linux . --output "$OUTPUT_DIR" --yes --no-rich-output
 
 EXECUTABLE="$(find "$OUTPUT_DIR" -type f -name "$ARTIFACT" -perm -u+x -print -quit)"
 if [[ -z "$EXECUTABLE" ]]; then
