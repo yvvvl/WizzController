@@ -103,15 +103,15 @@ class AppRuntimeManager:
     def _startup_command(self) -> str:
         packaged = resolve_packaged_executable()
         if packaged is not None:
-            if os.name == "nt":
+            if sys.platform.startswith("win"):
                 return subprocess.list2cmdline([str(packaged)])
             return shlex.join([str(packaged)])
 
         main_py = project_root() / "main.py"
         py = Path(sys.executable)
-        pythonw = py.with_name("pythonw.exe") if os.name == "nt" else py
+        pythonw = py.with_name("pythonw.exe") if sys.platform.startswith("win") else py
         executable = pythonw if pythonw.exists() else py
-        if os.name == "nt":
+        if sys.platform.startswith("win"):
             return subprocess.list2cmdline([str(executable), str(main_py)])
         return shlex.join([str(executable), str(main_py)])
 

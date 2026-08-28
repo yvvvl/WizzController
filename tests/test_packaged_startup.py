@@ -39,7 +39,7 @@ def _runtime_manager_for_test(tmp_path):
 
 def test_startup_flag_is_saved_only_after_registry_success(monkeypatch, tmp_path):
     manager = _runtime_manager_for_test(tmp_path)
-    monkeypatch.setattr(runtime_module.os, "name", "nt")
+    monkeypatch.setattr(runtime_module.sys, "platform", "win32")
     monkeypatch.setattr(manager, "_startup_command", lambda: '"C:\\Apps\\WizZDesktop.exe"')
 
     written = []
@@ -54,7 +54,7 @@ def test_startup_flag_is_saved_only_after_registry_success(monkeypatch, tmp_path
 
 def test_startup_flag_is_not_enabled_when_registry_write_fails(monkeypatch, tmp_path):
     manager = _runtime_manager_for_test(tmp_path)
-    monkeypatch.setattr(runtime_module.os, "name", "nt")
+    monkeypatch.setattr(runtime_module.sys, "platform", "win32")
     monkeypatch.setattr(manager, "_startup_command", lambda: '"C:\\Apps\\WizZDesktop.exe"')
 
     def fail(_command):
