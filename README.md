@@ -26,20 +26,19 @@ Las acciones normales se envían por **UDP LAN nativo**, por lo que el control n
 
 La aplicación está diseñada para Windows y combina control de iluminación, automatizaciones, hotkeys globales y una interfaz moderna en un único programa portable.
 
-> Versión actual: **v1.1.0 · build 1**
+> Candidato de release actual: **v1.2.0 · build 2**
 
-## Novedades v1.1.0
+## Novedades v1.2.0
 
-- Interfaz completa en español e inglés.
-- Detección automática del idioma del sistema.
-- Selector manual de idioma.
-- Nuevo editor inteligente de favoritos:
-  - RGB usando Color Studio.
-  - Blanco mediante temperatura Kelvin.
-  - Escenas WiZ.
-  - Control dedicado de brillo.
-- Mejoras de estabilidad en Windows.
-- Distribución portable con licencias de terceros incluidas.
+- Selección temporal de una, varias o todas las ampolletas.
+- Comprobación manual y segura de actualizaciones desde GitHub Releases.
+- Configuración y logs persistentes en AppData Local para builds Windows.
+- Restauración más predecible de la ventana desde la bandeja.
+- Validación real de control WiZ, tray, hotkeys, instancia única y ejecutable
+  aislado en Windows.
+
+> RGBIC, Screen Sync, streaming y actualización automática no están incluidos
+> en esta versión estable.
 
 ---
 
@@ -84,7 +83,7 @@ La aplicación está diseñada para Windows y combina control de iluminación, a
 - Hotkeys globales nativas mediante `RegisterHotKey`.
 - Fallback selectivo usando `keyboard` cuando una combinación está ocupada.
 - System tray con acciones rápidas.
-- Doble clic en el icono de bandeja para mostrar u ocultar la ventana.
+- Un clic en el icono de bandeja para restaurar la ventana principal.
 - Cierre a bandeja.
 - Inicio minimizado.
 - Inicio automático con Windows.
@@ -112,7 +111,7 @@ La aplicación está diseñada para Windows y combina control de iluminación, a
 ### Pasos
 
 1. Abre la [última release](https://github.com/yvvvl/WizzController/releases/latest).
-2. Descarga `WizZDesktop-v1.1.0-windows-x64.zip`.
+2. Descarga `WizZDesktop-v1.2.0-windows-x64.zip`.
 3. Extrae todo el contenido del ZIP.
 4. Ejecuta `WizZDesktop.exe`.
 
@@ -123,13 +122,13 @@ La descarga incluye un archivo `.sha256` para comprobar la integridad del paquet
 ### Verificar SHA-256 en PowerShell
 
 ```powershell
-Get-FileHash .\WizZDesktop-v1.1.0-windows-x64.zip -Algorithm SHA256
+Get-FileHash .\WizZDesktop-v1.2.0-windows-x64.zip -Algorithm SHA256
 ```
 
 Compara el resultado con el contenido de:
 
 ```text
-WizZDesktop-v1.1.0-windows-x64.zip.sha256
+WizZDesktop-v1.2.0-windows-x64.zip.sha256
 ```
 
 ---
@@ -208,8 +207,8 @@ WizZ Desktop utiliza `flet build windows`; no usa PyInstaller.
 ```text
 dist/windows/WizZDesktop.exe
 dist/windows/BUILD_INFO.json
-dist/release/WizZDesktop-v1.0.0-windows-x64.zip
-dist/release/WizZDesktop-v1.0.0-windows-x64.zip.sha256
+dist/release/WizZDesktop-v1.2.0-windows-x64.zip
+dist/release/WizZDesktop-v1.2.0-windows-x64.zip.sha256
 ```
 
 ### Smoke test
@@ -233,7 +232,14 @@ En desarrollo, los archivos locales viven en:
 config/json/
 ```
 
-En el ejecutable, configuraciones y logs se guardan en el almacenamiento persistente asignado por Flet.
+En el ejecutable Windows, configuraciones y logs se guardan en:
+
+```text
+%LOCALAPPDATA%\WizZDesktop
+```
+
+Las instalaciones Flet previas se migran automáticamente la primera vez que
+se ejecuta esta versión.
 
 Puedes abrir las ubicaciones reales desde:
 
@@ -320,7 +326,8 @@ python tools/probe_remove_active_bulb.py --ip 192.168.1.4
 
 ## Estado del proyecto
 
-La versión `v1.0.0` representa la primera release estable y portable para Windows x64.
+La versión `v1.2.0` es el candidato actual para la siguiente release estable
+portable de Windows x64.
 
 El proyecto cuenta con pruebas automatizadas para:
 

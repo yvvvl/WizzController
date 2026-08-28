@@ -5,10 +5,10 @@
 ## Nota de auditoría del checkout actual
 
 La rama activa es `release/v1.2.0-windows`. El baseline documentado para la
-planificación de release es `f158d30`, con el working tree limpio después de
-validar el build empaquetado de Windows. La versión pública estable continúa
-siendo `v1.1.0`; `v1.2.0` todavía es un release candidate y no debe anunciarse
-como publicada hasta completar sus gates.
+planificación de release es `f158d30`, con los gates de endurecimiento Windows
+completados. La versión pública estable continúa siendo `v1.1.0`; el candidato
+actual es `v1.2.0` (build 2) y no debe anunciarse como publicado hasta el tag y
+la release de GitHub.
 
 La rama ya incorpora targeting transitorio `single`/`selected`/`all`, consulta
 read-only de GitHub Releases, persistencia empaquetada fuera del directorio de
@@ -65,7 +65,8 @@ implemente su propio protocolo, discovery o controlador.
 
 - **Versión estable:** `v1.1.0`, publicada desde `main` y marcada por el tag
   `v1.1.0`.
-- **Desarrollo principal declarado:** release pública Windows `v1.2.0`.
+- **Desarrollo principal declarado:** preparación de metadata y artefacto para
+  release pública Windows `v1.2.0` (build 2).
 - **Estado de Quick Panel:** retirado de la composición activa de v1.2.0 tras
   fallos reales de geometría y foco. La bandeja restaura únicamente la ventana
   principal. Su código experimental queda fuera del flujo público hasta que
@@ -81,8 +82,9 @@ implemente su propio protocolo, discovery o controlador.
   implementados, con comprobación manual visible en Ajustes y enlace validado
   a la release oficial. Todavía no existe descarga, instalación, reinicio ni
   rollback automático.
-- **Persistencia empaquetada:** validada mediante el storage por usuario que
-  Flet expone en runtime; los datos sobreviven al reemplazo del build.
+- **Persistencia empaquetada:** validada en
+  `%LOCALAPPDATA%\\WizZDesktop`; los datos sobreviven al reemplazo del build y
+  la carpeta Flet legacy se migra sin borrar su origen.
 - **Foundation experimental adicional:** la base interna de efectos y RGBIC
   ya separa frame lógico, compresión lógica, calibración, steps físicos,
   mapper puro, simulador por segmentos y encoder puro. También existe un

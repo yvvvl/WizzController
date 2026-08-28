@@ -1,6 +1,6 @@
 [project]
 name = "wizz-controller"
-version = "1.1.0"
+version = "1.2.0"
 description = "Control local de ampolletas WiZ por LAN."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
@@ -21,7 +21,7 @@ dependencies = [
 product = "WizZ Desktop"
 company = "yvvvl"
 copyright = "Copyright © 2026 Ignacio"
-build_number = 1
+build_number = 2
 org = "io.github.yvvvl"
 
 [tool.flet.windows]
