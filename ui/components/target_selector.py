@@ -8,9 +8,10 @@ from ui.theme import Theme, mounted, supdate
 class TargetSelector(ft.Container):
     """Selector visual de bombillas con chips interactivos para selección individual y múltiple."""
 
-    def __init__(self, wiz, *, i18n=None, compact: bool = False):
+    def __init__(self, wiz, *, i18n=None, compact: bool = False, on_selection_changed=None):
         self.wiz = wiz
         self.i18n = i18n or LocalizationManager(preference="es")
+        self.on_selection_changed = on_selection_changed
         self._viewport = Viewport(900, 720)
         self.selected_targets: list[str] = []
 
@@ -28,11 +29,11 @@ class TargetSelector(ft.Container):
         return self.i18n.translate(key, **values)
 
     def _build(self):
+        self.selection_status = ft.Text("", size=11, color=Theme.ACCENT, weight=ft.FontWeight.W_500)
         self.chip_container = ft.Row(
             spacing=8,
             wrap=True,
             run_spacing=8,
-            expand=True,
             alignment=ft.MainAxisAlignment.START,
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
         )
@@ -66,9 +67,16 @@ class TargetSelector(ft.Container):
             [
                 ft.Row(
                     [
-                        ft.Icon(ft.Icons.LIGHTBULB_ROUNDED, color=Theme.ACCENT, size=17),
-                        ft.Text(self._t("settings.target.section"), style=Theme.LABEL),
+                        ft.Row(
+                            [
+                                ft.Icon(ft.Icons.LIGHTBULB_ROUNDED, color=Theme.ACCENT, size=17),
+                                ft.Text(self._t("settings.target.section"), style=Theme.LABEL),
+                            ],
+                            spacing=8,
+                        ),
+                        self.selection_status,
                     ],
+                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     spacing=8,
                 ),
                 ft.Row(
@@ -94,15 +102,14 @@ class TargetSelector(ft.Container):
         return ft.Chip(
             label=ft.Text(name, size=12, color=ft.Colors.WHITE if is_selected else Theme.TEXT),
             on_click=lambda e, target_ip=ip: self.toggle_selection(target_ip),
-            bgcolor=Theme.ACCENT if is_selected else ft.Colors.with_opacity(0.15, Theme.SURFACE_VARIANT),
-            checkable=False,
+            bgcolor=Theme.ACCENT if is_selected else Theme.SURFACE,
             elevation=2 if is_selected else 0,
             shape=ft.RoundedRectangleBorder(radius=8),
             padding=ft.Padding(8, 4, 8, 4),
             leading=ft.Icon(
                 ft.Icons.LIGHTBULB if is_on else ft.Icons.LIGHTBULB_OUTLINE,
                 size=14,
-                color=ft.Colors.AMBER_300 if is_on else (ft.Colors.WHITE70 if is_selected else Theme.MUTED),
+                color=ft.Colors.AMBER_300 if is_on else (ft.Colors.WHITE_70 if is_selected else Theme.MUTED),
             ),
         )
 
@@ -148,26 +155,54 @@ class TargetSelector(ft.Container):
         elif len(self.selected_targets) == 1:
             if hasattr(self.wiz, "set_active_bulb"):
                 self.wiz.set_active_bulb(self.selected_targets[0])
-            if hasattr(self.wiz, "set_target_mode"):
-                self.wiz.set_target_mode("single")
         elif self.selected_targets:
-            if hasattr(self.wiz, "set_active_bulb"):
+            if len(self.selected_targets) > 1 and hasattr(self.wiz, "set_target_selection"):
+                self.wiz.set_target_selection(self.selected_targets)
+            elif hasattr(self.wiz, "set_active_bulb"):
                 self.wiz.set_active_bulb(self.selected_targets[0])
 
     def _update_chips(self):
         bulbs = self.wiz.get_bulbs_detailed() if hasattr(self.wiz, "get_bulbs_detailed") else []
         self.chip_container.controls = [self._create_chip(b) for b in bulbs]
+        self.selection_status.value = self._selection_label(len(bulbs))
         if mounted(self):
-            supdate(self.chip_container)
+            supdate(self)
+
+        # A destination click is UI state in its own right.  Consumers such as
+        # the DEV virtual-bulb preview must not wait for a later light command
+        # or the asynchronous controller callback to repaint their selection.
+        callback = self.on_selection_changed
+        if callable(callback):
+            try:
+                callback()
+            except Exception:
+                pass
+
+    def _selection_label(self, total_bulbs: int) -> str:
+        selected = len(self.selected_targets)
+        if total_bulbs <= 0:
+            return self._t("target.selection.none")
+        if selected <= 1:
+            return self._t("target.selection.single")
+        if selected >= total_bulbs:
+            return self._t("target.selection.all", total=total_bulbs)
+        return self._t("target.selection.partial", selected=selected, total=total_bulbs)
 
     def refresh(self) -> None:
         cfg = self.wiz.get_target_config() if hasattr(self.wiz, "get_target_config") else {}
         bulbs = self.wiz.get_bulbs_detailed() if hasattr(self.wiz, "get_bulbs_detailed") else []
         mode = cfg.get("mode", "single")
         active_ip = cfg.get("active_ip")
+        selected_ips = cfg.get("selected_ips", [])
+        available_ips = {str(b["ip"]) for b in bulbs if b.get("ip")}
 
-        if mode == "all":
-            self.selected_targets = [str(b["ip"]) for b in bulbs if b.get("ip")]
+        if not available_ips:
+            self.selected_targets = []
+        elif mode == "all":
+            self.selected_targets = sorted(available_ips)
+        elif mode == "selected" and isinstance(selected_ips, (list, tuple, set)):
+            selected = [str(ip) for ip in selected_ips if str(ip) in available_ips]
+            self.selected_targets = selected or ([str(active_ip)] if active_ip in available_ips else [])
         elif active_ip:
             self.selected_targets = [str(active_ip)]
         elif bulbs:
@@ -178,8 +213,7 @@ class TargetSelector(ft.Container):
         self._update_chips()
 
     def set_language(self, language: str | None = None) -> None:
-        self.btn_select_all.tooltip = self._t("bulbs.select_all")
-        self.btn_invert.tooltip = self._t("bulbs.invert_selection")
+        self._build()
         self.refresh()
 
     def set_viewport(self, width: float, height: float, *, update: bool = True) -> None:

@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import os
+import sys
+import subprocess
+import threading
+from urllib.parse import urlparse
 
 import flet as ft
 from localization import (
@@ -11,9 +15,11 @@ from localization import (
     normalize_language,
     translated_language_name,
 )
-from app_meta import APP_PRODUCT, display_version
+from app_meta import APP_PRODUCT, APP_VERSION, display_version
 from config.app_runtime_manager import AppRuntimeManager
 from config.paths import config_dir, logs_dir
+from core.update_checker import ReleaseInfo, is_update_available
+from core.update_client import ReleaseClient
 from ui.responsive import PANEL_BREAKPOINTS, Viewport, dialog_dimensions
 from ui.theme import Theme, mounted, supdate
 from ui.components.target_selector import TargetSelector
@@ -24,13 +30,26 @@ class SettingsPanel(ft.Column):
     # estado luminoso permanezca igual. WizzApp usa esta marca para no
     # descartar el callback final de una búsqueda.
     refresh_on_equal_state = True
-    def __init__(self, wiz, *, i18n=None, on_language_change=None, runtime=None):
+    def __init__(
+        self,
+        wiz,
+        *,
+        i18n=None,
+        on_language_change=None,
+        runtime=None,
+        release_client=None,
+        platform_services=None,
+    ):
         super().__init__(scroll=ft.ScrollMode.AUTO, spacing=18, expand=True)
         self.wiz = wiz
         self.i18n = i18n or get_manager()
         self._on_language_change = on_language_change
         self.runtime = runtime or AppRuntimeManager(i18n=self.i18n)
         self.runtime.i18n = self.i18n
+        self.release_client = release_client or ReleaseClient()
+        self.platform_services = platform_services
+        self._update_check_in_progress = False
+        self._available_release: ReleaseInfo | None = None
         self.language_preference = RuntimeLanguagePreference(self.runtime)
         if i18n is None:
             self.i18n.set_preference(self.language_preference.load())
@@ -249,7 +268,11 @@ class SettingsPanel(ft.Column):
                 self._runtime_option(self._t("runtime.tray_enabled"), self._t("runtime.tray_enabled.description"), self.tray_enabled_switch),
                 self._runtime_option(self._t("runtime.close_to_tray"), self._t("runtime.close_to_tray.description"), self.minimize_to_tray_switch),
                 self._runtime_option(self._t("runtime.open_minimized"), self._t("runtime.open_minimized.description"), self.open_minimized_switch),
-                self._runtime_option(self._t("runtime.start_with_windows"), self._t("runtime.start_with_windows.description"), self.startup_switch),
+                self._runtime_option(
+                    self._t("runtime.start_at_login") if sys.platform.startswith("linux") else self._t("runtime.start_with_windows"),
+                    self._t("runtime.start_at_login.description") if sys.platform.startswith("linux") else self._t("runtime.start_with_windows.description"),
+                    self.startup_switch,
+                ),
             ],
         )
         runtime_card = self._card(
@@ -334,6 +357,39 @@ class SettingsPanel(ft.Column):
                         color=Theme.FAINT,
                         size=11,
                     ),
+                    ft.Divider(color=Theme.STROKE, height=1),
+                    # Do not put an expanded Column inside a wrapping Row:
+                    # Flutter renders that combination as an ErrorWidget on
+                    # desktop. ResponsiveRow keeps the compact layout while
+                    # giving each breakpoint bounded dimensions.
+                    ft.ResponsiveRow(
+                        breakpoints=PANEL_BREAKPOINTS,
+                        spacing=12,
+                        run_spacing=8,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                        controls=[
+                            ft.Container(
+                                col={"xs": 12, "md": 7},
+                                content=ft.Column(
+                                    [
+                                        ft.Text(self._t("updates.title"), style=Theme.LABEL),
+                                        self._build_update_status(),
+                                    ],
+                                    spacing=3,
+                                ),
+                            ),
+                            ft.Container(
+                                col={"xs": 12, "md": 5},
+                                alignment=ft.Alignment.CENTER_RIGHT,
+                                content=ft.Row(
+                                    [self.btn_check_updates, self.btn_open_release],
+                                    spacing=8,
+                                    wrap=True,
+                                    alignment=ft.MainAxisAlignment.END,
+                                ),
+                            ),
+                        ],
+                    ),
                 ],
                 spacing=10,
             )
@@ -361,6 +417,117 @@ class SettingsPanel(ft.Column):
             border=ft.Border.all(1, Theme.STROKE),
             shadow=Theme.SHADOW,
         )
+
+    def _build_update_status(self) -> ft.Text:
+        self.update_status = ft.Text(
+            self._t("updates.idle", version=display_version()),
+            color=Theme.FAINT,
+            size=11,
+        )
+        self.btn_check_updates = ft.OutlinedButton(
+            self._t("updates.check"),
+            icon=ft.Icons.SYSTEM_UPDATE_ALT_ROUNDED,
+            style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)),
+            on_click=self._check_for_updates,
+        )
+        self.btn_open_release = ft.TextButton(
+            self._t("updates.open_release"),
+            icon=ft.Icons.OPEN_IN_NEW_ROUNDED,
+            visible=False,
+            on_click=self._open_available_release,
+        )
+        return self.update_status
+
+    def _check_for_updates(self, e=None) -> None:
+        if self._update_check_in_progress:
+            return
+        self._update_check_in_progress = True
+        self._available_release = None
+        self.btn_check_updates.disabled = True
+        self.btn_open_release.visible = False
+        self.update_status.value = self._t("updates.checking")
+        self.update_status.color = Theme.MUTED
+        supdate(self.btn_check_updates)
+        supdate(self.btn_open_release)
+        supdate(self.update_status)
+        threading.Thread(target=self._check_for_updates_worker, daemon=True, name="wizz-release-check").start()
+
+    def _check_for_updates_worker(self) -> None:
+        try:
+            release = self.release_client.latest(channel="stable")
+            self._dispatch_update_result(release, None)
+        except Exception:
+            # Connectivity, rate limiting and malformed data must never affect
+            # app startup or light control, and need no technical error surface.
+            self._dispatch_update_result(None, "unavailable")
+
+    def _dispatch_update_result(self, release: ReleaseInfo | None, error: str | None) -> None:
+        def apply() -> None:
+            self._apply_update_result(release, error)
+
+        page = getattr(self, "page", None)
+        run_task = getattr(page, "run_task", None)
+        if callable(run_task):
+            async def apply_on_page() -> None:
+                apply()
+
+            try:
+                run_task(apply_on_page)
+                return
+            except Exception:
+                pass
+        apply()
+
+    @staticmethod
+    def _is_official_release_url(value: str | None) -> bool:
+        parsed = urlparse(str(value or ""))
+        return (
+            parsed.scheme == "https"
+            and parsed.netloc.lower() == "github.com"
+            and parsed.path.startswith("/yvvvl/WizzController/releases")
+        )
+
+    def _apply_update_result(self, release: ReleaseInfo | None, error: str | None = None) -> None:
+        self._update_check_in_progress = False
+        self.btn_check_updates.disabled = False
+        self._available_release = None
+        self.btn_open_release.visible = False
+
+        if error:
+            self.update_status.value = self._t("updates.unavailable")
+            self.update_status.color = Theme.WARNING
+        elif release is None:
+            self.update_status.value = self._t("updates.no_release")
+            self.update_status.color = Theme.FAINT
+        elif is_update_available(APP_VERSION, release):
+            self.update_status.value = self._t("updates.available", version=release.version)
+            self.update_status.color = Theme.SUCCESS
+            if self._is_official_release_url(release.notes_url):
+                self._available_release = release
+                self.btn_open_release.visible = True
+        else:
+            self.update_status.value = self._t("updates.current", version=display_version())
+            self.update_status.color = Theme.FAINT
+
+        supdate(self.btn_check_updates)
+        supdate(self.btn_open_release)
+        supdate(self.update_status)
+
+    def _open_available_release(self, e=None) -> None:
+        release = self._available_release
+        if release is None or not self._is_official_release_url(release.notes_url):
+            return
+        try:
+            page = getattr(self, "page", None)
+            launch_url = getattr(page, "launch_url", None)
+            if callable(launch_url):
+                launch_url(release.notes_url)
+                return
+        except Exception:
+            pass
+        self.update_status.value = self._t("updates.open_failed")
+        self.update_status.color = Theme.WARNING
+        supdate(self.update_status)
 
     def _runtime_option(self, title: str, subtitle: str, switch: ft.Switch) -> ft.Container:
         return ft.Container(
@@ -392,7 +559,13 @@ class SettingsPanel(ft.Column):
             if os.name == "nt":
                 os.startfile(folder)  # type: ignore[attr-defined]
             else:
+                system = getattr(self.platform_services, "system", None)
+                opener = getattr(system, "open_folder", None)
+                opened = bool(opener(folder)) if callable(opener) else False
+                if not opened:
+                    subprocess.Popen(["xdg-open", folder])
                 self.runtime_status.value = folder
+                self.runtime_status.color = Theme.FAINT
                 supdate(self.runtime_status)
         except Exception as exc:
             self.runtime_status.value = self._t("settings.open_folder_error", error=exc)

@@ -9,7 +9,7 @@ from core.background import tray_service as tray_module
 from core.background.tray_service import TrayService
 from core.quick_panel_controller import QuickPanelController
 from localization import LocalizationManager
-from main import _update_runtime_views
+from main import _update_runtime_view
 from ui.components.quick_color_studio_adapter import ColorStudioQuickAdapter
 from ui.quick_panel_view import QuickPanelView
 from ui.theme import Theme
@@ -290,15 +290,13 @@ class _StateConsumer:
         self.states.append(dict(state))
 
 
-def test_runtime_state_updates_full_and_quick_views() -> None:
+def test_runtime_state_updates_main_view() -> None:
     full = _StateConsumer()
-    quick = _StateConsumer()
     state = {"state": True, "dimming": 72}
 
-    _update_runtime_views(full, quick, state)
+    _update_runtime_view(full, state)
 
     assert full.states == [state]
-    assert quick.states == [state]
 
 
 def test_controller_selects_one_device_and_refreshes_snapshot() -> None:
@@ -360,10 +358,10 @@ def test_open_quick_reuses_window_and_replaces_only_host_content() -> None:
 
     assert host.content is quick_view
     assert controller.window_mode == "quick"
-    assert page.window.width == 440
-    assert page.window.height == 680
-    assert page.window.min_width == 440
-    assert page.window.min_height == 680
+    assert page.window.width == 380
+    assert page.window.height == 600
+    assert page.window.min_width == 380
+    assert page.window.min_height == 600
     assert page.window.visible is True
     assert page.window.skip_task_bar is True
     assert page.update_count == 1
@@ -386,12 +384,12 @@ def test_open_quick_uses_fixed_overlay_chrome_and_bottom_right_position() -> Non
 
     controller.open_quick()
 
-    assert page.window.width == 440
-    assert page.window.height == 680
-    assert page.window.min_width == 440
-    assert page.window.min_height == 680
-    assert page.window.left == 1464
-    assert page.window.top == 384
+    assert page.window.width == 380
+    assert page.window.height == 600
+    assert page.window.min_width == 380
+    assert page.window.min_height == 600
+    assert page.window.left == 1524
+    assert page.window.top == 464
     assert page.window.always_on_top is True
     assert page.window.frameless is True
     assert page.window.title_bar_hidden is True
@@ -783,9 +781,9 @@ def test_color_studio_adapter_forwards_compact_viewport() -> None:
         i18n=LocalizationManager(preference="en"),
     )
 
-    adapter.set_viewport(390, 620)
+    adapter.set_viewport(350, 540)
 
-    assert studio.viewports == [(390, 620)]
+    assert studio.viewports == [(350, 540)]
 
 
 def test_color_studio_adapter_forwards_external_light_state() -> None:
@@ -918,7 +916,7 @@ def test_view_builds_premium_card_shell_without_desktop_navigation() -> None:
         isinstance(control, ft.NavigationRail)
         for control in view.shell.content.controls
     )
-    assert adapter.viewports == [(390, 620)]
+    assert adapter.viewports == [(350, 540)]
 
 
 def test_view_header_renders_active_device_and_online_state() -> None:
@@ -1096,6 +1094,7 @@ def test_windows_single_click_waits_then_opens_quick_panel(monkeypatch) -> None:
     _Timer.instances.clear()
 
     monkeypatch.setattr(tray_module.os, "name", "nt")
+    monkeypatch.setattr(tray_module.sys, "platform", "win32")
     monkeypatch.setattr(tray_module.threading, "Timer", _Timer)
 
     assert tray._handle_tray_primary_click() is False
@@ -1120,6 +1119,7 @@ def test_windows_double_click_cancels_quick_panel_and_opens_full_app(
     ticks = iter((10.0, 10.2))
 
     monkeypatch.setattr(tray_module.os, "name", "nt")
+    monkeypatch.setattr(tray_module.sys, "platform", "win32")
     monkeypatch.setattr(tray_module.threading, "Timer", _Timer)
     monkeypatch.setattr(tray_module.time, "monotonic", lambda: next(ticks))
 
@@ -1136,6 +1136,7 @@ def test_non_windows_primary_click_toggles_quick_panel(monkeypatch) -> None:
     tray = _quick_tray(calls)
 
     monkeypatch.setattr(tray_module.os, "name", "posix")
+    monkeypatch.setattr(tray_module.sys, "platform", "linux")
 
     assert tray._handle_tray_primary_click() is True
     assert calls == ["quick"]

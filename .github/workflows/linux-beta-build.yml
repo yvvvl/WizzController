@@ -1,0 +1,73 @@
+name: Linux beta build
+
+on:
+  push:
+    branches:
+      - feature/v1.2.0-linux-beta
+      - "release/**"
+  pull_request:
+    paths:
+      - "**.py"
+      - "pyproject.toml"
+      - "requirements*.txt"
+      - "scripts/build_linux.sh"
+      - ".github/workflows/linux-beta-build.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  package-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # Match the embedded runtime used by the current Flet Linux build.
+          python-version: "3.12"
+
+      - name: Install Flet Linux prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            binutils clang cmake llvm lld ninja-build pkg-config \
+            libcairo2-dev libgirepository1.0-dev \
+            gir1.2-ayatanaappindicator3-0.1 \
+            libgtk-3-dev libsecret-1-0 libsecret-1-dev libunwind-dev \
+            gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-gtk3 \
+            gstreamer1.0-libav gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good gstreamer1.0-tools gstreamer1.0-x
+
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt -r requirements-dev.txt -r requirements-build.txt
+
+      - name: Test and package Linux beta
+        run: bash scripts/build_linux.sh --output dist/linux
+
+      - name: Verify application-menu installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          export XDG_DATA_HOME="$RUNNER_TEMP/wizz-xdg-data"
+          bash dist/linux/install.sh
+
+          desktop_file="$XDG_DATA_HOME/applications/io.github.yvvvl.wizz-controller.desktop"
+          installed_app="$XDG_DATA_HOME/WizZDesktop/WizZDesktop"
+          test -f "$desktop_file"
+          test -x "$installed_app"
+          grep -F "Exec=$installed_app" "$desktop_file"
+          grep -F "Icon=$XDG_DATA_HOME/WizZDesktop/assets/icon.png" "$desktop_file"
+
+          bash "$XDG_DATA_HOME/WizZDesktop/uninstall.sh"
+          test ! -e "$desktop_file"
+          test ! -e "$XDG_DATA_HOME/WizZDesktop"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WizZDesktop-v1.2.0-linux-x64
+          path: |
+            dist/linux
+            dist/release/WizZDesktop-v1.2.0-linux-x64.tar.gz
+            dist/release/WizZDesktop-v1.2.0-linux-x64.tar.gz.sha256
+          if-no-files-found: error

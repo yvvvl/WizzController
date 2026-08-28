@@ -30,9 +30,26 @@ def assets_dir() -> Path:
 
 
 def is_flet_build() -> bool:
+    executable_name = Path(sys.executable).name.lower()
+    executable_dir = Path(sys.executable).resolve().parent
+    packaged_marker = executable_dir / f"{APP_ARTIFACT}.exe"
+    argv_name = Path(str(sys.argv[0] or "")).name.lower()
+    # Flet's Windows launcher can execute Python from the bundled app.zip
+    # rather than from WizZDesktop.exe itself.  In that mode neither
+    # ``sys.frozen`` nor the executable name is a reliable marker.
+    module_path = str(Path(__file__).resolve()).lower()
+    embedded_runtime = (
+        ".zip" in module_path
+        or "flutter_assets" in module_path
+        or Path(__file__).suffix.lower() == ".pyc"
+    )
     return bool(
         str(os.environ.get("FLET_APP_STORAGE_DATA") or "").strip()
         or getattr(sys, "frozen", False)
+        or executable_name == f"{APP_ARTIFACT.lower()}.exe"
+        or packaged_marker.is_file()
+        or argv_name == f"{APP_ARTIFACT.lower()}.exe"
+        or embedded_runtime
     )
 
 
@@ -47,16 +64,29 @@ def config_dir() -> Path:
 
     flet_storage = str(os.environ.get("FLET_APP_STORAGE_DATA") or "").strip()
 
-    # 2. Si es una build empaquetada (AppImage / PyInstaller / Flet Build)
+    # 2. Windows packaged builds always use LocalAppData.  Flet sets
+    # FLET_APP_STORAGE_DATA to its Documents-based folder, but WizZ's release
+    # contract is one predictable Windows location that survives upgrades.
     if is_flet_build():
-        if flet_storage:
-            target = Path(flet_storage).expanduser().resolve() / "config"
+        if sys.platform.startswith("win"):
+            local_app_data = os.environ.get(
+                "LOCALAPPDATA", str(Path.home() / "AppData" / "Local")
+            )
+            target = Path(local_app_data) / APP_ARTIFACT / "config"
             return _prepare(target, migrate=True)
 
-        # Estándar Linux XDG si no hay ruta Flet explícita
+        # Linux packages use the freedesktop.org XDG location even when Flet
+        # supplies an internal storage folder. That keeps data predictable
+        # across GNOME, KDE, XFCE and other desktop environments. The Flet
+        # folder remains a one-time migration source below.
         if sys.platform.startswith("linux"):
             xdg_config = os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))
             target = Path(xdg_config) / APP_ARTIFACT / "config"
+            return _prepare(target, migrate=True)
+
+        # Other packaged platforms honor Flet's explicit storage directory.
+        if flet_storage:
+            target = Path(flet_storage).expanduser().resolve() / "config"
             return _prepare(target, migrate=True)
 
     # 3. Modo Desarrollo Local (Guarda en el propio repo config/json)
@@ -68,11 +98,16 @@ def logs_dir() -> Path:
     """Directorio para los logs de la aplicación."""
     flet_storage = str(os.environ.get("FLET_APP_STORAGE_DATA") or "").strip()
 
-    if flet_storage:
-        target = Path(flet_storage).expanduser().resolve() / "logs"
+    if sys.platform.startswith("win") and is_flet_build():
+        local_app_data = os.environ.get(
+            "LOCALAPPDATA", str(Path.home() / "AppData" / "Local")
+        )
+        target = Path(local_app_data) / APP_ARTIFACT / "logs"
     elif sys.platform.startswith("linux") and is_flet_build():
-        xdg_config = os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))
-        target = Path(xdg_config) / APP_ARTIFACT / "logs"
+        xdg_state = os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local" / "state"))
+        target = Path(xdg_state) / APP_ARTIFACT / "logs"
+    elif flet_storage:
+        target = Path(flet_storage).expanduser().resolve() / "logs"
     else:
         target = project_root() / "logs"
 
@@ -144,6 +179,12 @@ def _legacy_candidates() -> list[Path]:
     explicit = str(os.environ.get("WIZZ_LEGACY_CONFIG_DIR") or "").strip()
     if explicit:
         candidates.append(Path(explicit).expanduser())
+
+    # Earlier Flet Windows builds stored the application data under Documents.
+    # Keep it as a migration source when moving those users to LocalAppData.
+    flet_storage = str(os.environ.get("FLET_APP_STORAGE_DATA") or "").strip()
+    if flet_storage:
+        candidates.append(Path(flet_storage).expanduser() / "config")
 
     candidates.extend(
         [

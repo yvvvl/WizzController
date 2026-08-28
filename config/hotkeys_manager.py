@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import sys
 import threading
 import time
 from typing import Any, Callable
@@ -139,15 +140,26 @@ class HotkeysManager(JsonManager):
     @property
     def available(self) -> bool:
         """True si existe algún backend global utilizable."""
-        return os.name == "nt" or _keyboard is not None
+        # ``keyboard`` necesita acceder a /dev/input en Linux. En Wayland eso
+        # implica ejecutar como root, algo que no es aceptable para una app de
+        # escritorio ni resuelve el modelo de permisos del compositor. Hasta
+        # implementar el portal XDG GlobalShortcuts, Linux se declara como no
+        # compatible y nunca intenta registrar hooks.
+        if sys.platform.startswith("linux"):
+            return False
+        return sys.platform.startswith("win") or _keyboard is not None
 
     @property
     def can_record(self) -> bool:
         """La grabación interactiva sigue usando la librería keyboard."""
+        if sys.platform.startswith("linux"):
+            return False
         return _keyboard is not None
 
     def dependency_message(self) -> str:
-        if os.name == "nt":
+        if sys.platform.startswith("linux"):
+            return self._t("hotkeys.dependency.linux_unavailable")
+        if sys.platform.startswith("win"):
             if _keyboard is None:
                 return self._t("hotkeys.dependency.native_recording_missing", error=_IMPORT_ERROR)
             return self._t("hotkeys.dependency.native_ready")
@@ -567,6 +579,10 @@ class HotkeysManager(JsonManager):
                 "keyboard": 0,
                 "failed": [],
             }
+            if not self.available:
+                self.last_error = self.dependency_message()
+                self._registration_report["failed"] = self._public_failures(entries)
+                return
             if not self.is_enabled():
                 return
             if not entries:
@@ -577,7 +593,7 @@ class HotkeysManager(JsonManager):
             native_success: list[dict[str, Any]] = []
             native_failed: list[dict[str, Any]] = []
 
-            if os.name == "nt" and preference in {"auto", "native"}:
+            if sys.platform.startswith("win") and preference in {"auto", "native"}:
                 try:
                     self._native_backend.start(entries)
                     native_success = self._native_backend.successful_entries

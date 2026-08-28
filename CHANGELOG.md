@@ -1,5 +1,49 @@
 # Changelog
 
+## v1.2.0
+
+### Added
+
+- Selección temporal de una, varias o todas las ampolletas, sin necesidad de
+  crear ni editar grupos persistentes.
+- Comprobación manual y segura de actualizaciones desde GitHub Releases.
+- Fixture de desarrollo con ampolletas virtuales para validar targeting sin
+  necesitar hardware múltiple.
+- Beta Linux para Ubuntu Desktop: paquete nativo, persistencia XDG,
+  AppIndicator, apertura de Datos/Logs y arranque automático por usuario.
+- Instalador Linux sin `sudo`, con lanzador en el menú de aplicaciones y
+  desinstalación que conserva los datos personales.
+
+### Changed
+
+- Las builds Windows guardan configuraciones y logs en
+  `%LOCALAPPDATA%\\WizZDesktop` y migran datos de instalaciones Flet previas.
+- Un clic en el icono de bandeja restaura directamente la ventana principal.
+- El Quick Panel experimental fue retirado del flujo público de la bandeja.
+- En Linux, los hotkeys globales se muestran como no disponibles: no se usa
+  `sudo` ni se intentan hooks inseguros sobre dispositivos de entrada.
+
+### Fixed
+
+- Restauración de ventana, salida real desde la bandeja e instancia única en
+  builds Windows.
+- Persistencia de datos al reemplazar o ejecutar una copia aislada del
+  ejecutable.
+- El paquete Linux ahora incluye las dependencias PyGObject/AppIndicator que
+  necesita el icono de bandeja fuera del entorno de desarrollo.
+
+### Validation
+
+- 368 pruebas automatizadas completadas en Windows y Ubuntu Desktop; auditoría
+  i18n: 608 claves en inglés y español, sin strings UI hardcodeados.
+- Validación Windows real: bandeja, hotkeys, instancia única, AppData,
+  extracción limpia y control de una ampolleta WiZ por LAN.
+- Validación Linux beta real: build nativa, archivo extraído, bandeja,
+  persistencia XDG y control LAN de la misma ampolleta WiZ.
+
+> RGBIC, Screen Sync, streaming y actualización automática no forman parte de
+> esta versión estable.
+
 ## v1.1.0
 
 ### Added

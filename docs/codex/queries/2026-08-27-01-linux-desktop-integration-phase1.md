@@ -15,10 +15,15 @@ the Windows runtime, UI and WiZ core unchanged.
 - Unknown platforms return unavailable capabilities instead of silently using a
   Linux or Windows implementation.
 - Added deterministic tests for Linux selection and unsupported platforms.
+- Added opt-in `PlatformRuntime` facade; it never starts services implicitly
+  and delegates tray lifecycle only when explicitly requested.
+- Exposed the runtime snapshot from `main.py` without starting any new
+  platform service or changing existing Windows behavior.
 
 ## Deliberate limits
 
-- The composition helper is not wired into `main.py` yet.
+- Services remain unwired; only the immutable capability snapshot is exposed
+  from `main.py`.
 - No Windows behavior was moved or replaced.
 - No macOS adapter is provided; macOS remains deferred.
 - Tray execution still requires the separately validated foreground run-loop.

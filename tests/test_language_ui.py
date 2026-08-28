@@ -18,7 +18,7 @@ def test_language_selector_exposes_system_and_manual_modes() -> None:
         LANGUAGE_ENGLISH,
     )
     labels = dict(language_choices())
-    assert "Windows" in labels[LANGUAGE_SYSTEM]
+    assert labels[LANGUAGE_SYSTEM] == "Automático / Automatic"
     assert labels[LANGUAGE_SPANISH] == "Español"
     assert labels[LANGUAGE_ENGLISH] == "English"
 

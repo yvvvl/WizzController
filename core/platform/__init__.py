@@ -29,6 +29,7 @@ from .linux import (
     detect_linux_capabilities,
 )
 from .composition import PlatformServices, build_platform_services
+from .runtime import PlatformRuntime
 
 __all__ = [
     "AutostartService",
@@ -53,4 +54,5 @@ __all__ = [
     "detect_linux_capabilities",
     "PlatformServices",
     "build_platform_services",
+    "PlatformRuntime",
 ]

@@ -10,10 +10,10 @@ from core.action_sequence import ActionSequenceExecutor
 class QuickPanelController:
     """Coordinate Quick Panel state without owning WiZ protocol behavior."""
 
-    QUICK_WIDTH = 440
-    QUICK_HEIGHT = 680
-    QUICK_MIN_WIDTH = 440
-    QUICK_MIN_HEIGHT = 680
+    QUICK_WIDTH = 380
+    QUICK_HEIGHT = 600
+    QUICK_MIN_WIDTH = 380
+    QUICK_MIN_HEIGHT = 600
     QUICK_MARGIN = 16
 
     def __init__(

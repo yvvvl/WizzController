@@ -1,20 +1,30 @@
 # WizZ Desktop — contexto maestro del proyecto
 
-Última actualización: 2026-08-25
+Última actualización: 2026-08-28
 
 ## Nota de auditoría del checkout actual
 
-La rama auditada es `feature/ui-dynamic-multi-target` en el commit `4afbafd`.
-La documentación arquitectónica y los reportes históricos fueron restaurados
-desde el commit previo que contiene la foundation RGBIC y multiplataforma. La
-suite local queda en `318 passed` con warnings de deprecación de Flet; no se
-introduce soporte productivo RGBIC, scheduler ni streaming en esta fase.
+La rama de trabajo de Linux beta es `feature/v1.2.0-linux-beta`. El baseline
+documentado para la planificación de release es `f158d30`, con los gates de
+endurecimiento Windows completados. La versión pública estable continúa siendo
+`v1.1.0`; el candidato actual es `v1.2.0` (build 2) y no debe anunciarse como
+publicado hasta el tag y la release de GitHub.
 
-La siguiente fase activa es `feature/cross-platform-foundation-phase2`. Ya
-incluye detección explícita de capacidades Linux, autostart XDG, apertura de
-carpetas mediante `xdg-open` y una frontera de ventana basada en callbacks.
-Estos servicios todavía no están conectados al runtime principal; el tray,
-las hotkeys globales y el packaging Linux siguen pendientes de validación.
+La rama ya incorpora targeting transitorio `single`/`selected`/`all`, consulta
+read-only de GitHub Releases, persistencia empaquetada fuera del directorio de
+la aplicación y la frontera multiplataforma aprobada. Las builds Windows
+guardan los datos del usuario en `%LOCALAPPDATA%\\WizZDesktop`, incluso cuando
+Flet expone `FLET_APP_STORAGE_DATA`; no se deben incluir JSON reales en el
+artefacto. Las instalaciones Flet anteriores se migran desde su ubicación
+legacy al primer arranque.
+
+Linux tiene una beta nativa validada en Ubuntu 22.04 GNOME/Wayland: wiring
+productivo, paquete extraído, tray AppIndicator, XDG persistence/autostart y
+control WiZ LAN. Los hotkeys globales permanecen deshabilitados
+intencionalmente por seguridad. Antes de publicar, ambos artefactos deben
+reconstruirse desde el mismo commit de release. macOS está diferido. RGBIC
+continúa como beta cerrada experimental; no forma parte del soporte público de
+v1.2.0.
 
 Este documento es la fuente principal de continuidad para nuevas sesiones de
 ChatGPT/Codex. Antes de modificar el proyecto, se debe leer completo y
@@ -57,12 +67,26 @@ implemente su propio protocolo, discovery o controlador.
 
 - **Versión estable:** `v1.1.0`, publicada desde `main` y marcada por el tag
   `v1.1.0`.
-- **Desarrollo principal declarado:** Quick Panel `v1.2.0`.
-- **Estado de Quick Panel:** foundation y rediseño Premium implementados;
-  faltan validación manual con ventana/tray reales, hardware y plataformas
-  representativas antes de considerarlo terminado para release.
-- **Checkout al crear este documento:** rama
-  `feature/v1.3.0-effects-engine-foundation`.
+- **Desarrollo principal declarado:** consolidación del release público
+  `v1.2.0` (Windows estable + Linux beta) desde un commit común aprobado.
+- **Estado de Quick Panel:** retirado de la composición activa de v1.2.0 tras
+  fallos reales de geometría y foco. La bandeja restaura únicamente la ventana
+  principal. Su código experimental queda fuera del flujo público hasta que
+  exista una implementación independiente y validada.
+- **Targeting:** selección transitoria de una, varias o todas las luces
+  implementada y cubierta por tests; no requiere grupos persistentes.
+- **Fixture DEV de múltiples luces:** `WIZZ_DEV_VIRTUAL_BULBS=<1..12>` permite
+  ejecutar la app desde código fuente con ampolletas RGBTW virtuales, sin UDP
+  ni persistencia de dispositivos falsos. Sirve para validar targeting, estado
+  y controles sin hardware múltiple. El repaint continuo de escenas dinámicas
+  en Flet 0.85.2 es irregular; no debe usarse como evidencia de fades reales.
+- **Actualizaciones:** selección de canal y cliente GitHub read-only
+  implementados, con comprobación manual visible en Ajustes y enlace validado
+  a la release oficial. Todavía no existe descarga, instalación, reinicio ni
+  rollback automático.
+- **Persistencia empaquetada:** validada en
+  `%LOCALAPPDATA%\\WizZDesktop`; los datos sobreviven al reemplazo del build y
+  la carpeta Flet legacy se migra sin borrar su origen.
 - **Foundation experimental adicional:** la base interna de efectos y RGBIC
   ya separa frame lógico, compresión lógica, calibración, steps físicos,
   mapper puro, simulador por segmentos y encoder puro. También existe un
@@ -75,10 +99,10 @@ implemente su propio protocolo, discovery o controlador.
   desarrollador; ya existen fixtures sanitizados y evidencia revisada para un
   dispositivo, además de un validador beta local para registrar nuevos casos.
   Esto sigue sin equivaler a soporte productivo.
-- **Cross-platform Foundation Phase 1:** la frontera neutral
-  `core/platform/`, sus contratos y fakes están implementados y pendientes de
-  revisión. No hay migración, detección de OS, adapters reales, wiring de UI
-  ni packaging Linux/macOS.
+- **Linux beta:** contratos y servicios están conectados al runtime; Ubuntu
+  validó build nativa, tray AppIndicator, persistencia XDG, autostart y WiZ
+  LAN. Los hotkeys Wayland no están resueltos y se muestran como no
+  disponibles. macOS está explícitamente diferido.
 
 ### Ramas relevantes
 
@@ -89,6 +113,8 @@ implemente su propio protocolo, discovery o controlador.
 | `feature/v1.2.0-quick-panel` | Foundation del Quick Panel; apunta a `1838eca` |
 | `feature/v1.2.0-quick-panel-design` | Rediseño Premium terminado en `ec9da58` |
 | `feature/v1.3.0-effects-engine-foundation` | Modelos y simulador base de efectos/RGBIC en `0a09163`; pendiente de revisión |
+| `release/v1.2.0-windows` | Release candidate pública Windows; baseline planificado `f158d30` |
+| `feature/cross-platform-foundation-phase2` | Foundation Linux validada en CI/VM, sin wiring productivo |
 | `feature/v1.1.0-pywizlight-capabilities` | Auditoría, atribución y packaging de `pywizlight` |
 
 La historia de la rama actual pasa por `ea1cc0e` (foundation del Quick Panel),
@@ -152,7 +178,7 @@ UI y los servicios de aplicación. Sus responsabilidades incluyen:
 
 - ciclo asyncio en un thread dedicado;
 - discovery WiZ y caché de dispositivos;
-- targeting `single` o `all`;
+- targeting `single`, `selected` o `all`;
 - estado lógico reflejado hacia la UI;
 - control de power, brillo, RGB, Kelvin, escenas y favoritos;
 - coalescing del camino de escritura;
@@ -238,8 +264,8 @@ expansión de alcance.
 ### Frontera cross-platform
 
 ADR 0004 establece un único producto con integraciones de escritorio
-capability-driven. Phase 1 crea una frontera todavía desconectada en
-`core/platform/`:
+capability-driven. `core/platform/` contiene la frontera compartida y los
+servicios Linux todavía aislados del runtime principal:
 
 - `CapabilityStatus` expresa `available`, `unavailable`, `degraded` o
   `permission_required`;
@@ -280,8 +306,8 @@ alcance operativo actual.
   `hidden`, `quick` y `full`.
 - Mantener el menú contextual del tray y su lifecycle.
 - Usar una vista compacta por cards para Quick Panel.
-- Mantener `Individual` y `All lights`; grupos parciales están fuera de
-  alcance porque exigirían cambiar el contrato de `LightController`.
+- Mantener compatibilidad con `Individual` y `All lights`, añadiendo selección
+  parcial transitoria desde Home sin crear grupos persistentes.
 - Usar el sistema i18n existente para todo texto visible.
 - Reutilizar Color Studio en vez de construir otro picker o pipeline de color.
 - Capturar y restaurar todas las propiedades de ventana alteradas por el modo
@@ -717,23 +743,28 @@ exacta empaquetada.
 
 ### Corto plazo
 
-- revisar y aprobar Cross-platform Foundation Phase 1;
-- congelar mediante tests el comportamiento Windows antes de encapsularlo;
-- terminar la validación profesional del Quick Panel;
-- realizar smoke manual completo con tray, ventana y luces físicas;
-- validar experiencia, foco, espaciado, targeting y multi-monitor;
-- revisar la foundation de efectos sin confundirla con una feature terminada;
-- ejecutar validación end-to-end del beta validator contra el hardware
-  comunitario y revisar el artefacto sanitizado generado;
-- decidir cierre e integración de Quick Panel v1.2.
+- ejecutar el plan
+  `docs/codex/plans/2026-08-27-v1.2-public-release-and-rgbic-beta-roadmap.md`;
+- estabilizar en Home la experiencia de selección transitoria
+  `single`/`selected`/`all`;
+- integrar una notificación de actualización read-only y tolerante a fallos;
+- conservar el candidato Windows validado y completar el artefacto Linux beta
+  de `v1.2.0` desde el mismo commit de release;
+- actualizar versión, changelog y documentación pública sólo al entrar en
+  release candidate;
+- probar el artefacto descargado desde CI antes de fusionar y etiquetar;
+- crear la beta RGBIC desde la base estable `v1.2.0`, nunca mezclándola con el
+  cierre del release público.
 
 ### Mediano plazo
 
-- encapsular las integraciones Windows detrás de los contratos aprobados sin
-  cambiar su comportamiento;
-- crear fallbacks UI capability-driven en una fase explícita;
-- diseñar y validar adapters Linux antes del estado beta;
+- continuar el Quick Panel como ventana temporal independiente en una rama
+  aislada, después de validar un mecanismo nativo compatible;
+- completar el smoke de Ubuntu Desktop, artefacto, checksum y documentación de
+  limitaciones para cerrar Linux beta;
 - mantener macOS diferido hasta disponer de un equipo o tester comunitario;
+- diseñar descarga, verificación, instalación y rollback antes de llamar
+  “autoactualizador” al cliente de releases;
 - diseñar e implementar el Effects Engine común;
 - añadir contrato realtime en `LightController`;
 - implementar Gradient sobre el scheduler común;
@@ -783,7 +814,10 @@ pertenecen a `docs/third-party/`.
 - AppIndicator no siempre expone un clic primario equivalente;
 - posicionamiento y foco dependen del compositor;
 - multi-monitor con DPI mixto no está validado físicamente;
-- no existen grupos parciales, sólo una luz o todas;
+- la selección parcial transitoria existe en Home, pero Quick Panel todavía
+  expone principalmente los modos una/todas;
+- el panel actual comparte la ventana principal; la ventana temporal
+  independiente está diseñada pero diferida;
 - Color/White, favoritos y ON/OFF requieren prueba con hardware real.
 
 ### Effects / RGBIC
@@ -823,14 +857,16 @@ pertenecen a `docs/third-party/`.
 
 ### Cross-platform
 
-- `core/platform/` sólo contiene contratos y fakes; ningún backend existente
-  está conectado;
+- `core/platform/` contiene contratos, fakes y servicios Linux; el runtime
+  principal ahora entrega sus servicios a Ajustes, usa XDG para autostart y
+  carpetas, y selecciona AppIndicator en GNOME/Wayland antes de iniciar tray;
 - `degraded` significa utilizable con limitaciones, no disponibilidad plena;
 - el backend productivo de hotkeys para Linux sigue sin decidirse;
 - tray, foco, work area y Quick Panel requieren validación X11/Wayland;
 - instancia única Unix todavía necesita una decisión de IPC para activación;
 - macOS no tiene soporte ni CI activo hasta disponer de validación real;
-- no prometer Linux beta sólo por aprobar Phase 1.
+- Linux sigue siendo beta hasta superar smoke real, build nativa y prueba de
+  control LAN en Ubuntu Desktop; no inferir ese estado sólo desde CI o tests.
 
 ### Dependencias y arquitectura
 

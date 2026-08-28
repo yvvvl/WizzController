@@ -182,43 +182,34 @@ def test_hide_window_syncs_on_live_loop(monkeypatch):
         loop.close()
 
 
-def test_windows_tray_primary_action_requires_double_click(monkeypatch):
+def test_windows_tray_primary_action_restores_main_window_immediately(monkeypatch):
     tray = TrayService(_Page(), object(), _Runtime())
-    tray._double_click_seconds = 0.5
     calls: list[bool] = []
-    ticks = iter((10.0, 10.18))
 
     monkeypatch.setattr(tray_module.os, "name", "nt")
-    monkeypatch.setattr(tray_module.time, "monotonic", lambda: next(ticks))
+    monkeypatch.setattr(tray_module.sys, "platform", "win32")
     monkeypatch.setattr(
         tray,
-        "toggle_window",
+        "show_window",
         lambda: calls.append(True) or True,
     )
 
-    assert tray._handle_tray_primary_click() is False
-    assert calls == []
     assert tray._handle_tray_primary_click() is True
     assert calls == [True]
 
 
-def test_windows_tray_primary_action_resets_after_timeout(monkeypatch):
+def test_non_windows_tray_primary_action_restores_main_window_immediately(monkeypatch):
     tray = TrayService(_Page(), object(), _Runtime())
-    tray._double_click_seconds = 0.4
     calls: list[bool] = []
-    ticks = iter((20.0, 20.8, 21.0))
 
-    monkeypatch.setattr(tray_module.os, "name", "nt")
-    monkeypatch.setattr(tray_module.time, "monotonic", lambda: next(ticks))
+    monkeypatch.setattr(tray_module.os, "name", "posix")
+    monkeypatch.setattr(tray_module.sys, "platform", "linux")
     monkeypatch.setattr(
         tray,
-        "toggle_window",
+        "show_window",
         lambda: calls.append(True) or True,
     )
 
-    assert tray._handle_tray_primary_click() is False
-    assert tray._handle_tray_primary_click() is False
-    assert calls == []
     assert tray._handle_tray_primary_click() is True
     assert calls == [True]
 
