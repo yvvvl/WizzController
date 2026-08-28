@@ -9,6 +9,7 @@ from ui.responsive import PANEL_BREAKPOINTS, Viewport
 from ui.theme import Theme, mounted, supdate
 from ui.interaction import LocalEditGuard
 from ui.components.target_selector import TargetSelector
+from ui.components.dev_virtual_bulbs import DevVirtualBulbPreview
 
 EO = ft.AnimationCurve.EASE_OUT
 
@@ -216,7 +217,21 @@ class HomePanel(ft.Column):
             )
         )
 
-        self.controls = [self.header, self.target_selector, self.master_card, bri_card, ft.Text(self._t("home.quick_section"), style=Theme.LABEL), quick, favs_card]
+        self.dev_virtual_preview = (
+            DevVirtualBulbPreview(
+                self.wiz,
+                i18n=self.i18n,
+                on_target_selected=self.target_selector.refresh,
+            )
+            if getattr(self.wiz, "is_virtual", False)
+            else None
+        )
+        if self.dev_virtual_preview is not None:
+            self.target_selector.on_selection_changed = self.dev_virtual_preview.refresh_selection
+        self.controls = [self.header, self.target_selector]
+        if self.dev_virtual_preview is not None:
+            self.controls.append(self.dev_virtual_preview)
+        self.controls.extend([self.master_card, bri_card, ft.Text(self._t("home.quick_section"), style=Theme.LABEL), quick, favs_card])
         self._render_favorites()
 
     # ------------------------------------------------------------------ #
@@ -396,7 +411,13 @@ class HomePanel(ft.Column):
         self._last_state = dict(state or {})
         if not mounted(self):
             return
+        selection_only = bool(state.get("_virtual_selection_only"))
         self.target_selector.refresh()
+        if self.dev_virtual_preview is not None:
+            if selection_only:
+                self.dev_virtual_preview.refresh_selection()
+            else:
+                self.dev_virtual_preview.refresh()
         if "dimming" in state and not self._bri_guard.blocks(state["dimming"], tolerance=1):
             self.bri_slider.value = state["dimming"]
             self.bri_value.value = self._t("common.percent_value", value=int(state["dimming"]))
@@ -407,7 +428,13 @@ class HomePanel(ft.Column):
         count = int(s.get("count", 0) or 0)
         active = int(s.get("active", 0) or 0)
         extra = f" · {s['label']}" if s.get("label") else ""
-        mode = self._t("routines.target.single") if s.get("target_mode") == "single" else self._t("routines.target.all")
+        target_mode = s.get("target_mode", "single")
+        if target_mode == "selected":
+            mode = self._t("target.mode.selected")
+        elif target_mode == "all":
+            mode = self._t("routines.target.all")
+        else:
+            mode = self._t("routines.target.single")
         active_ip = s.get("active_ip") or "—"
 
         if active > 0:

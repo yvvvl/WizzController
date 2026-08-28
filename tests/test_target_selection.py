@@ -8,6 +8,7 @@ def _controller_for_targets(mode, selected, reachable):
     controller._reachable_targets = lambda: set(reachable)
     controller._saved_targets = lambda: set(reachable)
     controller._ensure_active_ip = lambda: "192.168.1.10"
+    controller._slider_interval_ms = 65
     return controller
 
 
@@ -46,3 +47,17 @@ def test_single_mode_keeps_only_active_light():
     )
 
     assert controller._control_targets() == {"192.168.1.10"}
+
+
+def test_selected_mode_snapshot_preserves_selected_ips():
+    controller = _controller_for_targets(
+        "selected",
+        {"192.168.1.10", "192.168.1.12"},
+        {"192.168.1.10", "192.168.1.11", "192.168.1.12"},
+    )
+
+    snapshot = controller.get_target_config()
+
+    assert snapshot["mode"] == "selected"
+    assert snapshot["selected_ips"] == ["192.168.1.10", "192.168.1.12"]
+    assert snapshot["targets"] == ["192.168.1.10", "192.168.1.12"]

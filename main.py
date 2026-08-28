@@ -1,4 +1,5 @@
 import atexit
+import asyncio
 import os
 import sys
 import time
@@ -12,6 +13,7 @@ import flet as ft
 from app_meta import APP_ID, APP_NAME, display_version
 
 from core.light_controller import LightController
+from core.dev_virtual_lights import VirtualLightController, virtual_bulb_count_from_environment
 from ui.app import WizzApp
 from ui.theme import Theme
 from config.app_runtime_manager import AppRuntimeManager
@@ -67,6 +69,23 @@ def _dispatch_wiz_state(
         except Exception:
             pass
 
+    # Flet 0.85 owns the live session loop internally. ``run_task`` is the
+    # supported cross-thread bridge; relying only on the legacy ``page.loop``
+    # attribute can queue a change that becomes visible only on the next click.
+    run_task = getattr(page, "run_task", None)
+    if callable(run_task):
+        async def apply_on_page_loop() -> None:
+            apply_state()
+            await asyncio.sleep(0)
+
+        try:
+            run_task(apply_on_page_loop)
+            return True
+        except (RuntimeError, TypeError):
+            pass
+        except Exception:
+            return False
+
     loop = getattr(page, "loop", None)
 
     if loop is None:
@@ -109,7 +128,13 @@ def main(page: ft.Page):
         i18n = get_manager()
         i18n.set_preference(RuntimeLanguagePreference(runtime).load())
 
-        wiz = LightController()
+        virtual_bulbs = virtual_bulb_count_from_environment()
+        wiz = VirtualLightController(virtual_bulbs) if virtual_bulbs else LightController()
+        if virtual_bulbs:
+            logging.warning(
+                "[DEV] Simulador de %s ampolletas virtuales activo; no se enviará tráfico WiZ.",
+                virtual_bulbs,
+            )
         hotkeys = HotkeysManager(wiz, i18n=i18n)
         logging.info("[Hotkeys] %s", hotkeys.backend_status())
 

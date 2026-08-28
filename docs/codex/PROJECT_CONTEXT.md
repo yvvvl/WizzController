@@ -69,6 +69,11 @@ implemente su propio protocolo, discovery o controlador.
   como ventana temporal independiente permanece aprobado pero diferido.
 - **Targeting:** selección transitoria de una, varias o todas las luces
   implementada y cubierta por tests; no requiere grupos persistentes.
+- **Fixture DEV de múltiples luces:** `WIZZ_DEV_VIRTUAL_BULBS=<1..12>` permite
+  ejecutar la app desde código fuente con ampolletas RGBTW virtuales, sin UDP
+  ni persistencia de dispositivos falsos. Sirve para validar targeting, estado
+  y controles sin hardware múltiple. El repaint continuo de escenas dinámicas
+  en Flet 0.85.2 es irregular; no debe usarse como evidencia de fades reales.
 - **Actualizaciones:** selección de canal y cliente GitHub read-only
   implementados; todavía no existe descarga, instalación, reinicio ni
   rollback automático.

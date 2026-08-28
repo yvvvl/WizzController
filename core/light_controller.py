@@ -533,6 +533,7 @@ class LightController:
         return {
             "mode": self._target_mode,
             "active_ip": active,
+            "selected_ips": sorted(self._selected_ips),
             "targets": sorted(self._control_targets()),
             "reachable": sorted(self._reachable_targets()),
             "saved": sorted(self._saved_targets()),

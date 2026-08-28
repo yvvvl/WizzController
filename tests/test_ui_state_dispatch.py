@@ -29,6 +29,15 @@ class FakePage:
         self.updates += 1
 
 
+class TaskPage(FakePage):
+    def __init__(self) -> None:
+        super().__init__()
+        self.tasks = []
+
+    def run_task(self, handler) -> None:
+        self.tasks.append(handler)
+
+
 def test_wiz_callback_is_dispatched_through_page_loop() -> None:
     page = FakePage()
     received: list[dict] = []
@@ -70,3 +79,14 @@ def test_closed_page_loop_rejects_callback() -> None:
     assert scheduled is False
     assert received == []
     assert page.updates == 0
+
+
+def test_real_page_task_bridge_is_preferred_when_available() -> None:
+    page = TaskPage()
+    received: list[dict] = []
+
+    scheduled = app_main._dispatch_wiz_state(page, received.append, {"state": True})
+
+    assert scheduled is True
+    assert len(page.tasks) == 1
+    assert received == []
