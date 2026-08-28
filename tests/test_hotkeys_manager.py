@@ -149,6 +149,7 @@ def test_partial_native_registration_uses_keyboard_only_for_failed(tmp_path, mon
     import config.hotkeys_manager as hotkeys_module
 
     monkeypatch.setattr(hotkeys_module.os, "name", "nt")
+    monkeypatch.setattr(hotkeys_module.sys, "platform", "win32")
     fake_keyboard = _FakeKeyboard()
     monkeypatch.setattr(hotkeys_module, "_keyboard", fake_keyboard)
 
@@ -179,6 +180,9 @@ def test_reregister_removes_old_keyboard_handles(tmp_path, monkeypatch):
     import config.hotkeys_manager as hotkeys_module
 
     monkeypatch.setattr(hotkeys_module.os, "name", "posix")
+    # Exercise the legacy keyboard fallback without pretending a real Linux
+    # session supports unsafe global input hooks.
+    monkeypatch.setattr(hotkeys_module.sys, "platform", "darwin")
     fake_keyboard = _FakeKeyboard()
     monkeypatch.setattr(hotkeys_module, "_keyboard", fake_keyboard)
 
