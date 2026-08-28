@@ -64,8 +64,18 @@ def config_dir() -> Path:
 
     flet_storage = str(os.environ.get("FLET_APP_STORAGE_DATA") or "").strip()
 
-    # 2. Si es una build empaquetada (AppImage / PyInstaller / Flet Build)
+    # 2. Windows packaged builds always use LocalAppData.  Flet sets
+    # FLET_APP_STORAGE_DATA to its Documents-based folder, but WizZ's release
+    # contract is one predictable Windows location that survives upgrades.
     if is_flet_build():
+        if sys.platform.startswith("win"):
+            local_app_data = os.environ.get(
+                "LOCALAPPDATA", str(Path.home() / "AppData" / "Local")
+            )
+            target = Path(local_app_data) / APP_ARTIFACT / "config"
+            return _prepare(target, migrate=True)
+
+        # Other packaged platforms honor Flet's explicit storage directory.
         if flet_storage:
             target = Path(flet_storage).expanduser().resolve() / "config"
             return _prepare(target, migrate=True)
@@ -74,15 +84,6 @@ def config_dir() -> Path:
         if sys.platform.startswith("linux"):
             xdg_config = os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))
             target = Path(xdg_config) / APP_ARTIFACT / "config"
-            return _prepare(target, migrate=True)
-
-        # Windows packaged builds must keep user data outside the install
-        # directory so upgrades do not overwrite configuration.
-        if sys.platform.startswith("win"):
-            local_app_data = os.environ.get(
-                "LOCALAPPDATA", str(Path.home() / "AppData" / "Local")
-            )
-            target = Path(local_app_data) / APP_ARTIFACT / "config"
             return _prepare(target, migrate=True)
 
     # 3. Modo Desarrollo Local (Guarda en el propio repo config/json)
@@ -94,7 +95,12 @@ def logs_dir() -> Path:
     """Directorio para los logs de la aplicación."""
     flet_storage = str(os.environ.get("FLET_APP_STORAGE_DATA") or "").strip()
 
-    if flet_storage:
+    if sys.platform.startswith("win") and is_flet_build():
+        local_app_data = os.environ.get(
+            "LOCALAPPDATA", str(Path.home() / "AppData" / "Local")
+        )
+        target = Path(local_app_data) / APP_ARTIFACT / "logs"
+    elif flet_storage:
         target = Path(flet_storage).expanduser().resolve() / "logs"
     elif sys.platform.startswith("linux") and is_flet_build():
         xdg_config = os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))
@@ -175,6 +181,12 @@ def _legacy_candidates() -> list[Path]:
     explicit = str(os.environ.get("WIZZ_LEGACY_CONFIG_DIR") or "").strip()
     if explicit:
         candidates.append(Path(explicit).expanduser())
+
+    # Earlier Flet Windows builds stored the application data under Documents.
+    # Keep it as a migration source when moving those users to LocalAppData.
+    flet_storage = str(os.environ.get("FLET_APP_STORAGE_DATA") or "").strip()
+    if flet_storage:
+        candidates.append(Path(flet_storage).expanduser() / "config")
 
     candidates.extend(
         [

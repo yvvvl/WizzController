@@ -1,6 +1,6 @@
 # WizZ Desktop — contexto maestro del proyecto
 
-Última actualización: 2026-08-27
+Última actualización: 2026-08-28
 
 ## Nota de auditoría del checkout actual
 
@@ -12,9 +12,11 @@ como publicada hasta completar sus gates.
 
 La rama ya incorpora targeting transitorio `single`/`selected`/`all`, consulta
 read-only de GitHub Releases, persistencia empaquetada fuera del directorio de
-la aplicación y la frontera multiplataforma aprobada. El runtime Flet de
-Windows guarda datos por usuario mediante `FLET_APP_STORAGE_DATA`; no se debe
-suponer una ruta absoluta fija ni incluir JSON reales en el artefacto.
+la aplicación y la frontera multiplataforma aprobada. Las builds Windows
+guardan los datos del usuario en `%LOCALAPPDATA%\\WizZDesktop`, incluso cuando
+Flet expone `FLET_APP_STORAGE_DATA`; no se deben incluir JSON reales en el
+artefacto. Las instalaciones Flet anteriores se migran desde su ubicación
+legacy al primer arranque.
 
 Linux conserva estado beta/foundation: detección de capacidades, autostart
 XDG, apertura de carpetas y tray AppIndicator fueron probados de forma

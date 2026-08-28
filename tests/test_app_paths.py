@@ -31,6 +31,7 @@ def test_flet_storage_migrates_legacy_json_once(monkeypatch, tmp_path):
     monkeypatch.delenv("WIZZ_CONFIG_DIR", raising=False)
     monkeypatch.setenv("FLET_APP_STORAGE_DATA", str(storage))
     monkeypatch.setenv("WIZZ_LEGACY_CONFIG_DIR", str(legacy))
+    monkeypatch.setattr(paths.sys, "platform", "linux")
     _reset_paths()
 
     target = paths.config_dir()
@@ -62,6 +63,25 @@ def test_windows_frozen_build_uses_local_appdata(monkeypatch, tmp_path):
     target = paths.config_dir()
     assert target == (local_app_data / paths.APP_ARTIFACT / "config").resolve()
     assert (target / "config.json").exists()
+
+
+def test_windows_packaged_flet_runtime_uses_local_appdata_and_migrates(monkeypatch, tmp_path):
+    local_app_data = tmp_path / "LocalAppData"
+    flet_storage = tmp_path / "DocumentsFlet"
+    legacy_config = flet_storage / "config"
+    legacy_config.mkdir(parents=True)
+    (legacy_config / "favorites.json").write_text("[]", encoding="utf-8")
+
+    monkeypatch.delenv("WIZZ_CONFIG_DIR", raising=False)
+    monkeypatch.setenv("FLET_APP_STORAGE_DATA", str(flet_storage))
+    monkeypatch.setenv("LOCALAPPDATA", str(local_app_data))
+    monkeypatch.setattr(paths.sys, "platform", "win32")
+    monkeypatch.setattr(paths.sys, "frozen", True, raising=False)
+    _reset_paths()
+
+    assert paths.config_dir() == (local_app_data / paths.APP_ARTIFACT / "config").resolve()
+    assert (paths.config_dir() / "favorites.json").exists()
+    assert paths.logs_dir() == (local_app_data / paths.APP_ARTIFACT / "logs").resolve()
 
 
 def test_windows_packaged_executable_is_detected_without_frozen_flag(monkeypatch, tmp_path):
