@@ -17,6 +17,9 @@ def test_linux_capabilities_are_explicit_and_do_not_touch_network(monkeypatch):
     monkeypatch.setattr("core.platform.linux.sys.platform", "linux")
     monkeypatch.setenv("XDG_SESSION_TYPE", "wayland")
     monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+    # Capability detection must be deterministic: this is a simulated
+    # graphical session, independent of the CI runner's installed packages.
+    monkeypatch.setattr("core.platform.linux.find_spec", lambda _name: object())
     caps = detect_linux_capabilities()
 
     assert caps.tray.status is CapabilityStatus.AVAILABLE

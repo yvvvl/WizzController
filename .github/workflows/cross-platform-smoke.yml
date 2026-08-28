@@ -24,8 +24,8 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Install test runner
-        run: python -m pip install "pytest>=8.0"
+      - name: Install platform-boundary test dependencies
+        run: python -m pip install "pytest>=8.0" "pystray>=0.19.5" "Pillow>=10.0.0"
 
       - name: Compile platform boundary
         run: python -m compileall -q core/platform tests/test_platform_capabilities.py tests/test_platform_linux.py
