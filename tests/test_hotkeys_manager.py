@@ -41,6 +41,22 @@ def test_validate_rejects_system_hotkeys():
     assert HotkeysManager.validate_hotkey("ctrl+alt+a")[0] is True
 
 
+def test_linux_does_not_attempt_unsafe_global_keyboard_hooks(tmp_path, monkeypatch):
+    _temp_json(monkeypatch, tmp_path)
+    import config.hotkeys_manager as hotkeys_module
+
+    keyboard = _FakeKeyboard()
+    monkeypatch.setattr(hotkeys_module.sys, "platform", "linux")
+    monkeypatch.setattr(hotkeys_module, "_keyboard", keyboard)
+
+    manager = HotkeysManager(FakeWiz(), auto_apply=False)
+    manager.apply_hooks()
+
+    assert not manager.available
+    assert not keyboard.added
+    assert "Linux" in (manager.last_error or "")
+
+
 def test_assign_replaces_conflict_without_keyboard_hooks(tmp_path, monkeypatch):
     _temp_json(monkeypatch, tmp_path)
     manager = HotkeysManager(FakeWiz(), auto_apply=False)

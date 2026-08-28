@@ -45,12 +45,13 @@ def detect_linux_capabilities() -> DesktopCapabilities:
             "pystray is not installed" if has_display else "no graphical desktop session"
         )
     )
-    hotkey = (
-        CapabilityState.permission_required("global input permission may be required")
+    # The beta intentionally has no user-safe Linux global-shortcut backend.
+    # The ``keyboard`` package would require root access to /dev/input, which
+    # must never be a requirement for running the desktop app.
+    hotkey = CapabilityState.unavailable(
+        "Linux global shortcuts are disabled until a safe XDG portal backend is implemented"
         if session == "wayland"
-        else CapabilityState.degraded("backend depends on the desktop session")
-        if session in {"", "x11"}
-        else CapabilityState.unavailable("unsupported desktop session")
+        else "Linux global shortcuts are not implemented in this beta"
     )
     window = (
         CapabilityState.degraded("window operations depend on the compositor")

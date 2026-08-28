@@ -393,7 +393,7 @@ class TrayService:
         pystray = self._pystray
         assert pystray is not None
         item = pystray.MenuItem
-        if self.hotkeys_manager is None:
+        if self.hotkeys_manager is None or not self.hotkeys_manager.available:
             return []
         status = self._t(
             "tray.hotkeys_status",

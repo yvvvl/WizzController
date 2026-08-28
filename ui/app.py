@@ -47,6 +47,9 @@ class WizzApp(ft.Container):
         self._viewport = Viewport(1080, 720)
         self._shell_mode = ""
         self._rail_width = 92.0
+        self.hotkeys_available = bool(
+            self.hotkeys_manager is not None and self.hotkeys_manager.available
+        )
 
         self.panels = [
             HomePanel(self.wiz, i18n=self.i18n),
@@ -110,7 +113,7 @@ class WizzApp(ft.Container):
                     label=self._t("nav.routines"),
                 ),
                 ft.NavigationRailDestination(icon=ft.Icons.SETTINGS_OUTLINED, selected_icon=ft.Icons.SETTINGS_ROUNDED, label=self._t("nav.settings")),
-                ft.NavigationRailDestination(icon=ft.Icons.KEYBOARD_OUTLINED, selected_icon=ft.Icons.KEYBOARD_ROUNDED, label=self._t("nav.hotkeys")),
+                self._hotkeys_destination(),
             ],
             on_change=self._on_nav,
         )
@@ -136,6 +139,18 @@ class WizzApp(ft.Container):
 
     def _t(self, key: str, **values) -> str:
         return self.i18n.translate(key, **values)
+
+    def _hotkeys_destination(self):
+        destination = ft.NavigationRailDestination(
+            icon=ft.Icons.KEYBOARD_OUTLINED,
+            selected_icon=ft.Icons.KEYBOARD_ROUNDED,
+            label=self._t("nav.hotkeys"),
+        )
+        # Flet renders disabled rail destinations in the platform's muted
+        # color and prevents opening the editor on Linux beta sessions.
+        if not self.hotkeys_available:
+            destination.disabled = True
+        return destination
 
     def set_language_preference(self, preference: str) -> str:
         normalized = self.language_preference.save(preference)

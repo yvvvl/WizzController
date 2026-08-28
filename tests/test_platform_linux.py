@@ -20,7 +20,7 @@ def test_linux_capabilities_are_explicit_and_do_not_touch_network(monkeypatch):
     caps = detect_linux_capabilities()
 
     assert caps.tray.status is CapabilityStatus.AVAILABLE
-    assert caps.hotkey_registration.status is CapabilityStatus.PERMISSION_REQUIRED
+    assert caps.hotkey_registration.status is CapabilityStatus.UNAVAILABLE
     assert caps.start_at_login.status is CapabilityStatus.AVAILABLE
     assert caps.single_instance_activation.status is CapabilityStatus.UNAVAILABLE
 

@@ -34,6 +34,13 @@ explicitly beta; macOS stays deferred.
   user's XDG autostart entry.
 - Linux does not claim exact window placement under Wayland. This is governed
   by the compositor, not by the app.
+- Global hotkeys are intentionally disabled for the Linux beta. The legacy
+  `keyboard` backend requires root access to Linux input devices and is not a
+  safe desktop integration. The app neither asks the user to run with `sudo`
+  nor attempts registration; the disabled Hotkeys destination explains that a
+  future XDG GlobalShortcuts portal backend is required.
+- The tray menu also omits hotkey re-registration on Linux while that feature
+  is unavailable, so it cannot imply that a root-only workaround exists.
 - The existing file-lock single-instance exclusion is retained for beta. It
   prevents duplicate controllers even where foreground activation is not yet
   portable.
@@ -56,5 +63,5 @@ explicitly beta; macOS stays deferred.
 - New WiZ protocol behavior, RGBIC product support, Screen Sync, streaming or
   scheduler work.
 - A Quick Panel, forced window placement, or a Linux promise for global
-  hotkeys on Wayland.
+  hotkeys on Wayland. Running WizZ with `sudo` is not a supported workaround.
 - macOS support.
