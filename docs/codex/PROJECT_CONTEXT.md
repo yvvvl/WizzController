@@ -10,6 +10,8 @@ beta. La próxima fase pública es el refactor UI v1.3 descrito en
 `docs/codex/plans/2026-08-28-v1.3-ui-refactor-and-branch-cleanup.md`, con su
 proceso visual y de implementación detallado en
 `docs/codex/plans/2026-08-28-v1.3-ui-design-execution-plan.md`.
+La interfaz Flet continúa siendo el baseline estable de v1.2.0; la siguiente
+UI se prototipa con PySide6 + Qt Quick/QML según ADR 0005 antes de reemplazarla.
 
 La rama ya incorpora targeting transitorio `single`/`selected`/`all`, consulta
 read-only de GitHub Releases, persistencia empaquetada fuera del directorio de
