@@ -16,7 +16,8 @@ class ActionSequenceExecutor:
     - Python puro, sin Flet.
     - No agenda por hora.
     - Por defecto ejecuta en thread para no bloquear UI/hotkeys.
-    - Las acciones WiZ siguen siendo fire-and-forget; solo `wait` duerme.
+    - Las acciones WiZ siguen siendo fire-and-forget; `wait` y `condition`
+      son pasos locales que permiten componer automatizaciones legibles.
     """
 
     def __init__(self, wiz) -> None:
@@ -64,6 +65,16 @@ class ActionSequenceExecutor:
             labels: list[str] = []
             try:
                 for action in actions:
+                    # Una condición es una compuerta: si no se cumple, no se
+                    # ejecutan los pasos restantes. Es más seguro que aplicar
+                    # una rutina parcialmente en un estado inesperado.
+                    if str(action.get("type") or "") == "condition":
+                        matched, label = self._check_condition(action)
+                        labels.append(label)
+                        if not matched:
+                            labels.append("Detenida por condición")
+                            break
+                        continue
                     labels.append(self.execute_action(action))
             except Exception as exc:
                 _LOG.warning("Rutina %s falló: %s", name, exc, exc_info=True)
@@ -79,7 +90,11 @@ class ActionSequenceExecutor:
 
         if kind == "wait":
             ms = int(value if value is not None else action.get("ms", 250))
-            time.sleep(max(0, min(ms, 5000)) / 1000.0)
+            # Las pausas largas son válidas en una rutina (por ejemplo, apagar
+            # tras 15 minutos); se limita a una hora como protección ante datos
+            # corruptos, no a los 5 segundos del editor antiguo.
+            ms = max(0, min(ms, 3_600_000))
+            time.sleep(ms / 1000.0)
             return f"Esperar {ms}ms"
 
         if kind == "method":
@@ -193,6 +208,18 @@ class ActionSequenceExecutor:
             return "Escena personalizada"
 
         raise RuntimeError(f"Tipo de acción no soportado: {kind}")
+
+    def _check_condition(self, action: dict[str, Any]) -> tuple[bool, str]:
+        """Evalúa la condición de energía guardada por el editor de rutinas."""
+        expected = str(action.get("value") or action.get("state") or "power_on")
+        state = self.wiz.get_state() if hasattr(self.wiz, "get_state") else {}
+        if not isinstance(state, dict):
+            state = {}
+        current = bool(state.get("state", state.get("power", False)))
+        wants_on = expected != "power_off"
+        matched = current == wants_on
+        expected_label = "encendidas" if wants_on else "apagadas"
+        return matched, f"Si luces {expected_label}: {'sí' if matched else 'no'}"
 
     def _parse_rgb(self, value: Any) -> tuple[int, int, int]:
         if isinstance(value, str):

@@ -105,6 +105,13 @@ class HotkeysPanel(ft.Column):
             style=ft.ButtonStyle(color=Theme.TEXT, side=ft.BorderSide(1, Theme.STROKE)),
             on_click=self._rehook,
         )
+        self.rehook_icon_btn = ft.IconButton(
+            icon=ft.Icons.REFRESH_ROUNDED,
+            icon_color=Theme.ACCENT,
+            tooltip=self._t("hotkeys.reregister"),
+            on_click=self._rehook,
+        )
+        self.rehook_slot = ft.Container(content=self.rehook_btn, alignment=ft.Alignment.CENTER_RIGHT)
 
         status_chip = ft.Container(
             padding=ft.Padding.symmetric(horizontal=12, vertical=8),
@@ -152,7 +159,7 @@ class HotkeysPanel(ft.Column):
                 ft.Container(content=ft.Text(self._t("hotkeys.debounce"), color=Theme.MUTED, size=12), col={"xs": 12, "sm": 2}),
                 ft.Container(content=self.cooldown_slider, col={"xs": 9, "sm": 4, "lg": 7}),
                 ft.Container(content=self.cooldown_label, col={"xs": 3, "sm": 2, "lg": 1}, alignment=ft.Alignment.CENTER),
-                ft.Container(content=self.rehook_btn, col={"xs": 12, "sm": 4, "lg": 2}, alignment=ft.Alignment.CENTER_RIGHT),
+                ft.Container(content=self.rehook_slot, col={"xs": 12, "sm": 4, "lg": 3}, alignment=ft.Alignment.CENTER_RIGHT),
             ],
         )
         status_card = self._card(
@@ -818,6 +825,12 @@ class HotkeysPanel(ft.Column):
             for card in self._cards:
                 card.padding = padding
             self.spacing = 13 if viewport.compact else 16
+            # A localized action must never wrap one word per line. Keep the
+            # full label when there is space and expose the same action through
+            # an accessible icon affordance when there is not.
+            slot = getattr(self, "rehook_slot", None)
+            if slot is not None:
+                slot.content = self.rehook_icon_btn if viewport.compact else self.rehook_btn
             if update:
                 supdate(self)
 

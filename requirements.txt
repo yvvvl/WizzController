@@ -1,4 +1,4 @@
-# Núcleo UI
+# Legacy compatibility dependency. The official UI is Qt, not Flet.
 flet==0.85.2
 
 # WiZ LAN / discovery híbrido
@@ -12,6 +12,7 @@ keyboard>=0.13.5
 pystray>=0.19.5
 Pillow>=10.0.0
 certifi==2026.6.17
+PySide6==6.9.3
 
 # Bandeja Linux (AppIndicator): no se instala en Windows.
 pycairo==1.26.1; sys_platform == "linux"

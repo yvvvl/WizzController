@@ -13,9 +13,9 @@ def test_pyproject_matches_runtime_metadata():
     data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
     assert data["project"]["version"] == APP_VERSION
-    assert data["tool"]["flet"]["product"] == APP_PRODUCT
-    assert data["tool"]["flet"]["build_number"] == APP_BUILD_NUMBER
-    assert data["tool"]["flet"]["windows"]["artifact"] == APP_ARTIFACT
+    assert data["project"]["name"] == "wizz-controller"
+    assert any(item.startswith("PySide6") for item in data["project"]["dependencies"])
+    assert "flet" not in data.get("tool", {})
 
 
 def test_windows_brand_assets_exist():
@@ -31,12 +31,11 @@ def test_windows_brand_assets_exist():
         assert path.stat().st_size > 1000
 
 
-def test_runtime_dependencies_are_declared_for_flet_build():
+def test_runtime_dependencies_are_declared_for_qt_build():
     data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     dependencies = "\n".join(data["project"]["dependencies"]).casefold()
     requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8").casefold()
     for package in (
-        "flet",
         "pywizlight",
         "psutil",
         "keyboard",
@@ -51,16 +50,10 @@ def test_runtime_dependencies_are_declared_for_flet_build():
         assert removed not in dependencies
 
 
-def test_flet_build_excludes_private_runtime_and_dev_files():
+def test_flet_is_not_a_release_configuration():
     data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    excluded = set(data["tool"]["flet"]["app"]["exclude"])
-
-    assert "config/json" in excluded
-    assert "tests" in excluded
-    assert "tools" in excluded
-    assert ".git" in excluded
-    assert data["tool"]["flet"]["app"]["boot_screen"]["show"] is True
-    assert data["tool"]["flet"]["app"]["startup_screen"]["show"] is True
+    assert "flet" not in data.get("tool", {})
+    assert "legacy-flet" in data["project"]["optional-dependencies"]
 
 
 def test_windows_build_and_smoke_scripts_are_present():
@@ -71,25 +64,34 @@ def test_windows_build_and_smoke_scripts_are_present():
         encoding="utf-8"
     )
 
-    assert '"build",' in build_script
-    assert '"windows",' in build_script
-    assert "BUILD_INFO.json" in build_script
+    assert "retired" in build_script
+    assert "build_qt_windows.ps1" in build_script
     assert "WizZDesktop.exe" in smoke_script
     assert "LaunchSecondInstance" in smoke_script
-    assert "Packaged runtime is missing certifi" in build_script
-    assert "cacert.pem" in build_script
 
 
-def test_windows_build_recovers_vc_runtime_install_and_cleans_cache():
-    build_script = (ROOT / "scripts" / "build_windows.ps1").read_text(
+def test_qt_beta_build_packages_the_qt_shell_and_its_resources():
+    build_script = (ROOT / "scripts" / "build_qt_windows.ps1").read_text(
         encoding="utf-8"
     )
 
-    assert "Repair-FletWindowsInstall" in build_script
-    assert "vcruntime140_1.dll" in build_script
-    assert "cmake_install.cmake" in build_script
-    assert 'Join-Path $Root "build"' in build_script
-    assert "runtime_install_recovered" in build_script
+    assert "PyInstaller" in build_script
+    assert "qt_ui\\qml;qt_ui\\qml" in build_script
+    assert "assets;assets" in build_script
+    assert "BUILD_INFO.json" in build_script
+    assert "Get-FileHash" in build_script
+
+
+def test_linux_build_declares_native_x64_and_arm64_artifacts():
+    build_script = (ROOT / "scripts" / "build_linux.sh").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github" / "workflows" / "linux-beta-build.yml").read_text(encoding="utf-8")
+
+    assert "--arch x64|arm64" in build_script
+    assert '"architecture": "$ARCH"' in build_script
+    assert "linux-${ARCH}.tar.gz" in build_script
+    assert "ubuntu-24.04-arm" in workflow
+    assert "architecture: arm64" in workflow
+
 
 
 def test_windows_workflow_uses_stable_runner_and_keeps_failure_logs():
@@ -103,30 +105,7 @@ def test_windows_workflow_uses_stable_runner_and_keeps_failure_logs():
     assert "build-windows.log" in workflow
 
 
-def test_windows_build_embeds_certifi_in_runtime_archive():
-    build_script = (ROOT / "scripts" / "build_windows.ps1").read_text(encoding="utf-8")
-    embed_tool = ROOT / "tools" / "embed_certifi_runtime.py"
-
-    assert embed_tool.is_file()
-    assert "embed_certifi_runtime.py" in build_script
-    assert "__pypackages__/certifi/cacert.pem" in embed_tool.read_text(encoding="utf-8")
-
-
-def test_certifi_embedder_refreshes_app_archive_hash():
-    source = (
-        ROOT / "tools" / "embed_certifi_runtime.py"
-    ).read_text(encoding="utf-8")
-
-    assert "hashlib.sha256" in source
-    assert 'f"{app_zip.name}.hash"' in source
-    assert "archive_hash" in source
-
-def test_windows_build_bundles_third_party_notices():
-    build_script = (
-        ROOT / "scripts" / "build_windows.ps1"
-    ).read_text(
-        encoding="utf-8"
-    )
-
-    assert "THIRD_PARTY_NOTICES.md" in build_script
-    assert "licenses" in build_script
+def test_qt_build_does_not_bundle_legacy_flet_ui():
+    build_script = (ROOT / "scripts" / "build_qt_windows.ps1").read_text(encoding="utf-8")
+    assert "qt_ui\\run.py" in build_script
+    assert "flet build" not in build_script.casefold()

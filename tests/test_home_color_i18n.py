@@ -4,6 +4,7 @@ import flet as ft
 import pytest
 
 from localization import LocalizationManager
+from core.dev_virtual_lights import VirtualLightController
 from ui.components.color_panel import ColorPanel
 from ui.components.home_panel import HomePanel
 
@@ -142,3 +143,16 @@ def test_home_and_color_catalog_keys_exist_in_both_languages() -> None:
             "white.name.warm",
         ):
             assert manager.translate(key) != key
+
+
+def test_home_linked_lights_supports_compact_controller_snapshots() -> None:
+    """The DEV controller uses the same compact bulb contract as production."""
+    wiz = VirtualLightController(3)
+    panel = HomePanel(wiz, i18n=LocalizationManager(preference="en"))
+
+    assert len(panel.linked_lights.grid.controls) == 3
+    assert panel.linked_lights.count.value == "3 of 3 selected"
+
+    panel.linked_lights._select("192.0.2.11")
+    assert panel.target_selector.selected_targets == ["192.0.2.10", "192.0.2.12"]
+    assert panel.linked_lights.count.value == "2 of 3 selected"

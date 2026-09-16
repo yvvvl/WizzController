@@ -35,12 +35,12 @@ ACTION_LABELS = {
     for action in (
         "turn_on", "turn_off", "toggle", "brightness", "brightness_delta",
         "rgb", "white_percent", "white_kelvin", "scene", "favorite",
-        "custom_scene", "routine", "wait", "target_mode",
+        "custom_scene", "routine", "wait", "condition", "target_mode",
     )
 }
 ACTION_ORDER = [
     "turn_on", "turn_off", "toggle", "brightness", "brightness_delta", "rgb", "white_percent", "white_kelvin",
-    "scene", "favorite", "custom_scene", "routine", "wait", "target_mode",
+    "scene", "favorite", "custom_scene", "routine", "wait", "condition", "target_mode",
 ]
 ROUTINE_ICON_OPTIONS = [
     ("AUTO_AWESOME_ROUNDED", "routines.icon.auto"),
@@ -331,7 +331,11 @@ class RoutinesPanel(ft.Column):
             rt = RoutinesManager(i18n=self.i18n).get_routine(str(value or ""))
             return "#5b8cff", ft.Icons.ROCKET_LAUNCH_ROUNDED, self._action_label(kind), self._routine_name(rt) if rt else self._t("routines.action.not_found")
         if kind == "wait":
-            return Theme.MUTED, ft.Icons.HOURGLASS_BOTTOM_ROUNDED, self._action_label(kind), f"{value}ms"
+            return Theme.MUTED, ft.Icons.HOURGLASS_BOTTOM_ROUNDED, self._action_label(kind), self._wait_label(_safe_int(value, 250))
+        if kind == "condition":
+            expected = str(value or "power_on")
+            label = self._t("routines.condition.power_on") if expected != "power_off" else self._t("routines.condition.power_off")
+            return Theme.ACCENT, ft.Icons.RULE_ROUNDED, self._action_label(kind), label
         if kind == "target_mode":
             target = "routines.target.all" if value == "all" else "routines.target.single"
             return Theme.PRIMARY, ft.Icons.ADJUST_ROUNDED, self._action_label(kind), self._t(target)
@@ -452,7 +456,7 @@ class RoutinesPanel(ft.Column):
             self.page.pop_dialog()
             self._render()
 
-        icon_dd.on_change = update_routine_preview
+        icon_dd.on_select = update_routine_preview
         color_field.on_submit = update_routine_preview
         color_swatches = ft.Row(wrap=True, spacing=8, run_spacing=8, controls=[
             ft.Container(width=28, height=28, border_radius=14, bgcolor=c, tooltip=n, border=ft.Border.all(1, ft.Colors.with_opacity(0.35, "white")), on_click=lambda ev, col=c: (setattr(color_field, "value", col), update_routine_preview(), supdate(color_field)))
@@ -722,7 +726,7 @@ class RoutinesPanel(ft.Column):
                     state["speed"] = int(speed.value)
                     speed_label.value = self._t("routines.action.speed_value", value=state["speed"])
                     update_preview(); supdate(speed_label)
-                dd.on_change = scene_changed
+                dd.on_select = scene_changed
                 speed.on_change = speed_changed
                 speed_changed()
                 editor.controls.extend([dd, speed_label, speed])
@@ -740,7 +744,7 @@ class RoutinesPanel(ft.Column):
                 def changed(ev=None):
                     state["favorite"] = dd.value or ""
                     update_preview()
-                dd.on_change = changed
+                dd.on_select = changed
                 changed()
                 editor.controls.append(dd if favs else ft.Text(self._t("routines.action.favorite_empty"), color=Theme.MUTED))
 
@@ -757,7 +761,7 @@ class RoutinesPanel(ft.Column):
                 def changed(ev=None):
                     state["custom_scene"] = dd.value or ""
                     update_preview()
-                dd.on_change = changed
+                dd.on_select = changed
                 changed()
                 editor.controls.append(dd if scenes else ft.Text(self._t("routines.action.custom_scene_empty"), color=Theme.MUTED))
 
@@ -774,20 +778,50 @@ class RoutinesPanel(ft.Column):
                 def changed(ev=None):
                     state["routine"] = dd.value or ""
                     update_preview()
-                dd.on_change = changed
+                dd.on_select = changed
                 changed()
                 editor.controls.append(dd if routines else ft.Text(self._t("routines.action.routine_empty"), color=Theme.MUTED))
 
             elif t == "wait":
-                label = ft.Text("", color=Theme.TEXT, weight=ft.FontWeight.W_600)
-                slider = ft.Slider(min=0, max=3000, value=_clamp(state.get("wait", 250), 0, 3000), divisions=30, active_color=Theme.MUTED, thumb_color="white", expand=True)
+                amount = ft.TextField(
+                    label=self._t("routines.delay.amount"),
+                    value=str(state.get("wait_amount", 1)),
+                    hint_text="1",
+                    dense=True, color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE,
+                )
+                unit = ft.Dropdown(
+                    label=self._t("routines.delay.unit"), value=str(state.get("wait_unit", "seconds")),
+                    options=[
+                        ft.DropdownOption(key="seconds", text=self._t("routines.delay.seconds")),
+                        ft.DropdownOption(key="minutes", text=self._t("routines.delay.minutes")),
+                    ], dense=True, color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE,
+                )
+                help_text = ft.Text(self._t("routines.delay.help"), color=Theme.MUTED, size=12)
                 def changed(ev=None):
-                    state["wait"] = int(slider.value)
-                    label.value = self._t("routines.action.wait_value", value=state["wait"])
-                    update_preview(); supdate(label)
-                slider.on_change = changed
+                    state["wait_amount"] = _clamp(_safe_int(amount.value, 1), 0, 60)
+                    state["wait_unit"] = unit.value or "seconds"
+                    state["wait"] = state["wait_amount"] * (60_000 if state["wait_unit"] == "minutes" else 1_000)
+                    update_preview()
+                amount.on_change = changed
+                unit.on_select = changed
                 changed()
-                editor.controls.extend([label, slider])
+                editor.controls.extend([ft.ResponsiveRow(breakpoints=PANEL_BREAKPOINTS, controls=[ft.Container(content=amount, col={"xs": 12, "sm": 6}), ft.Container(content=unit, col={"xs": 12, "sm": 6})]), help_text])
+
+            elif t == "condition":
+                dd = ft.Dropdown(
+                    label=self._t("routines.condition.label"), value=str(state.get("condition", "power_on")),
+                    options=[
+                        ft.DropdownOption(key="power_on", text=self._t("routines.condition.power_on")),
+                        ft.DropdownOption(key="power_off", text=self._t("routines.condition.power_off")),
+                    ], color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE,
+                )
+                help_text = ft.Text(self._t("routines.condition.help"), color=Theme.MUTED, size=12)
+                def changed(ev=None):
+                    state["condition"] = dd.value or "power_on"
+                    update_preview()
+                dd.on_select = changed
+                changed()
+                editor.controls.extend([dd, help_text])
 
             elif t == "target_mode":
                 dd = ft.Dropdown(
@@ -801,14 +835,14 @@ class RoutinesPanel(ft.Column):
                 def changed(ev=None):
                     state["target_mode"] = dd.value or "single"
                     update_preview()
-                dd.on_change = changed
+                dd.on_select = changed
                 changed()
                 editor.controls.append(dd)
 
             update_preview()
             supdate(editor)
 
-        kind.on_change = render
+        kind.on_select = render
         render()
 
         def save(e):
@@ -853,7 +887,7 @@ class RoutinesPanel(ft.Column):
     def _action_to_state(self, action: dict[str, Any]) -> dict[str, Any]:
         kind = str(action.get("type") or "brightness")
         value = action.get("value")
-        st: dict[str, Any] = {"type": kind, "brightness": 70, "delta": 10, "rgb": "#ff0000", "white_percent": 50, "kelvin": 4000, "scene": 18, "speed": 100, "wait": 250, "target_mode": "single", "favorite": "", "custom_scene": "", "routine": ""}
+        st: dict[str, Any] = {"type": kind, "brightness": 70, "delta": 10, "rgb": "#ff0000", "white_percent": 50, "kelvin": 4000, "scene": 18, "speed": 100, "wait": 1000, "wait_amount": 1, "wait_unit": "seconds", "condition": "power_on", "target_mode": "single", "favorite": "", "custom_scene": "", "routine": ""}
         if kind == "brightness": st["brightness"] = _clamp(_safe_int(value, 70), 10, 100)
         elif kind == "brightness_delta": st["delta"] = _clamp(_safe_int(value, 10), -50, 50)
         elif kind == "rgb": st["rgb"] = value if isinstance(value, str) else "#{:02x}{:02x}{:02x}".format(*self._rgb_tuple(value))
@@ -865,7 +899,13 @@ class RoutinesPanel(ft.Column):
         elif kind == "favorite": st["favorite"] = str(value or action.get("id") or "")
         elif kind == "custom_scene": st["custom_scene"] = str(value or action.get("id") or "")
         elif kind == "routine": st["routine"] = str(value or action.get("id") or "")
-        elif kind == "wait": st["wait"] = _clamp(_safe_int(value if value is not None else action.get("ms"), 250), 0, 5000)
+        elif kind == "wait":
+            st["wait"] = _clamp(_safe_int(value if value is not None else action.get("ms"), 1000), 0, 3_600_000)
+            if st["wait"] >= 60_000 and st["wait"] % 60_000 == 0:
+                st["wait_amount"], st["wait_unit"] = st["wait"] // 60_000, "minutes"
+            else:
+                st["wait_amount"], st["wait_unit"] = max(1, round(st["wait"] / 1000)), "seconds"
+        elif kind == "condition": st["condition"] = "power_off" if str(value).lower() == "power_off" else "power_on"
         elif kind == "target_mode": st["target_mode"] = "all" if str(value).lower() in {"all", "todas", "todos"} else "single"
         st["h"], st["s"], st["v"] = _hsv_from_hex(st["rgb"])
         return st
@@ -893,7 +933,9 @@ class RoutinesPanel(ft.Column):
         if t == "routine":
             return {"type": "routine", "value": str(st.get("routine") or "")}
         if t == "wait":
-            return {"type": "wait", "value": _clamp(_safe_int(st.get("wait"), 250), 0, 5000)}
+            return {"type": "wait", "value": _clamp(_safe_int(st.get("wait"), 1000), 0, 3_600_000)}
+        if t == "condition":
+            return {"type": "condition", "value": "power_off" if st.get("condition") == "power_off" else "power_on"}
         if t == "target_mode":
             return {"type": "target_mode", "value": "all" if st.get("target_mode") == "all" else "single"}
         return {"type": "brightness", "value": 70}
@@ -901,6 +943,13 @@ class RoutinesPanel(ft.Column):
     # ------------------------------------------------------------------ #
     # Helpers de rangos / colores
     # ------------------------------------------------------------------ #
+    def _wait_label(self, milliseconds: int) -> str:
+        milliseconds = max(0, int(milliseconds))
+        if milliseconds >= 60_000 and milliseconds % 60_000 == 0:
+            return self._t("routines.delay.minutes_value", value=milliseconds // 60_000)
+        if milliseconds >= 1_000 and milliseconds % 1_000 == 0:
+            return self._t("routines.delay.seconds_value", value=milliseconds // 1_000)
+        return self._t("routines.action.wait_value", value=milliseconds)
     def _kelvin_range(self) -> tuple[int, int]:
         try:
             lo, hi = self.wiz.get_kelvin_range()

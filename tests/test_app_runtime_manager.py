@@ -29,6 +29,7 @@ def test_runtime_keeps_only_supported_keys(tmp_path):
     assert "old_feature_toggle" not in saved
     assert data["tray_enabled"] is False
     assert data["open_minimized"] is True
+    assert data["update_channel"] == "stable"
 
 
 def _runtime_manager_for_test(tmp_path):

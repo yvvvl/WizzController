@@ -51,3 +51,5 @@ Thumbs.db
 # Artifacts de release
 *.sha256
 console.log
+# Local Qt visual-regression captures.
+artifacts/qt-*.png

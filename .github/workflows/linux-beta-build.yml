@@ -18,7 +18,15 @@ permissions:
 
 jobs:
   package-linux:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            architecture: x64
+          - runner: ubuntu-24.04-arm
+            architecture: arm64
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
 
@@ -43,7 +51,7 @@ jobs:
         run: python -m pip install -r requirements.txt -r requirements-dev.txt -r requirements-build.txt
 
       - name: Test and package Linux beta
-        run: bash scripts/build_linux.sh --output dist/linux
+        run: bash scripts/build_linux.sh --arch ${{ matrix.architecture }} --output dist/linux
 
       - name: Verify application-menu installer
         shell: bash
@@ -65,9 +73,9 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: WizZDesktop-v1.2.0-linux-x64
+          name: WizZDesktop-v1.2.0-linux-${{ matrix.architecture }}
           path: |
             dist/linux
-            dist/release/WizZDesktop-v1.2.0-linux-x64.tar.gz
-            dist/release/WizZDesktop-v1.2.0-linux-x64.tar.gz.sha256
+            dist/release/WizZDesktop-v1.2.0-linux-${{ matrix.architecture }}.tar.gz
+            dist/release/WizZDesktop-v1.2.0-linux-${{ matrix.architecture }}.tar.gz.sha256
           if-no-files-found: error

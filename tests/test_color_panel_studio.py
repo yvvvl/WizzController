@@ -44,6 +44,35 @@ def test_panel_builds_with_perceptual_horizontal_palette(panel: ColorPanel) -> N
     assert "Pureza" in panel.palette_hs_label.value
 
 
+def test_heart_saves_and_exposes_current_color_in_inline_favorites(panel: ColorPanel) -> None:
+    panel._select_exact_rgb((17, 34, 51), source="test")
+    panel._save_current_favorite()
+
+    saved = panel.favorites.get_favorites()
+    assert any(item.get("type") == "rgb" and item.get("value") == "#112233" for item in saved)
+    assert panel.color_favorite_button.icon == ft.Icons.FAVORITE_ROUNDED
+    assert len(panel.inline_color_favorites.controls) == 1
+
+
+def test_heart_returns_to_outline_when_current_color_is_not_saved(panel: ColorPanel) -> None:
+    panel._save_current_favorite()
+    assert panel.color_favorite_button.icon == ft.Icons.FAVORITE_ROUNDED
+
+    panel._select_exact_rgb((0, 255, 0), source="test")
+    assert panel.color_favorite_button.icon == ft.Icons.FAVORITE_BORDER_ROUNDED
+
+
+def test_heart_notifies_other_favorite_views(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("WIZZ_CONFIG_DIR", str(tmp_path))
+    import config.paths as app_paths
+
+    monkeypatch.setattr(app_paths, "_INITIALIZED_DIRS", set())
+    calls: list[str] = []
+    panel = ColorPanel(FakeWiz(), on_favorites_changed=lambda: calls.append("refresh"))
+    panel._save_current_favorite()
+    assert calls == ["refresh"]
+
+
 def test_live_switch_controls_apply_button_visibility(panel: ColorPanel) -> None:
     panel.live_switch.value = False
     panel._live_changed()

@@ -1,0 +1,8 @@
+module Wizz
+singleton Theme 1.0 Theme.qml
+PressSurface 1.0 PressSurface.qml
+NavButton 1.0 NavButton.qml
+LightCard 1.0 LightCard.qml
+QuickAction 1.0 QuickAction.qml
+QuickPanel 1.0 QuickPanel.qml
+

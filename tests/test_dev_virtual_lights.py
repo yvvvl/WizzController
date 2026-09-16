@@ -69,3 +69,13 @@ def test_selection_callback_is_marked_so_the_preview_can_preserve_its_colours():
     wiz.set_active_bulb("192.0.2.11")
 
     assert snapshots[-1]["_virtual_selection_only"] is True
+
+
+def test_detailed_virtual_bulbs_expose_their_current_scene_colour():
+    wiz = VirtualLightController(2)
+    wiz.set_scene(4, speed=100)
+
+    detailed = wiz.get_bulbs_detailed()
+
+    assert all(item["color_rgb"] for item in detailed)
+    assert detailed[0]["color_rgb"] == wiz.get_virtual_bulbs()[0]["state"]["_virtual_rgb"]

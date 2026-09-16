@@ -28,7 +28,21 @@ class AppRuntimeManager:
         "minimize_to_tray": True,
         "open_minimized": False,
         "startup_with_windows": False,
-        "language": "system",
+        # English is the closed beta's predictable default.  Spanish remains
+        # selectable, but a tester's Windows display language must not silently
+        # switch the application away from the release documentation.
+        "language": "en",
+        "language_default_version": 2,
+        # UI preferences are intentionally stored alongside desktop runtime
+        # preferences so packaged updates keep a user's visual choice.
+        "ui_theme": "system",
+        "reduced_motion": False,
+        "live_brand_accent": True,
+        "quick_panel_placement": "bottom-right",
+        # These actions are shared by Inicio and the quick panel. Keeping
+        # their identifiers here makes the selection survive app restarts.
+        "quick_actions": ["warm", "reading", "cool", "relax", "party", "off"],
+        "update_channel": "stable",
     }
 
     def __init__(self, i18n=None) -> None:
@@ -60,6 +74,13 @@ class AppRuntimeManager:
         for key in self.DEFAULTS:
             if key in loaded:
                 data[key] = loaded[key]
+        # Early desktop builds stored ``system`` as their implicit language.
+        # That made a closed beta downloaded by an English-speaking tester
+        # unexpectedly launch in Spanish on the maintainer's Windows locale.
+        # Migrate that old implicit value once; a user who explicitly selects
+        # System afterwards keeps that choice because the marker is persisted.
+        if "language_default_version" not in loaded and str(data.get("language")) == "system":
+            data["language"] = "en"
         if data != loaded:
             self._save_dict(data)
         return data

@@ -32,3 +32,30 @@ def test_brightness_delta_uses_dimming():
     ex = ActionSequenceExecutor(wiz)
     ex.execute({"type":"brightness_delta", "value":10}, threaded=False)
     assert ("brightness", 60) in wiz.calls
+
+
+def test_condition_stops_remaining_steps_when_it_does_not_match():
+    wiz = FakeWiz()
+    wiz.state["state"] = False
+    ex = ActionSequenceExecutor(wiz)
+
+    result = ex.execute([
+        {"type": "condition", "value": "power_on"},
+        {"type": "turn_on"},
+    ], threaded=False)
+
+    assert wiz.calls == []
+    assert "Detenida por condición" in result
+
+
+def test_condition_allows_remaining_steps_when_it_matches():
+    wiz = FakeWiz()
+    wiz.state["state"] = True
+    ex = ActionSequenceExecutor(wiz)
+
+    ex.execute([
+        {"type": "condition", "value": "power_on"},
+        {"type": "brightness", "value": 40},
+    ], threaded=False)
+
+    assert wiz.calls == [("brightness", 40)]

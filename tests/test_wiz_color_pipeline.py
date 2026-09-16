@@ -65,3 +65,11 @@ def test_external_rgbtw_state_is_normalized_for_ui() -> None:
     logical = logical_rgb_from_state(state)
     assert logical is not None
     assert all(abs(a - b) <= 3 for a, b in zip(logical, (255, 173, 158)))
+
+
+def test_new_scene_does_not_inherit_previous_scene_speed() -> None:
+    controller = _bare_controller()
+    controller.set_scene(4, speed=180)
+    controller.set_scene(27)
+
+    assert controller._target == {"state": True, "sceneId": 27}

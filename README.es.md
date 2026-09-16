@@ -12,7 +12,7 @@
 [![CI](https://github.com/yvvvl/WizzController/actions/workflows/ci.yml/badge.svg)](https://github.com/yvvvl/WizzController/actions/workflows/ci.yml)
 [![Windows Build](https://github.com/yvvvl/WizzController/actions/workflows/build-windows.yml/badge.svg)](https://github.com/yvvvl/WizzController/actions/workflows/build-windows.yml)
 [![Python](https://img.shields.io/badge/Python-3.11%20%E2%80%93%203.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Flet](https://img.shields.io/badge/Flet-0.85.2-6C63FF)](https://flet.dev/)
+[![Qt](https://img.shields.io/badge/UI-Qt%20%2F%20PySide6-41CD52)](https://www.qt.io/)
 
 [Descargar última versión](https://github.com/yvvvl/WizzController/releases/latest) · [Reportar un problema](https://github.com/yvvvl/WizzController/issues)
 
@@ -35,7 +35,8 @@ Linux se entrega como beta para Ubuntu Desktop y otros escritorios compatibles.
 ## Novedades v1.2.0
 
 - Selección temporal de una, varias o todas las ampolletas.
-- Comprobación manual y segura de actualizaciones desde GitHub Releases.
+- Canales Estable/Beta y actualización automática verificada en Windows
+  portable, desde la versión 1.3.0.
 - Configuración y logs persistentes en AppData Local para builds Windows.
 - Restauración más predecible de la ventana desde la bandeja.
 - Validación real de control WiZ, tray, hotkeys, instancia única y ejecutable
@@ -43,8 +44,111 @@ Linux se entrega como beta para Ubuntu Desktop y otros escritorios compatibles.
 - Beta Linux: persistencia XDG, bandeja AppIndicator en GNOME/Wayland,
   apertura de Datos/Logs y arranque automático por usuario.
 
-> RGBIC, Screen Sync, streaming y actualización automática no están incluidos
+> Screen Sync, streaming y actualización automática no están incluidos
 > en esta versión estable.
+
+## Beta cerrada v1.4.0b1 — guía para pruebas
+
+Esta sección aplica únicamente a la **preview Qt privada**. Es distinta de la
+versión estable pública y requiere una cuenta de GitHub invitada. Es una build
+portable de Windows: no la ejecutes dentro del ZIP y mantén `_internal` junto a
+`WizZDesktop.exe`.
+
+### Comandos para instalar y abrir (Windows PowerShell)
+
+Descarga `WizZDesktop-v1.4.0b1-windows-x64.zip` y su archivo `.sha256` desde la
+release privada. Luego ejecuta lo siguiente. Cambia `$download` solo si los
+archivos no quedaron en Descargas.
+
+```powershell
+$download = "$env:USERPROFILE\Downloads"
+$zip = Join-Path $download "WizZDesktop-v1.4.0b1-windows-x64.zip"
+$checksum = "$zip.sha256"
+$target = Join-Path $download "WizZDesktop-v1.4.0b1"
+
+Get-FileHash -LiteralPath $zip -Algorithm SHA256
+Get-Content -LiteralPath $checksum
+Expand-Archive -LiteralPath $zip -DestinationPath $target -Force
+Set-Location $target
+.\WizZDesktop.exe
+```
+
+El hash que muestra `Get-FileHash` debe coincidir con el hash del archivo
+`.sha256`. Antes de probar, cierra todas las demás copias de WizZ Desktop y
+respalda `%LOCALAPPDATA%\WizZDesktop` si quieres conservar su configuración:
+esta beta usa la misma carpeta de datos local.
+
+### Qué debe probar
+
+Usa ampolletas WiZ reales en la misma red local cuando sea posible. En cada
+prueba anota **PASS**, **FAIL** o **N/A**, junto con el resultado esperado y el
+resultado real.
+
+1. **Conexión y selección:** en Ajustes busca ampolletas y prueba también
+   agregar una IP conocida manualmente. Selecciona una, varias y todas.
+2. **Controles de Inicio:** alterna encendido; prueba 20%, 50% y 100% de
+   brillo; aplica rojo, verde, azul, blanco cálido y blanco frío. Confirma que
+   el resultado físico coincide con la interfaz, en una y varias ampolletas.
+3. **Nueva interfaz:** redimensiona la ventana, cambia temas y revisa listas
+   largas, tarjetas, textos centrados en opciones, listas redondeadas y el
+   tintado del tema. Reinicia y confirma que se conservan tema e ítems guardados.
+4. **Favoritos y Color:** crea favoritos RGB y blancos CCT. Prueba los colores
+   rápidos, campo HEX/Kelvin, cursor del picker, vista previa, guardar, reabrir
+   y aplicar cada favorito.
+5. **Escenas y rutinas:** crea una escena local por nombre (no por ID). Crea una
+   rutina con encendido, color RGB, blanco CCT, espera y escena; reordénala,
+   guárdala, ábrela de nuevo y ejecútala. Aplica varias escenas WiZ por nombre.
+6. **Panel rápido:** ábrelo con su atajo configurado, usa el carrusel de
+   ampolletas, selecciona ampolletas de páginas posteriores y confirma que no
+   vuelve a la primera página. Prueba flechas/botones de página, posición junto
+   a la barra de tareas en cada monitor, cierre al hacer clic fuera y accesos
+   rápidos editados.
+7. **Hotkeys y bandeja:** asigna un atajo que no choque con otro programa,
+   reinicia y confirma una sola acción por pulsación y sin congelamientos. Prueba
+   restaurar desde la bandeja y el comportamiento de cerrar/minimizar.
+
+### Integraciones y límites conocidos
+
+- **WiZ LAN:** discovery, IP manual, encendido, brillo, RGB, blanco CCT,
+  escenas con nombre, selección múltiple, favoritos, rutinas, bandeja y hotkeys
+  son las integraciones que hay que ejercitar.
+- **Cambios desde la app móvil WiZ:** si cambias una luz desde el teléfono,
+  registra si la app de escritorio lo refleja y cuánto tarda. Es una prueba
+  observacional, no una garantía para todos los modelos o firmwares.
+- **No incluido:** Screen Sync/Ambilight, sincronización de audio, efectos
+  experimentales para tiras, bucle de FPS y autoactualización de beta privada. No los
+  reportes como fallas; márcalos como **N/A**.
+
+### Comandos opcionales para probar desde el código (solo colaboradores)
+
+No uses estos comandos para validar el ZIP descargado. Son únicamente para un
+tester al que se le dio acceso explícito al repositorio fuente:
+
+```powershell
+git clone https://github.com/yvvvl/WizzController-Beta.git
+Set-Location .\WizzController-Beta
+git switch beta/v1.4.0
+py -3.13 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt -r requirements-dev.txt
+python -m qt_ui.run
+python -m pytest -q
+```
+
+### Cómo enviar un reporte útil
+
+Incluye versión (`1.4.0b1`), versión de Windows y escala de pantalla, modelo y
+firmware de la ampolleta, pasos exactos, esperado versus real, repetibilidad y
+una captura/video corto cuando ayude. Para ver el log local sin compartir los
+archivos de configuración privada:
+
+```powershell
+Get-Content "$env:LOCALAPPDATA\WizZDesktop\logs\wizz.log" -Tail 200
+```
+
+Oculta IPs, MACs, tokens y archivos de la beta antes de enviar información
+fuera del grupo invitado. El checklist completo en inglés también está adjunto
+a la release privada como `BETA_TESTING_EN.md`.
 
 ---
 
@@ -121,13 +225,23 @@ Linux se entrega como beta para Ubuntu Desktop y otros escritorios compatibles.
 ### Pasos
 
 1. Abre la [última release](https://github.com/yvvvl/WizzController/releases/latest).
-2. Descarga `WizZDesktop-v1.2.0-windows-x64.zip`.
+2. Descarga el archivo `WizZDesktop-v*-windows-x64.zip` de la release elegida.
 3. Extrae todo el contenido del ZIP.
 4. Ejecuta `WizZDesktop.exe`.
 
 > No ejecutes el programa directamente dentro del ZIP y no separes el `.exe` de las DLL ni de la carpeta `data`.
 
 La descarga incluye un archivo `.sha256` para comprobar la integridad del paquete.
+
+Después de instalar v1.3.0 o posterior puedes elegir **Estable** o **Beta** en
+**Ajustes → Actualizaciones**. La app descarga, verifica e instala el siguiente
+ZIP oficial al reiniciar. El canal Beta queda preparado para recibir
+pre-releases de una distribución privada antes que Estable.
+
+> Una beta cerrada no se publica como release de este repositorio público. Para
+> compartirla con personas seleccionadas se usa una distribución privada con
+> cuentas o accesos individuales; un código dentro de la app no vuelve privada
+> una descarga pública.
 
 ### Linux beta — Ubuntu Desktop
 
@@ -181,7 +295,7 @@ Si eliminas una ampolleta, permanecerá fuera de la lista hasta que realices una
 ### Requisitos
 
 - Python `>=3.11,<3.14`.
-- Flet `0.85.2`.
+- Qt for Python / PySide6.
 - Windows para la build estable de Windows.
 - Ubuntu Desktop o WSL para la build beta Linux.
 
@@ -197,15 +311,15 @@ python -m pip install -r requirements.txt -r requirements-dev.txt
 ### Ejecutar en modo desarrollo
 
 ```powershell
-python main.py
+python -m qt_ui.run
 ```
 
-> El modo `python main.py` es útil para desarrollo, pero tray, taskbar, restauración de ventana, iconos y comportamiento final deben validarse también en la build nativa.
+> `python main.py` también abre Qt para compatibilidad. Flet ya no es una ruta de ejecución ni de distribución pública.
 
 ### Validar el repositorio
 
 ```powershell
-python -m compileall -q main.py app_meta.py core config ui tests tools
+python -m compileall -q main.py app_meta.py core config qt_ui tests tools
 python -m pytest -q
 ```
 
@@ -219,7 +333,7 @@ También puedes usar:
 
 ## Build nativa para Windows
 
-WizZ Desktop utiliza `flet build windows`; no usa PyInstaller.
+WizZ Desktop utiliza PyInstaller con Qt; Flet no se empaqueta.
 
 ### Requisitos adicionales
 
@@ -231,7 +345,7 @@ WizZ Desktop utiliza `flet build windows`; no usa PyInstaller.
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-.\scripts\build_windows.ps1 -Clean
+.\scripts\build_qt_windows.ps1 -Clean
 ```
 
 ### Salidas
@@ -308,8 +422,8 @@ En el ejecutable Windows, configuraciones y logs se guardan en:
 %LOCALAPPDATA%\WizZDesktop
 ```
 
-Las instalaciones Flet previas se migran automáticamente la primera vez que
-se ejecuta esta versión.
+Las instalaciones Flet anteriores se migran automáticamente la primera vez que
+se ejecuta esta versión, pero Flet ya no se inicia ni se empaqueta para usuarios.
 
 En Linux, la configuración y los logs respetan las rutas XDG:
 

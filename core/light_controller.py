@@ -25,8 +25,6 @@ from core.wiz_color import (
     normalize_rgb,
     wiz_channels_signature,
 )
-from core.effects.models import RGBICProgram, RGBICTransportResult
-from core.effects.rgbic_encoder import encode_rgbic_program
 from core.wiz_protocol import (
     WIZ_PORT,
     WizProtocol,
@@ -131,6 +129,8 @@ class LightController:
         self._last_callback_log = 0.0
 
         self.thread = threading.Thread(target=self._run_loop, daemon=True)
+        self._stopping_lock = threading.Lock()
+        self._stopped = False
 
     # ------------------------------------------------------------------ #
     # Ciclo de vida
@@ -143,14 +143,60 @@ class LightController:
             self.thread.start()
 
     def stop(self) -> None:
-        self.running = False
+        """Stop discovery and background sync without abandoning asyncio tasks.
+
+        The desktop shell can exit while discovery is still waiting on LAN
+        replies.  Cancelling on the controller loop before stopping it avoids
+        pending-task warnings and releases the UDP socket promptly.
+        """
+        with self._stopping_lock:
+            if self._stopped:
+                return
+            self._stopped = True
+            self.running = False
         if self.loop.is_running():
+            try:
+                future = asyncio.run_coroutine_threadsafe(self._shutdown_async(), self.loop)
+                future.result(timeout=2.0)
+            except Exception:
+                # A partially-started or already-closing loop is still stopped
+                # below.  Shutdown must never keep the desktop process alive.
+                pass
             self.loop.call_soon_threadsafe(self.loop.stop)
+        if self.thread.is_alive() and self.thread is not threading.current_thread():
+            self.thread.join(timeout=2.0)
+
+    async def _shutdown_async(self) -> None:
+        current = asyncio.current_task()
+        pending = [
+            task for task in asyncio.all_tasks(self.loop)
+            if task is not current and not task.done()
+        ]
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+        if self.proto is not None and self.proto.transport is not None:
+            self.proto.transport.close()
 
     def _run_loop(self) -> None:
         asyncio.set_event_loop(self.loop)
-        self.loop.run_until_complete(self._setup())
-        self.loop.run_forever()
+        try:
+            try:
+                self.loop.run_until_complete(self._setup())
+                self.loop.run_forever()
+            except asyncio.CancelledError:
+                # Shutdown may arrive during initial discovery.
+                pass
+        finally:
+            pending = [task for task in asyncio.all_tasks(self.loop) if not task.done()]
+            for task in pending:
+                task.cancel()
+            if pending:
+                self.loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+            if self.proto is not None and self.proto.transport is not None:
+                self.proto.transport.close()
+            self.loop.close()
 
     async def _setup(self) -> None:
         _transport, self.proto = await create_endpoint(self.loop)
@@ -1130,6 +1176,7 @@ class LightController:
                 continue
             caps: Capabilities | None = info.get("caps")
             state = info.get("state") or {}
+            display_rgb = logical_rgb_from_state(state)
             out.append(
                 {
                     "ip": ip,
@@ -1143,8 +1190,17 @@ class LightController:
                     "rssi": state.get("rssi") or info.get("rssi"),
                     "dimming": state.get("dimming"),
                     "state": state.get("state"),
+                    # Keep the full pilot response available to presentation
+                    # layers.  The compact boolean above is useful for older
+                    # consumers, but it loses the live RGB channels needed
+                    # to tint cards and the desktop brand correctly.
+                    "raw_state": dict(state),
                     "temp": state.get("temp"),
                     "sceneId": state.get("sceneId"),
+                    # A compact presentation value for selectors and device
+                    # lists.  Keep the existing capability ``rgb`` flag below
+                    # separate from the current displayed colour.
+                    "color_rgb": display_rgb,
                     "last_seen": info.get("last_seen"),
                     "kelvin_min": caps.kelvin_min if caps else None,
                     "kelvin_max": caps.kelvin_max if caps else None,
@@ -1214,91 +1270,6 @@ class LightController:
             else:
                 self.set_scene(int(value))
 
-    def send_rgbic_program(
-        self,
-        program: RGBICProgram,
-        *,
-        scene_id: int,
-        target: str | None = None,
-        timeout: float = 0.9,
-    ) -> list[RGBICTransportResult]:
-        """Puente experimental RGBIC por el camino oficial LightController/WizProtocol."""
-        if not isinstance(program, RGBICProgram):
-            raise ValueError("program must be an RGBICProgram")
-        if type(scene_id) is not int:
-            raise ValueError("scene_id must be an integer")
-        if target is not None and not isinstance(target, str):
-            raise ValueError("target must be a string or None")
-        if not self.proto:
-            return [
-                RGBICTransportResult(
-                    target_ip=target or "",
-                    scene_id=scene_id,
-                    transport_status="error",
-                    transport_error={"message": "WizProtocol is not available"},
-                )
-            ]
-        targets = {target} if target else self._control_targets()
-        if not targets:
-            return []
-        return asyncio.run(
-            self._send_rgbic_program_once(
-                sorted(targets),
-                program,
-                scene_id=scene_id,
-                timeout=timeout,
-            )
-        )
-
-    async def _send_rgbic_program_once(
-        self,
-        targets: list[str],
-        program: RGBICProgram,
-        *,
-        scene_id: int,
-        timeout: float,
-    ) -> list[RGBICTransportResult]:
-        params = encode_rgbic_program(program, scene_id)
-        results: list[RGBICTransportResult] = []
-        for ip in targets:
-            response = await self.proto.query(
-                ip,
-                "setPilot",
-                self.loop,
-                timeout=timeout,
-                params=params,
-                retries=0,
-            )
-            if response is None:
-                results.append(
-                    RGBICTransportResult(
-                        target_ip=ip,
-                        scene_id=scene_id,
-                        transport_status="timeout",
-                    )
-                )
-                continue
-            if "error" in response:
-                results.append(
-                    RGBICTransportResult(
-                        target_ip=ip,
-                        scene_id=scene_id,
-                        transport_status="rejected",
-                        transport_error=response["error"],
-                    )
-                )
-                continue
-            results.append(
-                RGBICTransportResult(
-                    target_ip=ip,
-                    scene_id=scene_id,
-                    transport_status=(
-                        "accepted" if response.get("success") is True else "sent"
-                    ),
-                )
-            )
-        return results
-
     def _drop_mode_keys(self, *keys: str) -> None:
         for key in keys:
             self._target.pop(key, None)
@@ -1341,6 +1312,12 @@ class LightController:
         self._target.update({"state": True, "sceneId": int(scene_id)})
         if speed is not None:
             self._target["speed"] = int(max(20, min(200, speed)))
+        else:
+            # WiZ keeps the previous ``speed`` if it is included in a new
+            # scene payload.  A normal scene selection must therefore clear a
+            # speed left over from another dynamic scene and let firmware use
+            # that scene's intended cadence (notably Christmas).
+            self._drop_mode_keys("speed")
         self._drop_mode_keys("r", "g", "b", "temp", "c", "w", "cw", "ww", "temperature")
         self._mark()
 

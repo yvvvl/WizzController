@@ -210,45 +210,31 @@ class ScenesPanel(ft.Column):
             key=f"sc{scene_id}",
             width=self._card_width,
             height=self.CARD_H,
-            padding=10,
+            # The interactive surface owns the radius.  Keeping its padding
+            # at zero lets the press wave reach the rounded outer edge.
+            padding=0,
             border_radius=Theme.R_MD,
             bgcolor=Theme.CARD,
             border=ft.Border.all(1, Theme.STROKE),
-            content=ft.Column(
-                [
-                    ft.Container(
-                        content=ft.Icon(scene_icon(sc.id), color=scene_color(sc.id, sc.color), size=22),
-                        width=38,
-                        height=38,
-                        border_radius=11,
-                        bgcolor=ft.Colors.with_opacity(0.16, scene_color(sc.id, sc.color)),
-                        border=ft.Border.all(1, ft.Colors.with_opacity(0.30, scene_color(sc.id, sc.color))),
-                        alignment=ft.Alignment.CENTER,
-                    ),
-                    ft.Text(
-                        translated_scene_name(self.i18n, sc.id, sc.name),
-                        color=Theme.TEXT,
-                        size=12,
-                        weight=ft.FontWeight.W_600,
-                        max_lines=1,
-                        overflow=ft.TextOverflow.ELLIPSIS,
-                        text_align=ft.TextAlign.CENTER,
-                    ),
-                    ft.Text(
-                        self._t("scenes.dynamic") if sc.dynamic else self._t("scenes.static"),
-                        color=Theme.FAINT,
-                        size=9,
-                        max_lines=1,
-                        text_align=ft.TextAlign.CENTER,
-                    ),
-                ],
-                alignment=ft.MainAxisAlignment.CENTER,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                spacing=4,
+            shadow=Theme.SHADOW,
+            content=ft.Container(
+                padding=10,
+                expand=True,
+                content=ft.Column(
+                    [
+                        ft.Container(content=ft.Icon(scene_icon(sc.id), color=scene_color(sc.id, sc.color), size=22), width=38, height=38, border_radius=11, bgcolor=ft.Colors.with_opacity(0.16, scene_color(sc.id, sc.color)), border=ft.Border.all(1, ft.Colors.with_opacity(0.30, scene_color(sc.id, sc.color))), alignment=ft.Alignment.CENTER),
+                        ft.Text(translated_scene_name(self.i18n, sc.id, sc.name), color=Theme.TEXT, size=12, weight=ft.FontWeight.W_600, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS, text_align=ft.TextAlign.CENTER),
+                        ft.Text(self._t("scenes.dynamic") if sc.dynamic else self._t("scenes.static"), color=Theme.FAINT, size=9, max_lines=1, text_align=ft.TextAlign.CENTER),
+                    ],
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    spacing=4,
+                ),
             ),
             on_click=lambda e, s=sc: self._activate_builtin(s),
             ink=True,
-            animate=ft.Animation(120, EO),
+            ink_color=Theme.press_ink(0.26),
+            animate=Theme.animation(240, EO),
         )
         self._builtin_cards[scene_id] = card
         return card
@@ -297,11 +283,15 @@ class ScenesPanel(ft.Column):
             key=f"custom_{uid}",
             width=self._card_width,
             height=self.CARD_H,
-            padding=9,
+            padding=0,
             border_radius=Theme.R_MD,
             bgcolor=Theme.CARD,
             border=ft.Border.all(1, Theme.STROKE),
-            content=ft.Column(
+            shadow=Theme.SHADOW,
+            content=ft.Container(
+                padding=9,
+                expand=True,
+                content=ft.Column(
                 [
                     ft.Row(
                         [
@@ -343,10 +333,12 @@ class ScenesPanel(ft.Column):
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 spacing=3,
+                ),
             ),
             on_click=lambda e, s=scene: self._activate_custom(s),
             ink=True,
-            animate=ft.Animation(120, EO),
+            ink_color=Theme.press_ink(0.26),
+            animate=Theme.animation(240, EO),
         )
         self._custom_cards[uid] = card
         return card
@@ -368,7 +360,10 @@ class ScenesPanel(ft.Column):
 
     # ------------------------------------------------------------------ #
     def _activate_builtin(self, sc):
-        self.wiz.set_scene(sc.id, speed=int(self.speed) if sc.dynamic else None)
+        # Selecting a scene is deliberately different from adjusting its
+        # speed: start at the WiZ firmware default instead of inheriting a
+        # number configured for the previously selected animation.
+        self.wiz.set_scene(sc.id)
         self.selected_id = sc.id
         self.selected_custom_id = None
         self._highlight()
@@ -416,7 +411,10 @@ class ScenesPanel(ft.Column):
         self.speed_label.value = "100"
         supdate(self.speed_slider)
         supdate(self.speed_label)
-        self._emit_speed(final=True)
+        if self.selected_id is not None:
+            sc = wiz_scenes.get(self.selected_id)
+            if sc and sc.dynamic:
+                self.wiz.set_scene(sc.id)
 
     # ------------------------------------------------------------------ #
     def _capture_current_dialog(self, e=None):
@@ -446,13 +444,34 @@ class ScenesPanel(ft.Column):
         if not mounted(self):
             return
         editing = scene is not None
-        scene = scene or {"name": self._t("scenes.custom_fallback"), "mode": "rgb", "value": {"r": 255, "g": 0, "b": 0, "dimming": 100}}
-        v = scene.get("value") or {}
+        scene = scene or {
+            "name": self._t("scenes.custom_fallback"),
+            "mode": "rgb",
+            "value": {"r": 255, "g": 0, "b": 0, "dimming": 100},
+        }
+        original = scene.get("value") if isinstance(scene.get("value"), dict) else {}
+        state = {
+            "mode": str(scene.get("mode") or "rgb"),
+            "rgb": "#{:02x}{:02x}{:02x}".format(
+                int(original.get("r", 255)), int(original.get("g", 0)), int(original.get("b", 0))
+            ),
+            "kelvin": int(original.get("temp", 4000)),
+            "scene_id": int(original.get("sceneId", 18)),
+            "dimming": int(original.get("dimming", 100)),
+            "speed": int(original.get("speed", 100)),
+        }
 
-        name = ft.TextField(label=self._t("favorites.name"), value=scene.get("name") or self._t("scenes.custom_fallback"), color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
+        name = ft.TextField(
+            label=self._t("favorites.name"),
+            value=scene.get("name") or self._t("scenes.custom_fallback"),
+            color=Theme.TEXT,
+            bgcolor=Theme.BG,
+            border_color=Theme.STROKE,
+            autofocus=not editing,
+        )
         mode = ft.Dropdown(
             label=self._t("common.type"),
-            value=scene.get("mode", "rgb"),
+            value=state["mode"],
             options=[
                 ft.DropdownOption(key="rgb", text=self._t("scenes.type_rgb")),
                 ft.DropdownOption(key="white", text=self._t("scenes.type_white")),
@@ -462,41 +481,164 @@ class ScenesPanel(ft.Column):
             bgcolor=Theme.BG,
             border_color=Theme.STROKE,
         )
-        rgb_hex = "#ff0000"
-        if isinstance(v, dict) and scene.get("mode") == "rgb":
-            rgb_hex = "#{:02x}{:02x}{:02x}".format(int(v.get("r", 255)), int(v.get("g", 0)), int(v.get("b", 0)))
-        default_value = rgb_hex
-        if scene.get("mode") == "white" and isinstance(v, dict):
-            default_value = str(v.get("temp", 4000))
-        if scene.get("mode") == "scene" and isinstance(v, dict):
-            default_value = str(v.get("sceneId", 18))
-        value = ft.TextField(label=self._t("common.value"), value=str(default_value), hint_text="#ff0000 / 4000 / 18", color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE)
-        dimming = ft.Slider(min=10, max=100, value=int(v.get("dimming", 100) if isinstance(v, dict) else 100), divisions=18, active_color=Theme.ACCENT, thumb_color="white")
-        speed = ft.Slider(min=20, max=200, value=int(v.get("speed", 100) if isinstance(v, dict) else 100), divisions=18, active_color=Theme.ACCENT, thumb_color="white")
+        preview = ft.Container(
+            width=52,
+            height=52,
+            border_radius=16,
+            alignment=ft.Alignment.CENTER,
+            border=ft.Border.all(1, Theme.STROKE),
+        )
+        summary = ft.Text(color=Theme.MUTED, size=12)
+        editor = ft.Column(spacing=10)
+
+        def _rgb(value: str) -> tuple[int, int, int] | None:
+            raw = str(value or "").strip().lstrip("#")
+            if not re.fullmatch(r"[0-9a-fA-F]{6}", raw):
+                return None
+            return int(raw[0:2], 16), int(raw[2:4], 16), int(raw[4:6], 16)
+
+        def refresh_preview():
+            current = state["mode"]
+            if current == "rgb":
+                color = state["rgb"]
+                icon = ft.Icons.PALETTE_ROUNDED
+                text = f"{color.upper()} · {state['dimming']}%"
+            elif current == "white":
+                ratio = max(0.0, min(1.0, (state["kelvin"] - 2200) / 4300))
+                color = "#fbbf24" if ratio < 0.5 else "#dbeafe"
+                icon = ft.Icons.LIGHT_MODE_ROUNDED
+                text = f"{state['kelvin']}K · {state['dimming']}%"
+            else:
+                builtin = wiz_scenes.get(state["scene_id"])
+                color = scene_color(state["scene_id"], "#8b5cf6")
+                icon = scene_icon(state["scene_id"])
+                title = translated_scene_name(self.i18n, state["scene_id"], builtin.name if builtin else str(state["scene_id"]))
+                text = f"{title} · {state['speed']}%"
+            preview.bgcolor = color
+            preview.content = ft.Icon(icon, color="white", size=24)
+            summary.value = text
+            supdate(preview)
+            supdate(summary)
+
+        def render_editor(_event=None):
+            state["mode"] = mode.value or "rgb"
+            editor.controls.clear()
+            if state["mode"] == "rgb":
+                hex_field = ft.TextField(
+                    label=self._t("favorites.hex"),
+                    value=state["rgb"],
+                    hint_text="#FF006E",
+                    color=Theme.TEXT,
+                    bgcolor=Theme.BG,
+                    border_color=Theme.STROKE,
+                    dense=True,
+                )
+                brightness = ft.Slider(min=10, max=100, value=state["dimming"], divisions=18, active_color=Theme.ACCENT, thumb_color="white")
+                brightness_label = ft.Text(color=Theme.TEXT, weight=ft.FontWeight.W_600)
+
+                def change_rgb(_e=None):
+                    parsed = _rgb(hex_field.value)
+                    if parsed:
+                        state["rgb"] = "#{:02x}{:02x}{:02x}".format(*parsed)
+                        hex_field.error_text = None
+                    else:
+                        hex_field.error_text = "Usa un color HEX, por ejemplo #FF006E"
+                    refresh_preview(); supdate(hex_field)
+
+                def change_brightness(_e=None):
+                    state["dimming"] = int(brightness.value)
+                    brightness_label.value = f"{state['dimming']}%"
+                    refresh_preview(); supdate(brightness_label)
+
+                hex_field.on_submit = change_rgb
+                hex_field.on_blur = change_rgb
+                brightness.on_change = change_brightness
+                swatches = ft.Row(
+                    wrap=True,
+                    spacing=8,
+                    controls=[
+                        ft.Container(
+                            width=30, height=30, border_radius=15, bgcolor=color,
+                            border=ft.Border.all(1, ft.Colors.with_opacity(0.35, "white")),
+                            on_click=lambda _e, c=color: (setattr(hex_field, "value", c), change_rgb()),
+                        )
+                        for color in ("#FF1744", "#FF8A00", "#FACC15", "#22C55E", "#06B6D4", "#3B82F6", "#8B5CF6", "#EC4899")
+                    ],
+                )
+                change_brightness()
+                editor.controls.extend([swatches, hex_field, ft.Row([ft.Text(self._t("light.brightness"), style=Theme.LABEL), brightness_label], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), brightness])
+            elif state["mode"] == "white":
+                kelvin = ft.Slider(min=2200, max=6500, value=state["kelvin"], divisions=43, active_color=Theme.WARNING, thumb_color="white")
+                brightness = ft.Slider(min=10, max=100, value=state["dimming"], divisions=18, active_color=Theme.ACCENT, thumb_color="white")
+                kelvin_label = ft.Text(color=Theme.TEXT, weight=ft.FontWeight.W_600)
+                brightness_label = ft.Text(color=Theme.TEXT, weight=ft.FontWeight.W_600)
+
+                def change_white(_e=None):
+                    state["kelvin"] = int(kelvin.value)
+                    state["dimming"] = int(brightness.value)
+                    kelvin_label.value = f"{state['kelvin']}K"
+                    brightness_label.value = f"{state['dimming']}%"
+                    refresh_preview(); supdate(kelvin_label); supdate(brightness_label)
+
+                kelvin.on_change = brightness.on_change = change_white
+                presets = ft.Row(wrap=True, spacing=8, controls=[
+                    ft.OutlinedButton(f"{value}K", on_click=lambda _e, k=value: (setattr(kelvin, "value", k), change_white(), supdate(kelvin)))
+                    for value in (2200, 2700, 4000, 5000, 6500)
+                ])
+                change_white()
+                editor.controls.extend([ft.Row([ft.Text("Kelvin", style=Theme.LABEL), kelvin_label], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), kelvin, presets, ft.Row([ft.Text(self._t("light.brightness"), style=Theme.LABEL), brightness_label], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), brightness])
+            else:
+                scene_picker = ft.Dropdown(
+                    label=self._t("favorites.scene"),
+                    value=str(state["scene_id"]),
+                    options=[
+                        ft.DropdownOption(key=str(sid), text=translated_scene_name(self.i18n, sid, item.name))
+                        for sid, item in wiz_scenes.CATALOG.items()
+                    ],
+                    color=Theme.TEXT, bgcolor=Theme.BG, border_color=Theme.STROKE,
+                )
+                speed = ft.Slider(min=20, max=200, value=state["speed"], divisions=18, active_color=Theme.ACCENT, thumb_color="white")
+                speed_label = ft.Text(color=Theme.TEXT, weight=ft.FontWeight.W_600)
+
+                def change_scene(_e=None):
+                    state["scene_id"] = int(scene_picker.value or 18)
+                    state["speed"] = int(speed.value)
+                    speed_label.value = f"{state['speed']}%"
+                    refresh_preview(); supdate(speed_label)
+
+                scene_picker.on_select = change_scene
+                speed.on_change = change_scene
+                change_scene()
+                editor.controls.extend([scene_picker, ft.Row([ft.Text(self._t("scenes.dynamic_speed"), style=Theme.LABEL), speed_label], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), speed])
+            refresh_preview()
+            supdate(editor)
+
+        mode.on_select = render_editor
 
         def save(e):
-            raw = (value.value or "").strip()
-            m = mode.value or "rgb"
-            try:
-                if m == "rgb":
-                    h = raw.lstrip("#")
-                    if not re.fullmatch(r"[0-9a-fA-F]{6}", h):
-                        return
-                    val = {"r": int(h[0:2], 16), "g": int(h[2:4], 16), "b": int(h[4:6], 16), "dimming": int(dimming.value)}
-                elif m == "white":
-                    val = {"temp": int(raw), "dimming": int(dimming.value)}
-                else:
-                    val = {"sceneId": int(raw), "speed": int(speed.value), "dimming": int(dimming.value)}
-            except Exception:
+            if not (name.value or "").strip():
+                name.error_text = self._t("favorites.name")
+                supdate(name)
                 return
-            if editing:
-                self.custom.update_scene(scene.get("id"), name.value, m, val)
+            current = state["mode"]
+            if current == "rgb":
+                parsed = _rgb(state["rgb"])
+                if parsed is None:
+                    return
+                val = {"r": parsed[0], "g": parsed[1], "b": parsed[2], "dimming": state["dimming"]}
+            elif current == "white":
+                val = {"temp": state["kelvin"], "dimming": state["dimming"]}
             else:
-                self.custom.add_scene(name.value, m, val)
+                val = {"sceneId": state["scene_id"], "speed": state["speed"], "dimming": state["dimming"]}
+            if editing:
+                self.custom.update_scene(scene.get("id"), name.value, current, val)
+            else:
+                self.custom.add_scene(name.value, current, val)
             self.page.pop_dialog()
             self._render_custom()
 
-        dialog_w, dialog_h = dialog_dimensions(self, 460, 560)
+        render_editor()
+        dialog_w, dialog_h = dialog_dimensions(self, 540, 560)
         dlg = ft.AlertDialog(
             title=ft.Text(self._t("scenes.edit_title") if editing else self._t("scenes.new_title"), color=Theme.TEXT),
             bgcolor=Theme.SURFACE,
@@ -505,13 +647,10 @@ class ScenesPanel(ft.Column):
                 height=dialog_h,
                 content=ft.Column(
                     [
-                        name,
+                        ft.Row([preview, ft.Column([name, summary], expand=True, spacing=6)], spacing=12),
                         mode,
-                        value,
-                        ft.Text(self._t("light.brightness"), style=Theme.LABEL),
-                        dimming,
-                        ft.Text(self._t("scenes.dynamic_speed"), style=Theme.LABEL),
-                        speed,
+                        ft.Divider(height=8, color=Theme.STROKE),
+                        editor,
                     ],
                     tight=True,
                     spacing=8,

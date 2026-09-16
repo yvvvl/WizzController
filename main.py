@@ -13,7 +13,6 @@ import flet as ft
 from app_meta import APP_ID, APP_NAME, display_version
 
 from core.light_controller import LightController
-from core.dev_virtual_lights import VirtualLightController, virtual_bulb_count_from_environment
 from ui.app import WizzApp
 from ui.theme import Theme
 from config.app_runtime_manager import AppRuntimeManager
@@ -101,18 +100,38 @@ def main(page: ft.Page):
     wiz = None
     hotkeys = None
     try:
+        runtime = AppRuntimeManager()
+        Theme.configure(
+            runtime.get("ui_theme", "system"),
+            reduced_motion=bool(runtime.get("reduced_motion", False)),
+        )
         page.title = _APP_TITLE
         page.bgcolor = Theme.BG
+        page.window.bgcolor = Theme.BG
         page.padding = 0
-        page.theme_mode = ft.ThemeMode.DARK
-        page.theme = ft.Theme(color_scheme_seed=Theme.PRIMARY)
+        # The root view is a fixed desktop canvas.  Individual panels own the
+        # only vertical scroll area; allowing the page itself to scroll moves
+        # the custom title strip with the content on Windows.
+        page.scroll = ft.ScrollMode.HIDDEN
+        page.theme_mode = ft.ThemeMode.LIGHT if Theme.NAME == "light" else ft.ThemeMode.DARK
+        page.theme = Theme.flet_theme()
 
         page.window.width = 1080
         page.window.height = 720
-        page.window.min_width = 720
-        page.window.min_height = 540
-
-        runtime = AppRuntimeManager()
+        page.window.min_width = 920
+        page.window.min_height = 640
+        # This is a deliberately compact desktop surface, not a dashboard that
+        # benefits from a full-screen canvas.
+        try:
+            page.window.max_width = 1280
+            page.window.max_height = 860
+            page.window.maximizable = False
+            # The native gray title bar breaks the immersive surface on
+            # Windows.  WizzApp supplies a drag-safe, themed replacement.
+            page.window.title_bar_hidden = True
+            page.window.shadow = True
+        except Exception:
+            pass
         platform_runtime = PlatformRuntime.create()
         # Capability snapshot is exposed for future UI integration; no
         # platform service is started from this bootstrap step.
@@ -120,13 +139,7 @@ def main(page: ft.Page):
         i18n = get_manager()
         i18n.set_preference(RuntimeLanguagePreference(runtime).load())
 
-        virtual_bulbs = virtual_bulb_count_from_environment()
-        wiz = VirtualLightController(virtual_bulbs) if virtual_bulbs else LightController()
-        if virtual_bulbs:
-            logging.warning(
-                "[DEV] Simulador de %s ampolletas virtuales activo; no se enviará tráfico WiZ.",
-                virtual_bulbs,
-            )
+        wiz = LightController()
         hotkeys = HotkeysManager(wiz, i18n=i18n)
         logging.info("[Hotkeys] %s", hotkeys.backend_status())
 
@@ -323,21 +336,23 @@ def _safe(fn, *args):
         pass
 
 
-if __name__ == "__main__":
-    logging.info("Iniciando %s · %s", APP_NAME, display_version())
-    logging.info(
-        "[Paths] config=%s · logs=%s · assets=%s",
-        config_dir(),
-        logs_dir(),
-        assets_dir(),
-    )
-    if not _acquire_or_activate_instance():
-        sys.exit(0)
+def run_flet_legacy() -> None:
+    """Run the retired Flet shell explicitly for migration-only debugging.
 
+    This is intentionally not the default entry point or a release target.
+    Production users always launch the native Qt shell below.
+    """
+    logging.warning("The Flet shell is legacy-only; use the Qt desktop shell instead.")
+    if not _acquire_or_activate_instance():
+        return
     atexit.register(_finalize_process)
     try:
         ft.run(main, assets_dir=str(assets_dir()))
-    except KeyboardInterrupt:
-        sys.exit(0)
     finally:
         _finalize_process()
+
+
+if __name__ == "__main__":
+    from qt_ui.run import main as qt_main
+
+    raise SystemExit(qt_main())

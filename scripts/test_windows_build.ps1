@@ -82,7 +82,7 @@ if ($null -ne $Primary) {
         )
     ) {
         throw (
-            "Hay otra instancia de WizZ activa, posiblemente python main.py. " +
+            "Hay otra instancia de WizZ activa. " +
             "Cierrala desde el tray antes de probar el EXE."
         )
     }

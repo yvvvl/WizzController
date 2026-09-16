@@ -191,9 +191,9 @@ class RuntimeLanguagePreference:
 
     def load(self) -> str:
         try:
-            return normalize_language(self.runtime.get(self.KEY, LANGUAGE_SYSTEM))
+            return normalize_language(self.runtime.get(self.KEY, LANGUAGE_ENGLISH))
         except Exception:
-            return LANGUAGE_SYSTEM
+            return LANGUAGE_ENGLISH
 
     def save(self, preference: str) -> str:
         normalized = normalize_language(preference)

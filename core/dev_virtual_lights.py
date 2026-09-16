@@ -237,3 +237,13 @@ class VirtualLightController(LightController):
             {"ip": ip, "name": info.get("name", ip), "state": dict(info.get("state") or {}), "targeted": ip in self._control_targets()}
             for ip, info in sorted(self.bulbs.items())
         ]
+
+    def get_bulbs_detailed(self) -> list[dict[str, Any]]:
+        """Expose the animated DEV colour through the normal device contract."""
+        items = super().get_bulbs_detailed()
+        for item in items:
+            state = dict(self.bulbs.get(str(item.get("ip")), {}).get("state") or {})
+            color = state.get("_virtual_rgb")
+            if isinstance(color, (tuple, list)) and len(color) == 3:
+                item["color_rgb"] = tuple(int(value) for value in color)
+        return items

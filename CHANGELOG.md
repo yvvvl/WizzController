@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.3.0
+
+### Added
+
+- Canales de actualización **Estable** y **Beta** persistentes en Ajustes.
+- Actualización automática para la distribución portable de Windows: descarga
+  el ZIP publicado, comprueba su SHA-256 y reemplaza la app al reiniciarse.
+- Publicación de GitHub Releases desde ramas `release/**`, con ZIP y checksum
+  adjuntos.
+
+### Notes
+
+- La primera instalación de v1.3.0 sigue siendo manual. Desde esa build,
+  las siguientes actualizaciones del canal elegido se aplican desde la app.
+- Las builds ejecutadas desde el código fuente no se reemplazan solas: muestran
+  la descarga oficial para instalar la primera build portable.
+- Las betas cerradas no se publican en GitHub Releases público. Su distribución
+  requiere un repositorio privado o un servidor de actualizaciones con accesos
+  individuales; un código incrustado en la app no protege una descarga pública.
+
 ## v1.2.0
 
 ### Added

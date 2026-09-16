@@ -39,6 +39,7 @@ class SettingsPanel(ft.Column):
         runtime=None,
         release_client=None,
         platform_services=None,
+        on_theme_change=None,
     ):
         super().__init__(scroll=ft.ScrollMode.AUTO, spacing=18, expand=True)
         self.wiz = wiz
@@ -48,6 +49,7 @@ class SettingsPanel(ft.Column):
         self.runtime.i18n = self.i18n
         self.release_client = release_client or ReleaseClient()
         self.platform_services = platform_services
+        self._on_theme_change = on_theme_change
         self._update_check_in_progress = False
         self._available_release: ReleaseInfo | None = None
         self.language_preference = RuntimeLanguagePreference(self.runtime)
@@ -237,6 +239,52 @@ class SettingsPanel(ft.Column):
             )
         )
 
+        self.theme_dropdown = ft.Dropdown(
+            label=self._t("appearance.theme"),
+            value=str(self.runtime.get("ui_theme", "system")),
+            options=[
+                ft.DropdownOption(key="system", text=self._t("appearance.theme.system")),
+                ft.DropdownOption(key="light", text=self._t("appearance.theme.light")),
+                ft.DropdownOption(key="dark", text=self._t("appearance.theme.dark")),
+                ft.DropdownOption(key="midnight", text=self._t("appearance.theme.midnight")),
+                ft.DropdownOption(key="ocean", text=self._t("appearance.theme.ocean")),
+                ft.DropdownOption(key="violet", text=self._t("appearance.theme.violet")),
+                ft.DropdownOption(key="aurora", text=self._t("appearance.theme.aurora")),
+                ft.DropdownOption(key="forest", text=self._t("appearance.theme.forest")),
+                ft.DropdownOption(key="ember", text=self._t("appearance.theme.ember")),
+                ft.DropdownOption(key="sapphire", text=self._t("appearance.theme.sapphire")),
+                ft.DropdownOption(key="rose", text=self._t("appearance.theme.rose")),
+                ft.DropdownOption(key="oled", text=self._t("appearance.theme.oled")),
+            ],
+            border_color=Theme.STROKE,
+            bgcolor=Theme.BG,
+            color=Theme.TEXT,
+            dense=True,
+            on_select=self._appearance_changed,
+        )
+        self.reduced_motion_switch = ft.Switch(
+            value=bool(self.runtime.get("reduced_motion", False)),
+            active_color=Theme.PRIMARY,
+            on_change=self._appearance_changed,
+        )
+        self.appearance_status = ft.Text("", color=Theme.FAINT, size=10)
+        appearance_card = self._card(
+            ft.Column(
+                [
+                    ft.Text(self._t("appearance.title"), style=Theme.LABEL),
+                    ft.Text(self._t("appearance.description"), color=Theme.MUTED, size=11),
+                    self.theme_dropdown,
+                    self._runtime_option(
+                        self._t("appearance.reduced_motion"),
+                        self._t("appearance.reduced_motion.description"),
+                        self.reduced_motion_switch,
+                    ),
+                    self.appearance_status,
+                ],
+                spacing=8,
+            )
+        )
+
         self.runtime_status = ft.Text("", color=Theme.FAINT, size=11)
         self.tray_enabled_switch = ft.Switch(
             value=bool(self.runtime.get("tray_enabled", True)),
@@ -400,6 +448,7 @@ class SettingsPanel(ft.Column):
             self.header,
             target_card,
             language_card,
+            appearance_card,
             runtime_card,
             release_card,
             ft.Text(self._t("bulbs.section"), style=Theme.LABEL),
@@ -897,6 +946,15 @@ class SettingsPanel(ft.Column):
             self.open_minimized_switch.value = False
         self.minimize_to_tray_switch.disabled = not tray_enabled
         self.open_minimized_switch.disabled = not tray_enabled
+
+    def _appearance_changed(self, e=None) -> None:
+        theme = str(self.theme_dropdown.value or "system")
+        reduced_motion = bool(self.reduced_motion_switch.value)
+        self.runtime.update(ui_theme=theme, reduced_motion=reduced_motion)
+        if callable(self._on_theme_change):
+            self._on_theme_change(theme, reduced_motion)
+        self.appearance_status.value = self._t("appearance.applied")
+        supdate(self.appearance_status)
 
     def _runtime_changed(self, e=None):
         tray_enabled = bool(self.tray_enabled_switch.value)

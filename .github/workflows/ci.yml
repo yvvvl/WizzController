@@ -37,7 +37,7 @@ jobs:
           python -m pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Compile Python files
-        run: python -m compileall -q main.py app_meta.py core config ui tests tools
+        run: python -m compileall -q main.py app_meta.py core config qt_ui tests tools
 
       - name: Run tests
         run: python -m pytest -q

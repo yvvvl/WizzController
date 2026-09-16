@@ -7,15 +7,18 @@ OUTPUT_DIR="${ROOT}/dist/linux"
 RELEASE_DIR="${ROOT}/dist/release"
 CLEAN=false
 SKIP_TESTS=false
+ARCH=""
 
 usage() {
   cat <<'EOF'
-Usage: ./scripts/build_linux.sh [--clean] [--skip-tests] [--output DIR]
+Usage: ./scripts/build_linux.sh [--clean] [--skip-tests] [--arch x64|arm64] [--output DIR]
 
 Builds WizZ Desktop for Linux. Run it on Linux or WSL after installing the
 system dependencies required by Flet/Flutter. It produces a tar.gz archive and
 a SHA-256 checksum under dist/release. The archive includes install.sh, which
 installs a launcher for the current user without sudo.
+
+The build is native-only: choose an architecture that matches the Linux host.
 EOF
 }
 
@@ -23,6 +26,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --clean) CLEAN=true ;;
     --skip-tests) SKIP_TESTS=true ;;
+    --arch)
+      ARCH="${2:?--arch requires x64 or arm64}"
+      shift
+      ;;
     --output)
       OUTPUT_DIR="${2:?--output requires a directory}"
       shift
@@ -42,6 +49,26 @@ done
 
 if [[ "$(uname -s)" != "Linux" ]]; then
   echo "This build must run on Linux or WSL." >&2
+  exit 1
+fi
+
+HOST_MACHINE="$(uname -m)"
+case "$HOST_MACHINE" in
+  x86_64|amd64) HOST_ARCH="x64" ;;
+  aarch64|arm64) HOST_ARCH="arm64" ;;
+  *)
+    echo "Unsupported Linux CPU architecture: $HOST_MACHINE" >&2
+    exit 1
+    ;;
+esac
+ARCH="${ARCH:-$HOST_ARCH}"
+if [[ "$ARCH" != "x64" && "$ARCH" != "arm64" ]]; then
+  echo "Unsupported --arch value: $ARCH (use x64 or arm64)." >&2
+  exit 2
+fi
+if [[ "$ARCH" != "$HOST_ARCH" ]]; then
+  echo "Cross-compilation is not supported. Requested $ARCH on $HOST_ARCH host." >&2
+  echo "Run this script on native $ARCH Linux instead." >&2
   exit 1
 fi
 
@@ -144,6 +171,7 @@ cat > "$OUTPUT_DIR/BUILD_INFO.json" <<EOF
   "build_number": $BUILD_NUMBER,
   "artifact": "$ARTIFACT",
   "platform": "linux",
+  "architecture": "$ARCH",
   "python": "$PYTHON_VERSION",
   "flet": "$FLET_VERSION",
   "commit": "$COMMIT",
@@ -152,7 +180,7 @@ cat > "$OUTPUT_DIR/BUILD_INFO.json" <<EOF
 }
 EOF
 
-ARCHIVE="$RELEASE_DIR/WizZDesktop-v${VERSION}-linux-x64.tar.gz"
+ARCHIVE="$RELEASE_DIR/WizZDesktop-v${VERSION}-linux-${ARCH}.tar.gz"
 CHECKSUM="$ARCHIVE.sha256"
 rm -f "$ARCHIVE" "$CHECKSUM"
 tar -C "$OUTPUT_DIR" -czf "$ARCHIVE" .

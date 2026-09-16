@@ -51,7 +51,10 @@ except Exception:  # pragma: no cover - compatibility with older branches
 
 _LOG = logging.getLogger(__name__)
 
-PICKER_DRAG_INTERVAL_MS = 6
+# A desktop Flet gesture is serialized over the local session. Sampling at one
+# frame (rather than every pointer micro-event) keeps the thumb attached to the
+# pointer while leaving CPU and WiZ I/O headroom for the actual light command.
+PICKER_DRAG_INTERVAL_MS = 10
 PALETTE_THUMB = 24.0
 CCT_THUMB = 24.0
 # Compatibility names from Color Studio v1.
@@ -114,6 +117,7 @@ class ColorPanel(ft.Column):
         )
         if self._navigate is None:
             self._navigate = next((item for item in args if callable(item)), None)
+        self._on_favorites_changed: Callable[[], Any] | None = kwargs.get("on_favorites_changed")
 
         self._config = ConfigManager()
         self._controller_settings = ControllerSettingsManager()
@@ -156,6 +160,9 @@ class ColorPanel(ft.Column):
         self._white_gate = _RateGate(max(color_interval, 0.055))
         self._brightness_gate = _RateGate(slider_interval)
         self._preview_gate = _RateGate(1.0 / 60.0)
+        # During a drag the only renderer update is the thumb itself, so we
+        # can target the display cadence without rebuilding the surrounding UI.
+        self._picker_frame_gate = _RateGate(1.0 / 60.0)
 
         self._color_guard = LocalEditGuard(1.05)
         self._white_guard = LocalEditGuard(1.05)
@@ -184,6 +191,11 @@ class ColorPanel(ft.Column):
 
     def _t(self, key: str, **values) -> str:
         return self.i18n.translate(key, **values)
+
+    @property
+    def is_picker_dragging(self) -> bool:
+        """True while the native pointer path must own the render budget."""
+        return bool(self._dragging_palette or self._dragging_cct or self._dragging_brightness)
 
     def _white_name(self, kelvin: int) -> str:
         raw = white_label(kelvin)
@@ -284,11 +296,9 @@ class ColorPanel(ft.Column):
             "white": self._mode_button("white", self._t("color_studio.white"), ft.Icons.LIGHT_MODE_ROUNDED),
             "precise": self._mode_button("precise", self._t("color_studio.precise"), ft.Icons.TUNE_ROUNDED),
         }
-        self.mode_row = ft.Row(
-            list(self.mode_buttons.values()),
-            spacing=8,
-            wrap=True,
-        )
+        # The WiZ-inspired surface keeps RGB and white temperature together;
+        # exact values open only as a secondary precision disclosure.
+        self.mode_row = ft.Row([], visible=False)
 
         self._build_palette_controls()
         self._build_white_controls()
@@ -297,8 +307,8 @@ class ColorPanel(ft.Column):
         self.picker_card = self._card(
             ft.Column(
                 [
-                    self.mode_row,
                     self.color_section,
+                    ft.Divider(height=1, color=Theme.STROKE),
                     self.white_section,
                     self.precise_section,
                 ],
@@ -309,10 +319,7 @@ class ColorPanel(ft.Column):
 
         self._build_brightness_controls()
         self._build_apply_controls()
-        right_column = ft.Column(
-            [self.brightness_card, self.apply_card],
-            spacing=18,
-        )
+        right_column = ft.Column([self.brightness_card], spacing=18)
 
         self.main_layout = ft.ResponsiveRow(
             [
@@ -436,11 +443,7 @@ class ColorPanel(ft.Column):
             run_spacing=6,
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
         )
-        self.quick_color_row = ft.ResponsiveRow(
-            [self._quick_color(name, value) for name, value in QUICK_COLORS],
-            spacing=9,
-            run_spacing=9,
-        )
+        self.inline_color_favorites = ft.Row(spacing=10, scroll=ft.ScrollMode.AUTO)
         palette_header = ft.ResponsiveRow(
             [
                 ft.Container(
@@ -469,15 +472,33 @@ class ColorPanel(ft.Column):
             size=10,
             text_align=ft.TextAlign.CENTER,
         )
+        self.color_favorite_button = ft.IconButton(
+            ft.Icons.FAVORITE_BORDER_ROUNDED,
+            icon_color=Theme.PRIMARY,
+            tooltip=self._t("color_studio.save_current"),
+            on_click=lambda e: self._save_current_favorite(),
+        )
+        self.color_favorite_frame = ft.Container(
+            content=self.color_favorite_button,
+            width=48,
+            height=48,
+            border_radius=24,
+            alignment=ft.Alignment.CENTER,
+            animate=Theme.animation(160),
+        )
         self.color_section = ft.Column(
             [
                 palette_header,
                 ft.Row([self.palette_stack], alignment=ft.MainAxisAlignment.CENTER),
                 self.palette_meta,
-                self.palette_axis_hint,
-                ft.Divider(height=1, color=Theme.STROKE),
-                self._section_header(self._t("color_studio.quick_colors"), self._t("color_studio.quick_subtitle")),
-                self.quick_color_row,
+                ft.Row(
+                    [
+                        self.color_favorite_frame,
+                        ft.Container(content=self.inline_color_favorites, expand=True),
+                    ],
+                    spacing=8,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                ),
             ],
             spacing=13,
         )
@@ -525,16 +546,30 @@ class ColorPanel(ft.Column):
             color=Theme.FAINT,
             size=11,
         )
-        self.white_preset_row = ft.ResponsiveRow(
-            [self._white_preset(k, label, subtitle) for k, label, subtitle in WHITE_PRESETS],
-            spacing=9,
-            run_spacing=9,
+        self.inline_white_favorites = ft.Row(spacing=10, scroll=ft.ScrollMode.AUTO)
+        self.white_favorite_button = ft.IconButton(
+            ft.Icons.FAVORITE_BORDER_ROUNDED,
+            icon_color=Theme.PRIMARY,
+            tooltip=self._t("color_studio.save_current"),
+            on_click=lambda e: self._save_current_favorite(),
+        )
+        self.white_favorite_frame = ft.Container(
+            content=self.white_favorite_button,
+            width=48,
+            height=48,
+            border_radius=24,
+            alignment=ft.Alignment.CENTER,
+            animate=Theme.animation(160),
         )
         self.white_section = ft.Column(
             [
-                self._section_header(
-                    self._t("color_studio.cct_section"),
-                    self._t("color_studio.cct_subtitle"),
+                ft.Row(
+                    [
+                        self._section_header(self._t("color_studio.cct_section"), self._t("color_studio.cct_subtitle")),
+                        ft.Container(expand=True),
+                        self._outline_chip("CCT", lambda e: self._select_view("white")),
+                    ],
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 ),
                 ft.Row([self.cct_stack], alignment=ft.MainAxisAlignment.CENTER),
                 ft.ResponsiveRow(
@@ -553,8 +588,14 @@ class ColorPanel(ft.Column):
                     run_spacing=6,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 ),
-                ft.Divider(height=1, color=Theme.STROKE),
-                self.white_preset_row,
+                ft.Row(
+                    [
+                        self.white_favorite_frame,
+                        ft.Container(content=self.inline_white_favorites, expand=True),
+                    ],
+                    spacing=8,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                ),
             ],
             spacing=14,
         )
@@ -650,14 +691,14 @@ class ColorPanel(ft.Column):
         )
 
     def _build_apply_controls(self) -> None:
-        live_pref = self._config.get("color_studio", {})
+        # Live delivery is the default. The former live/manual switch added
+        # visual weight without improving the common WiZ workflow, so it is
+        # retained only as an invisible compatibility field for old
+        # preferences, routines and tests.
         live_default = True
-        if isinstance(live_pref, dict):
-            live_default = bool(live_pref.get("apply_live", True))
         self.live_switch = ft.Switch(
             value=live_default,
-            active_color=Theme.PRIMARY,
-            on_change=self._live_changed,
+            visible=False,
         )
         self.pending_text = ft.Text(color=Theme.FAINT, size=11)
         self.apply_button = ft.FilledButton(
@@ -707,17 +748,7 @@ class ColorPanel(ft.Column):
             run_spacing=6,
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
         )
-        self.apply_card = self._card(
-            ft.Column(
-                [
-                    self.apply_header,
-                    self.pending_text,
-                    self.apply_row,
-                ],
-                spacing=12,
-            ),
-            padding=18,
-        )
+        self.apply_card = ft.Container(visible=False)
 
     def _install_compatibility_aliases(self) -> None:
         """Keep harmless aliases used by tests and older UI integrations.
@@ -828,9 +859,9 @@ class ColorPanel(ft.Column):
         }.get(name)
         display_name = self._t(key) if key else name
         return ft.Container(
-            col={"xs": 3, "sm": 2, "md": 1.5},
-            height=46,
-            border_radius=23,
+            width=40,
+            height=40,
+            border_radius=20,
             bgcolor=value,
             border=ft.Border.all(2, ft.Colors.with_opacity(0.25, "white")),
             tooltip=self._t("color_studio.preset_tooltip", name=display_name, value=value.upper()),
@@ -860,23 +891,17 @@ class ColorPanel(ft.Column):
         disabled = kelvin < self._kelvin_min or kelvin > self._kelvin_max
         color = rgb_to_hex(kelvin_to_rgb(kelvin))
         return ft.Container(
-            col={"xs": 6, "sm": 4, "md": 2},
-            height=72,
-            padding=10,
-            border_radius=Theme.R_SM,
-            bgcolor=ft.Colors.with_opacity(0.12, color),
-            border=ft.Border.all(1, ft.Colors.with_opacity(0.45, color)),
+            width=40,
+            height=40,
+            border_radius=20,
+            bgcolor=color,
+            border=ft.Border.all(2, ft.Colors.with_opacity(0.55, "white")),
             opacity=0.42 if disabled else 1.0,
-            tooltip=self._t("common.kelvin_value", value=kelvin),
-            content=ft.Column(
-                [
-                    ft.Icon(ft.Icons.LIGHT_MODE_ROUNDED, color=color, size=18),
-                    ft.Text(display_label, color=Theme.TEXT, size=11, weight=ft.FontWeight.BOLD),
-                    ft.Text(display_subtitle, color=Theme.FAINT, size=9),
-                ],
-                spacing=1,
-                alignment=ft.MainAxisAlignment.CENTER,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            tooltip=self._t(
+                "color_studio.white_preset_tooltip",
+                name=display_label,
+                kelvin=kelvin,
+                note=display_subtitle,
             ),
             ink=not disabled,
             on_click=None if disabled else lambda e, k=kelvin: self._select_kelvin(k, source="preset"),
@@ -926,6 +951,8 @@ class ColorPanel(ft.Column):
         self._refresh_precise_fields()
         self._refresh_brightness()
         self._refresh_apply_state()
+        self._render_inline_favorites(update=False)
+        self._refresh_favorite_buttons()
         if update:
             self._batch_update(
                 self.preview,
@@ -935,11 +962,13 @@ class ColorPanel(ft.Column):
                 self.precise_section,
                 self.brightness_card,
                 self.apply_card,
+                self.color_favorite_frame,
+                self.white_favorite_frame,
             )
 
     def _refresh_mode_controls(self) -> None:
-        self.color_section.visible = self.view_mode == "color"
-        self.white_section.visible = self.view_mode == "white"
+        self.color_section.visible = True
+        self.white_section.visible = True
         self.precise_section.visible = self.view_mode == "precise"
         for key, button in self.mode_buttons.items():
             active = key == self.view_mode
@@ -1030,6 +1059,7 @@ class ColorPanel(ft.Column):
         )
         self.palette_hex_label.value = rgb_to_hex(self._current_rgb(), upper=True)
         if not interactive:
+            self._refresh_favorite_buttons()
             self.palette_hex_label.tooltip = (
                 self._t("color_studio.exact_preserved") if self._exact_rgb is not None else self._t("color_studio.direct_rgb")
             )
@@ -1044,6 +1074,8 @@ class ColorPanel(ft.Column):
             kelvin=self.temp_kelvin,
             name=self._white_name(self.temp_kelvin),
         )
+        if not self._dragging_cct:
+            self._refresh_favorite_buttons()
 
     def _refresh_precise_fields(self) -> None:
         self._refreshing_fields = True
@@ -1289,15 +1321,28 @@ class ColorPanel(ft.Column):
         self._color_guard.touch(rgb, hold_seconds=0.95)
         apply_changed = self._mark_changed("color")
         self._refresh_palette(interactive=interactive)
+        if interactive:
+            # Keep the colour result visually attached to the pointer. This is
+            # still cheap: only the thumb and the preview repaint, never the
+            # hidden Home light grid or favourite/editor surfaces.
+            self._refresh_preview(interactive=True)
+            if update and self._picker_frame_gate.ready():
+                self._batch_update(self.palette_thumb, self.preview)
+            if emit_live:
+                self._send_live(self._current_action(), self._color_gate)
+            return
         preview_changed = self._preview_gate.ready(force=not interactive)
+        frame_changed = self._picker_frame_gate.ready(force=not interactive)
         if preview_changed:
             self._refresh_preview(interactive=interactive)
         if apply_changed or not interactive:
             self._refresh_apply_state()
-        if update:
+        if update and (frame_changed or preview_changed or apply_changed or not interactive):
             self._batch_update(
                 self.palette_thumb,
-                self.palette_meta,
+                self.palette_meta if frame_changed or not interactive else None,
+                self.color_favorite_frame if not interactive else None,
+                self.white_favorite_frame if not interactive else None,
                 self.preview if preview_changed else None,
                 self.apply_card if apply_changed or not interactive else None,
             )
@@ -1320,6 +1365,8 @@ class ColorPanel(ft.Column):
             self.precise_fields,
             self.precise_note,
             self.apply_card,
+            self.color_favorite_frame,
+            self.white_favorite_frame,
         )
 
     # ------------------------------------------------------------------
@@ -1378,15 +1425,25 @@ class ColorPanel(ft.Column):
         self._white_guard.touch(self.temp_kelvin, hold_seconds=0.95)
         apply_changed = self._mark_changed("blanco")
         self._refresh_cct()
+        if interactive:
+            self._refresh_preview(interactive=True)
+            if update and self._picker_frame_gate.ready():
+                self._batch_update(self.cct_thumb, self.preview)
+            if emit_live:
+                self._send_live(self._current_action(), self._white_gate)
+            return
         preview_changed = self._preview_gate.ready(force=not interactive)
+        frame_changed = self._picker_frame_gate.ready(force=not interactive)
         if preview_changed:
             self._refresh_preview(interactive=interactive)
         if apply_changed or not interactive:
             self._refresh_apply_state()
-        if update:
+        if update and (frame_changed or preview_changed or apply_changed or not interactive):
             self._batch_update(
                 self.cct_thumb,
-                self.cct_label,
+                self.cct_label if frame_changed or not interactive else None,
+                self.color_favorite_frame if not interactive else None,
+                self.white_favorite_frame if not interactive else None,
                 self.preview if preview_changed else None,
                 self.apply_card if apply_changed or not interactive else None,
             )
@@ -1400,7 +1457,7 @@ class ColorPanel(ft.Column):
         self._refresh_preview(interactive=False)
         self._refresh_apply_state()
         self._save_preferences()
-        self._batch_update(self.cct_thumb, self.cct_label, self.preview, self.apply_card)
+        self._batch_update(self.cct_thumb, self.cct_label, self.preview, self.apply_card, self.color_favorite_frame, self.white_favorite_frame)
 
     # ------------------------------------------------------------------
     # Brightness
@@ -1520,6 +1577,9 @@ class ColorPanel(ft.Column):
     # Apply / executor
     # ------------------------------------------------------------------
     def _live_enabled(self) -> bool:
+        # The control is not shown in the daily Color screen, but preserving
+        # this state keeps manual application available to existing routines,
+        # configuration and compatibility callers.
         switch = getattr(self, "live_switch", None)
         return bool(getattr(switch, "value", True))
 
@@ -1674,19 +1734,105 @@ class ColorPanel(ft.Column):
     def _save_current_favorite(self) -> None:
         try:
             if self.mode == "white":
-                self.favorites.add_favorite(
-                    self._t("color_studio.white_value", kelvin=self.temp_kelvin),
-                    "white",
-                    int(self.temp_kelvin),
-                    "LIGHT_MODE",
-                )
+                kind, value = "white", int(self.temp_kelvin)
+                name, icon = self._t("color_studio.white_value", kelvin=self.temp_kelvin), "LIGHT_MODE"
             else:
-                value = rgb_to_hex(self._current_rgb())
-                self.favorites.add_favorite(value.upper(), "rgb", value, "CIRCLE")
+                kind, value = "rgb", rgb_to_hex(self._current_rgb())
+                name, icon = value.upper(), "CIRCLE"
+
+            exists = any(self._same_favorite(item, kind, value) for item in self.favorites.get_favorites())
+            if not exists:
+                self.favorites.add_favorite(name, kind, value, icon)
             self._render_favorites()
-            self._batch_update(self.favorite_card)
+            self._render_inline_favorites(update=False)
+            if callable(self._on_favorites_changed):
+                self._on_favorites_changed()
+            self._refresh_favorite_buttons()
+            self._batch_update(
+                self.favorite_card,
+                self.inline_color_favorites,
+                self.inline_white_favorites,
+                self.color_favorite_frame,
+                self.white_favorite_frame,
+            )
         except Exception as exc:
             _LOG.warning("Could not save Color Studio favorite: %s", exc, exc_info=True)
+
+    @staticmethod
+    def _same_favorite(item: dict[str, Any], kind: str, value: Any) -> bool:
+        if str(item.get("type") or "") != kind:
+            return False
+        saved = item.get("value")
+        if kind == "rgb":
+            return str(saved or "").casefold() == str(value or "").casefold()
+        if kind in {"white", "white_kelvin"}:
+            try:
+                return int(saved) == int(value)
+            except (TypeError, ValueError):
+                return False
+        return saved == value
+
+    def _refresh_favorite_buttons(self) -> None:
+        """Reflect whether the current RGB/CCT value is already saved."""
+        try:
+            favorites = list(self.favorites.get_favorites())
+        except Exception:
+            favorites = []
+        rgb_saved = any(self._same_favorite(item, "rgb", rgb_to_hex(self._current_rgb())) for item in favorites)
+        white_saved = any(self._same_favorite(item, "white", int(self.temp_kelvin)) for item in favorites)
+        for active, button, frame in (
+            (self.mode == "rgb" and rgb_saved, self.color_favorite_button, self.color_favorite_frame),
+            (self.mode == "white" and white_saved, self.white_favorite_button, self.white_favorite_frame),
+        ):
+            button.icon = ft.Icons.FAVORITE_ROUNDED if active else ft.Icons.FAVORITE_BORDER_ROUNDED
+            button.icon_color = "#ff5d8f" if active else Theme.MUTED
+            button.tooltip = self._t("color_studio.favorite_saved") if active else self._t("color_studio.save_current")
+            frame.bgcolor = ft.Colors.with_opacity(0.15, "#ff5d8f") if active else "transparent"
+
+    def _render_inline_favorites(self, *, update: bool = True) -> None:
+        """Keep the save action visibly local to the WiZ-style controls."""
+        try:
+            favorites = list(self.favorites.get_favorites())
+        except Exception:
+            favorites = []
+
+        colors: list[ft.Control] = []
+        whites: list[ft.Control] = []
+        for favorite in reversed(favorites):
+            kind = str(favorite.get("type") or "")
+            value = favorite.get("value")
+            if kind == "rgb" and len(colors) < 6:
+                try:
+                    rgb = parse_hex_color(str(value))
+                except Exception:
+                    continue
+                colors.append(self._inline_swatch(rgb_to_hex(rgb), lambda e, selected=rgb: self._select_exact_rgb(selected, source="favorito")))
+            elif kind in {"white", "white_kelvin"} and len(whites) < 6:
+                try:
+                    kelvin = int(value)
+                except Exception:
+                    continue
+                whites.append(self._inline_swatch(rgb_to_hex(kelvin_to_rgb(kelvin)), lambda e, selected=kelvin: self._select_kelvin(selected, source="favorito")))
+
+        if not colors:
+            colors = [self._quick_color(name, value) for name, value in QUICK_COLORS[7:]]
+        if not whites:
+            whites = [self._white_preset(kelvin, label, note) for kelvin, label, note in WHITE_PRESETS]
+        self.inline_color_favorites.controls = colors
+        self.inline_white_favorites.controls = whites
+        if update:
+            self._batch_update(self.inline_color_favorites, self.inline_white_favorites)
+
+    def _inline_swatch(self, color: str, on_click: Callable[[Any], None]) -> ft.Container:
+        return ft.Container(
+            width=40,
+            height=40,
+            border_radius=20,
+            bgcolor=color,
+            border=ft.Border.all(2, ft.Colors.with_opacity(0.55, "white")),
+            ink=True,
+            on_click=on_click,
+        )
 
     def _render_favorites(self) -> None:
         try:
@@ -1736,6 +1882,7 @@ class ColorPanel(ft.Column):
                 )
             ]
         self.favorite_row.controls = controls
+        self._render_inline_favorites(update=False)
         supdate(self.favorite_row)
 
     def _favorite_chip(self, name: str, color: str, on_click: Callable[[Any], None]) -> ft.Container:
@@ -1922,6 +2069,10 @@ class ColorPanel(ft.Column):
     # ------------------------------------------------------------------
     def sync_state(self, state: dict[str, Any]) -> None:
         if not isinstance(state, dict):
+            return
+        # A live WiZ acknowledgement can arrive while a user is dragging.
+        # It must not compete with the local 60 Hz thumb path.
+        if self._dragging_palette or self._dragging_cct:
             return
         changed = False
         dimming = state.get("dimming")

@@ -138,6 +138,10 @@ class FavoritesPanel(ft.Column):
                 self.grid.controls.append(self._card(fav))
         supdate(self.grid)
 
+    def refresh_favorites(self) -> None:
+        """Refresh after another screen creates or edits a shared favorite."""
+        self._render()
+
     def _fav_visual(self, fav: dict[str, Any]) -> tuple[str, Any, str]:
         ftype = fav.get("type")
         value = fav.get("value")

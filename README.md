@@ -12,7 +12,7 @@
 [![CI](https://github.com/yvvvl/WizzController/actions/workflows/ci.yml/badge.svg)](https://github.com/yvvvl/WizzController/actions/workflows/ci.yml)
 [![Windows Build](https://github.com/yvvvl/WizzController/actions/workflows/build-windows.yml/badge.svg)](https://github.com/yvvvl/WizzController/actions/workflows/build-windows.yml)
 [![Python](https://img.shields.io/badge/Python-3.11%20%E2%80%93%203.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Flet](https://img.shields.io/badge/Flet-0.85.2-6C63FF)](https://flet.dev/)
+[![Qt](https://img.shields.io/badge/UI-Qt%20%2F%20PySide6-41CD52)](https://www.qt.io/)
 
 [Download the latest release](https://github.com/yvvvl/WizzController/releases/latest) · [Report an issue](https://github.com/yvvvl/WizzController/issues)
 
@@ -32,17 +32,119 @@ and compatible environments.
 
 > Current public release: **v1.2.0 · build 2**
 
+## Closed beta v1.4.0b1 — tester guide
+
+This section applies only to the private **Qt preview** release. It is separate
+from the public stable release and requires an invited GitHub account. It is a
+portable Windows build: do not run it from inside the ZIP and keep `_internal`
+next to `WizZDesktop.exe`.
+
+### Install and launch commands (Windows PowerShell)
+
+Download `WizZDesktop-v1.4.0b1-windows-x64.zip` and its `.sha256` file from the
+private release, then run the following. Change `$download` only if the files
+were saved somewhere other than Downloads.
+
+```powershell
+$download = "$env:USERPROFILE\Downloads"
+$zip = Join-Path $download "WizZDesktop-v1.4.0b1-windows-x64.zip"
+$checksum = "$zip.sha256"
+$target = Join-Path $download "WizZDesktop-v1.4.0b1"
+
+Get-FileHash -LiteralPath $zip -Algorithm SHA256
+Get-Content -LiteralPath $checksum
+Expand-Archive -LiteralPath $zip -DestinationPath $target -Force
+Set-Location $target
+.\WizZDesktop.exe
+```
+
+The hash printed by `Get-FileHash` must match the hash in the `.sha256` file.
+Before testing, close every other WizZ Desktop copy and back up
+`%LOCALAPPDATA%\WizZDesktop` if it contains settings you want to keep. The beta
+uses that same local data folder.
+
+### What to test
+
+Use real WiZ lights on the same LAN where possible. For every test, note
+**PASS**, **FAIL**, or **N/A**, plus the expected and actual result.
+
+1. **Connection and targeting:** in Settings, scan for lights; also try adding
+   one known IP manually. Select one light, several lights, and all lights.
+2. **Home controls:** toggle power; set brightness to 20%, 50%, and 100%; then
+   apply red, green, blue, warm white, and cool white. Confirm the physical
+   light matches the UI for one and multiple selected lights.
+3. **New UI:** resize the window, switch themes, inspect long dropdowns, cards,
+   centered option labels, rounded lists, and theme tint. Restart the app and
+   confirm the chosen theme and saved items persist.
+4. **Favorites and Color:** create RGB and CCT-white favorites. Test the quick
+   swatches, HEX/Kelvin field, picker cursor, preview, saving, reopening, and
+   applying each favorite.
+5. **Scenes and routines:** create a local scene using a name (not an ID). Make
+   a routine with power, RGB color, CCT white, wait, and scene steps; reorder
+   steps, save, reopen, and execute it. Apply several named WiZ scenes.
+6. **Quick Panel:** open it through its configured shortcut, use the bulb
+   carousel, select bulbs on later pages, and verify that selection does not
+   reset the current page. Test arrows/page buttons, placement beside the
+   taskbar on each monitor, click-outside dismissal, and edited quick actions.
+7. **Hotkeys and tray:** assign a non-conflicting shortcut, restart, and check
+   one action occurs per press with no long freeze. Test restoring from tray and
+   closing/minimizing behavior.
+
+### Integrations and known boundaries
+
+- **WiZ LAN:** discovery, manual IP setup, power, brightness, RGB, CCT white,
+  named scenes, multi-selection, favorites, routines, tray, and hotkeys are
+  the integrations to exercise.
+- **WiZ mobile-app state changes:** if you change a light in the mobile app,
+  record whether the desktop view follows it and how long it takes. This is
+  observational testing, not a guarantee for every model/firmware.
+- **Not included:** screen sync/Ambilight, audio sync, experimental strip effects,
+  an FPS loop, and private-beta auto-updates. Do not report these as failures;
+  mark them **N/A**.
+
+### Optional source-run commands (contributors only)
+
+Do not use these when validating the downloaded build. They are for a tester
+who was explicitly given access to the source repository:
+
+```powershell
+git clone https://github.com/yvvvl/WizzController-Beta.git
+Set-Location .\WizzController-Beta
+git switch beta/v1.4.0
+py -3.13 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt -r requirements-dev.txt
+python -m qt_ui.run
+python -m pytest -q
+```
+
+### Send a useful report
+
+Include app version (`1.4.0b1`), Windows version and display scale, light model
+and firmware, the exact steps, expected versus actual behavior, repeatability,
+and a short screenshot/video when useful. To inspect the local log without
+sharing private configuration files:
+
+```powershell
+Get-Content "$env:LOCALAPPDATA\WizZDesktop\logs\wizz.log" -Tail 200
+```
+
+Redact IP addresses, MAC addresses, access tokens, and private beta files
+before sending anything outside the invited group. The full release checklist
+is also attached to the private release as `BETA_TESTING_EN.md`.
+
 ## What is new in v1.2.0
 
 - Quickly select one, several, or all discovered lights.
-- Manually and safely check GitHub Releases for updates.
+- Stable/Beta channels and checksum-verified automatic updates for portable
+  Windows builds from version 1.3.0.
 - Preserve settings, favorites, lights, and logs between application updates.
 - Predictably restore the main window from the system tray.
 - Enforce a single running instance of the application.
 - Provide a native Linux beta with XDG storage, AppIndicator tray support,
   per-user autostart, and an installer that does not require `sudo`.
 
-> RGBIC, Screen Sync, streaming, and automatic installation of updates are not
+> Screen Sync, streaming, and automatic installation of updates are not
 > included in this public release.
 
 ---
@@ -106,11 +208,11 @@ Windows may display a SmartScreen warning because the executable is not yet
 digitally signed. Select **More info → Run anyway** only if you downloaded the
 file from this repository and verified its checksum.
 
-### Linux x64 beta
+### Linux beta (x64 and ARM64)
 
 The beta was validated on Ubuntu 22.04 with GNOME/Wayland.
 
-1. Download `WizZDesktop-v1.2.0-linux-x64.tar.gz` from the latest release.
+1. Download the archive that matches your CPU from the latest release: `linux-x64` for Intel/AMD, or `linux-arm64` for 64-bit ARM.
 2. Extract the archive.
 3. Open a terminal in the extracted directory and run:
 
@@ -138,10 +240,13 @@ Get-FileHash .\WizZDesktop-v1.2.0-windows-x64.zip -Algorithm SHA256
 Linux:
 
 ```bash
-sha256sum -c WizZDesktop-v1.2.0-linux-x64.tar.gz.sha256
+sha256sum -c WizZDesktop-v1.2.0-linux-<architecture>.tar.gz.sha256
 ```
 
 Compare the result with the checksum published alongside the release assets.
+
+Maintainers can emulate Ubuntu ARM64 from a Windows x64 computer for package
+and startup checks. See [the ARM64 emulation guide](docs/arm64-emulation.md).
 
 ---
 
@@ -174,7 +279,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 python -m pip install -r requirements-dev.txt
-python main.py
+python -m qt_ui.run
 ```
 
 ### Linux
@@ -184,14 +289,14 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
 python -m pip install -r requirements-dev.txt
-python main.py
+python -m qt_ui.run
 ```
 
 ### Validation
 
 ```bash
 python -m pytest -q
-python -m compileall -q main.py app_meta.py core config ui localization tests tools
+python -m compileall -q main.py app_meta.py core config qt_ui localization tests tools
 python tools/i18n_audit.py
 git diff --check
 ```
@@ -207,7 +312,7 @@ bulbs. See the developer documentation under `docs/` for the current workflow.
 Windows:
 
 ```powershell
-flet build windows
+.\scripts\build_qt_windows.ps1 -Clean
 ```
 
 Linux:
@@ -245,8 +350,8 @@ Installed Linux application:
 ~/.local/share/WizZDesktop
 ```
 
-Previous Flet storage is migrated automatically when necessary. The actual
-locations can also be opened from **Settings → About → Data/Logs**.
+Storage from earlier Flet builds is migrated automatically when necessary. The
+actual locations can also be opened from **Settings → About → Data/Logs**.
 
 ---
 
@@ -256,7 +361,7 @@ The project separates platform-independent lighting behavior from desktop
 integration:
 
 ```text
-UI (Flet)
+UI (Qt / PySide6)
   → application services and action sequences
     → WiZ LAN controller and persistence
 
@@ -292,8 +397,9 @@ and a native Linux x64 beta. The next cycle, `v1.3.0`, focuses on an elegant,
 minimal, responsive UI refactor while preserving the current control path and
 resource efficiency.
 
-The Quick Panel redesign remains paused, and experimental RGBIC behavior stays
-outside the public stable channel until it receives dedicated hardware testing.
+The Qt/PySide6 shell is the only supported desktop interface. The retired Flet
+source remains isolated for data-migration and historical test coverage; it is
+not launched or packaged for users.
 
 ## Author
 
@@ -303,7 +409,7 @@ WiZ lighting control.
 ## Acknowledgements
 
 - [pywizlight](https://github.com/sbidy/pywizlight)
-- [Flet](https://flet.dev/)
+- [Qt for Python / PySide6](https://doc.qt.io/qtforpython-6/)
 - [pystray](https://github.com/moses-palmer/pystray)
 - Community testers who reported practical Windows and Linux issues.
 

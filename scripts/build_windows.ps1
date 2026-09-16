@@ -6,6 +6,8 @@ param(
     [string]$OutputDir = "dist/windows"
 )
 
+throw "The Flet Windows build is retired. Use .\scripts\build_qt_windows.ps1 instead."
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 if (Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue) {

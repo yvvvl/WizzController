@@ -1,7 +1,4 @@
-"""Pure release-channel and version selection helpers.
-
-Network access and installation are intentionally left to a later phase.
-"""
+"""Pure release-channel and version selection helpers."""
 
 from __future__ import annotations
 
@@ -16,6 +13,7 @@ class ReleaseInfo:
     download_url: str | None = None
     prerelease: bool = False
     notes_url: str | None = None
+    checksum_url: str | None = None
 
 
 def _version_key(value: str) -> tuple[int, ...]:
@@ -23,22 +21,37 @@ def _version_key(value: str) -> tuple[int, ...]:
     return tuple(int(item) for item in numbers) or (0,)
 
 
-def parse_release(payload: dict[str, Any]) -> ReleaseInfo | None:
+def parse_release(payload: dict[str, Any], *, platform: str = "windows") -> ReleaseInfo | None:
     tag = str(payload.get("tag_name") or payload.get("name") or "").strip()
     if not tag:
         return None
     assets = payload.get("assets")
     download = None
+    checksum = None
     if isinstance(assets, list):
-        for asset in assets:
-            if isinstance(asset, dict) and asset.get("browser_download_url"):
-                download = str(asset["browser_download_url"])
-                break
+        expected = f"-{platform}-"
+        package = next(
+            (asset for asset in assets if isinstance(asset, dict)
+             and expected in str(asset.get("name") or "").lower()
+             and str(asset.get("name") or "").lower().endswith(".zip")),
+            None,
+        )
+        if isinstance(package, dict):
+            download = str(package.get("browser_download_url") or "") or None
+            package_name = str(package.get("name") or "")
+            checksum_asset = next(
+                (asset for asset in assets if isinstance(asset, dict)
+                 and str(asset.get("name") or "") == package_name + ".sha256"),
+                None,
+            )
+            if isinstance(checksum_asset, dict):
+                checksum = str(checksum_asset.get("browser_download_url") or "") or None
     return ReleaseInfo(
         version=tag.lstrip("vV"),
         download_url=download,
         prerelease=bool(payload.get("prerelease", False)),
         notes_url=str(payload.get("html_url")) if payload.get("html_url") else None,
+        checksum_url=checksum,
     )
 
 

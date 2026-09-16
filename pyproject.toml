@@ -1,6 +1,6 @@
 [project]
 name = "wizz-controller"
-version = "1.2.0"
+version = "1.4.0b5"
 description = "Control local de ampolletas WiZ por LAN."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
@@ -8,6 +8,8 @@ authors = [
   { name = "Ignacio" },
 ]
 dependencies = [
+  # Imported by the isolated legacy module; never used by the Qt entrypoint
+  # or included in the Qt release artifact.
   "flet==0.85.2",
   "pywizlight==0.6.3",
   "psutil>=5.9",
@@ -15,57 +17,19 @@ dependencies = [
   "pystray>=0.19.5",
   "Pillow>=10.0.0",
   "certifi==2026.6.17",
+  "PySide6==6.9.3",
   "pycairo==1.26.1; sys_platform == 'linux'",
   "PyGObject==3.48.2; sys_platform == 'linux'",
 ]
 
-[tool.flet]
-product = "WizZ Desktop"
-company = "yvvvl"
-copyright = "Copyright © 2026 Ignacio"
-build_number = 2
-org = "io.github.yvvvl"
+[project.optional-dependencies]
+# Retained only for developers who need to inspect or migrate the old UI.
+legacy-flet = ["flet==0.85.2"]
 
-[tool.flet.windows]
-artifact = "WizZDesktop"
+[tool.setuptools.packages.find]
+# Explicit discovery makes optional extras installable from this flat-layout
+# repository without treating assets, logs or documentation as Python packages.
+include = ["core*", "config*", "ui*", "qt_ui*", "localization*"]
 
-[tool.flet.linux]
-artifact = "WizZDesktop"
-
-[tool.flet.app]
-path = "."
-module = "main"
-exclude = [
-  ".git",
-  ".github",
-  ".venv",
-  ".pytest_cache",
-  ".ruff_cache",
-  "build",
-  "dist",
-  "config/json",
-  "docs",
-  "scripts",
-  "tests",
-  "tools",
-  "requirements-dev.txt",
-  "requirements-build.txt",
-  "pytest.ini",
-  "CHANGELOG.md",
-]
-
-[tool.flet.app.boot_screen]
-show = true
-message = "Preparando WizZ Desktop…"
-
-[tool.flet.app.startup_screen]
-show = true
-message = "Iniciando control WiZ local…"
-
-[tool.flet.compile]
-app = true
-packages = false
-
-[tool.flet.cleanup]
-app = true
-packages = true
+[tool.setuptools.package-data]
+qt_ui = ["qml/*.qml", "qml/qmldir"]

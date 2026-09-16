@@ -1,4 +1,4 @@
-name: Build Windows
+name: Publish Qt Windows
 
 on:
   workflow_dispatch:
@@ -13,18 +13,18 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
-    # Flet 0.85.2 is validated with the VS 2022 image. windows-latest moved to
-    # Windows 2025 + Visual Studio 2026 in June 2026.
+    # Closed betas are published explicitly; never run the stable publisher
+    # when a private beta release creates its tag.
+    if: github.event.repository.private == false && !contains(github.ref_name, 'beta')
     runs-on: windows-2022
     timeout-minutes: 60
     env:
       PYTHONUTF8: "1"
       PYTHONIOENCODING: "utf-8"
-      FLET_CLI_NO_RICH_OUTPUT: "true"
 
     steps:
       - name: Checkout
@@ -39,6 +39,13 @@ jobs:
             requirements.txt
             requirements-dev.txt
             requirements-build.txt
+
+      - name: Read application version
+        id: version
+        shell: pwsh
+        run: |
+          $version = python -c "from app_meta import APP_VERSION; print(APP_VERSION)"
+          "version=$version" >> $env:GITHUB_OUTPUT
 
       - name: Enable Windows developer mode when available
         shell: pwsh
@@ -61,13 +68,13 @@ jobs:
 
       - name: Verify source
         run: |
-          python -m compileall -q main.py app_meta.py core config ui tests tools
+          python -m compileall -q main.py app_meta.py core config qt_ui tests tools
           python -m pytest -q
 
       - name: Build native Windows app
         shell: pwsh
         run: |
-          .\scripts\build_windows.ps1 -Clean -SkipInstall -SkipTests *>&1 |
+          .\scripts\build_qt_windows.ps1 -Clean -SkipInstall -SkipTests *>&1 |
             Tee-Object -FilePath build-windows.log
 
       - name: Upload build diagnostics
@@ -77,7 +84,6 @@ jobs:
           name: WizZDesktop-windows-build-log
           path: |
             build-windows.log
-            build/flutter/build/windows/x64/cmake_install.cmake
           if-no-files-found: ignore
           retention-days: 14
 
@@ -90,3 +96,14 @@ jobs:
             dist/release/*.sha256
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publicar GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ format('v{0}', steps.version.outputs.version) }}
+          name: ${{ format('WizZ Desktop v{0}', steps.version.outputs.version) }}
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            dist/release/*.zip
+            dist/release/*.sha256
