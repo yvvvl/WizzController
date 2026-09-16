@@ -77,7 +77,11 @@ Compress-Archive -Path (Join-Path $PackageDir "*") -DestinationPath $ZipPath -Co
 $Hash = (Get-FileHash -Path $ZipPath -Algorithm SHA256).Hash.ToLowerInvariant()
 "$Hash  $ZipName" | Set-Content -Path $HashPath -Encoding ascii
 
+$InstallerPath = Join-Path $ReleaseDir "$Artifact-v$Version-windows-x64-installer.ps1"
+Copy-Item -LiteralPath (Join-Path $Root "scripts\install_windows.ps1") -Destination $InstallerPath -Force
+
 Write-Host "Qt beta build ready:" -ForegroundColor Green
 Write-Host "  EXE : $Exe"
 Write-Host "  ZIP : $ZipPath"
 Write-Host "  SHA : $HashPath"
+Write-Host "  Install script: $InstallerPath"
