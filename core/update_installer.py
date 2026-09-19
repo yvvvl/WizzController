@@ -99,6 +99,9 @@ def stage_windows_update(release: ReleaseInfo) -> Path:
         "New-Item -ItemType Directory -Path $replacement -Force | Out-Null\n"
         "Expand-Archive -LiteralPath $archive -DestinationPath $replacement -Force\n"
         f"if (-not (Test-Path (Join-Path $replacement '{APP_ARTIFACT}.exe'))) {{ throw 'El ZIP no contiene el ejecutable esperado.' }}\n"
+        # Inno Setup owns these files.  The portable ZIP deliberately does
+        # not contain them, so retain them while swapping the app payload.
+        "Get-ChildItem -LiteralPath $install -Filter 'unins*' -File -ErrorAction SilentlyContinue | Copy-Item -Destination $replacement -Force\n"
         "Remove-Item $backup -Recurse -Force -ErrorAction SilentlyContinue\n"
         "Move-Item -LiteralPath $install -Destination $backup\n"
         "try { Move-Item -LiteralPath $replacement -Destination $install } catch { Move-Item -LiteralPath $backup -Destination $install; throw }\n"

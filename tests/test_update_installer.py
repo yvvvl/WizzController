@@ -34,3 +34,4 @@ def test_windows_update_is_staged_with_verified_release_assets(monkeypatch, tmp_
     assert "Expand-Archive" in content
     assert "Wait-Process" in content
     assert "WizZDesktop.exe" in content
+    assert "unins*" in content
