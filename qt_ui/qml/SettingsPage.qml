@@ -219,7 +219,7 @@ Item {
         }
 
         Rectangle {
-            Layout.fillWidth: true; Layout.preferredHeight: 126; radius: Theme.radiusMedium
+            Layout.fillWidth: true; Layout.preferredHeight: 86; radius: Theme.radiusMedium
             color: Theme.card; border.width: 1; border.color: Theme.stroke
             RowLayout {
                 anchors.fill: parent; anchors.margins: 16; spacing: 14
@@ -228,12 +228,6 @@ Item {
                     Layout.fillWidth: true; spacing: 3
                     Text { text: wizz.appProduct + " · " + wizz.appVersion; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 13; font.weight: Font.Bold }
                     Text { Layout.fillWidth: true; text: wizz.updateStatus; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; elide: Text.ElideRight }
-                    RowLayout {
-                        spacing: 6
-                        Text { text: "Canal"; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 10 }
-                        PressSurface { Layout.preferredWidth: 64; Layout.preferredHeight: 25; radius: 12; color: wizz.updateChannel === "stable" ? Theme.primary : "transparent"; outlined: wizz.updateChannel !== "stable"; border.color: Theme.stroke; accentColor: Theme.primary; onClicked: wizz.setUpdateChannel("stable"); Text { anchors.centerIn: parent; text: "Estable"; color: wizz.updateChannel === "stable" ? "white" : Theme.muted; font.family: Theme.controlFont; font.pixelSize: 9; font.weight: Font.Bold } }
-                        PressSurface { Layout.preferredWidth: 54; Layout.preferredHeight: 25; radius: 12; color: wizz.updateChannel === "beta" ? Theme.primary : "transparent"; outlined: wizz.updateChannel !== "beta"; border.color: Theme.stroke; accentColor: Theme.primary; onClicked: wizz.setUpdateChannel("beta"); Text { anchors.centerIn: parent; text: "Beta"; color: wizz.updateChannel === "beta" ? "white" : Theme.muted; font.family: Theme.controlFont; font.pixelSize: 9; font.weight: Font.Bold } }
-                    }
                 }
                 ColumnLayout {
                     spacing: 7

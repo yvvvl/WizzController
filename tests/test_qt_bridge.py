@@ -55,13 +55,10 @@ def test_qt_appearance_preferences_update_the_bridge_state(bridge):
     bridge.setTheme(initial_theme)
 
 
-def test_qt_update_channel_is_persisted(bridge):
-    initial_channel = bridge.updateChannel
-
+def test_qt_public_release_stays_on_the_stable_update_channel(bridge):
     bridge.setUpdateChannel("beta")
-    assert bridge.updateChannel == "beta"
 
-    bridge.setUpdateChannel(initial_channel)
+    assert bridge.updateChannel == "stable"
 
 
 def test_qt_bridge_selection_updates_immediately(bridge):

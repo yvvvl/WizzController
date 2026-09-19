@@ -248,7 +248,14 @@ class WizzBridge(QObject):
         self._update_url = ""
         self._update_in_progress = False
         stored_channel = str(self._runtime.get("update_channel", "stable") or "stable").lower()
-        self._update_channel = stored_channel if stored_channel in {"stable", "beta"} else "stable"
+        # Public builds must never silently follow a private beta channel left
+        # behind by an earlier test install.  Beta builds retain that option.
+        self._allows_beta_updates = "b" in APP_VERSION.lower()
+        self._update_channel = (
+            stored_channel
+            if self._allows_beta_updates and stored_channel in {"stable", "beta"}
+            else "stable"
+        )
         self._available_release: ReleaseInfo | None = None
         self._pending_brightness = 100
         self._pending_rgb: tuple[int, int, int] | None = None
@@ -838,6 +845,8 @@ class WizzBridge(QObject):
     @Slot(str)
     def setUpdateChannel(self, channel: str) -> None:
         selected = str(channel or "stable").strip().lower()
+        if not self._allows_beta_updates and selected == "beta":
+            return
         if selected not in {"stable", "beta"} or selected == self._update_channel:
             return
         self._update_channel = selected

@@ -3,7 +3,8 @@ param(
     [switch]$Clean,
     [switch]$SkipInstall,
     [switch]$SkipTests,
-    [string]$OutputDir = "dist/windows"
+    [string]$OutputDir = "dist/windows",
+    [string]$InnoSetupCompiler = ""
 )
 
 Set-StrictMode -Version Latest
@@ -80,8 +81,30 @@ $Hash = (Get-FileHash -Path $ZipPath -Algorithm SHA256).Hash.ToLowerInvariant()
 $InstallerPath = Join-Path $ReleaseDir "$Artifact-v$Version-windows-x64-installer.ps1"
 Copy-Item -LiteralPath (Join-Path $Root "scripts\install_windows.ps1") -Destination $InstallerPath -Force
 
-Write-Host "Qt beta build ready:" -ForegroundColor Green
+$Candidates = @(
+    $InnoSetupCompiler,
+    "$env:ProgramFiles\Inno Setup 7\ISCC.exe",
+    "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe",
+    "$env:LOCALAPPDATA\Programs\Inno Setup 7\ISCC.exe",
+    "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+    "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+    "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
+) |
+    Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) }
+$Iscc = $Candidates | Select-Object -First 1
+if ($Iscc) {
+    $env:WIZZ_INSTALLER_VERSION = $Version
+    $env:WIZZ_INSTALLER_SOURCE = $PackageDir
+    $env:WIZZ_INSTALLER_OUTPUT = $ReleaseDir
+    & $Iscc (Join-Path $Root "scripts\installer_windows.iss")
+    if ($LASTEXITCODE -ne 0) { throw "Inno Setup installer build failed." }
+} else {
+    Write-Warning "Inno Setup was not found; ZIP and PowerShell installer were built, but no Setup.exe was created."
+}
+
+Write-Host "Qt Windows build ready:" -ForegroundColor Green
 Write-Host "  EXE : $Exe"
 Write-Host "  ZIP : $ZipPath"
 Write-Host "  SHA : $HashPath"
 Write-Host "  Install script: $InstallerPath"
+if ($Iscc) { Write-Host "  Setup EXE: $(Join-Path $ReleaseDir "$Artifact-v$Version-windows-x64-setup.exe")" }

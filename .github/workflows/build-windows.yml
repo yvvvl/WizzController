@@ -66,6 +66,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt -r requirements-dev.txt -r requirements-build.txt
 
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
       - name: Verify source
         run: |
           python -m compileall -q main.py app_meta.py core config qt_ui tests tools
@@ -94,6 +98,7 @@ jobs:
           path: |
             dist/release/*.zip
             dist/release/*.sha256
+            dist/release/*-setup.exe
           if-no-files-found: error
           retention-days: 30
 
@@ -107,3 +112,4 @@ jobs:
           files: |
             dist/release/*.zip
             dist/release/*.sha256
+            dist/release/*-setup.exe
