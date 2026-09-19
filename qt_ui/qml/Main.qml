@@ -50,6 +50,13 @@ ApplicationWindow {
         quickPanel.reveal()
     }
 
+    onClosing: function(close) {
+        if (wizz.shouldCloseToTray()) {
+            close.accepted = false
+            window.hide()
+        }
+    }
+
             function showPage(index) {
         navigateTo(Math.max(0, Math.min(6, Number(index))))
     }
@@ -195,8 +202,8 @@ ApplicationWindow {
                 acceptedButtons: Qt.NoButton
                 flickableDirection: Flickable.VerticalFlick
                 boundsBehavior: Flickable.StopAtBounds
-                maximumFlickVelocity: 2200
-                flickDeceleration: 6500
+                flickDeceleration: 11500
+                maximumFlickVelocity: 4200
                 pixelAligned: true
                 ScrollBar.vertical: ScrollBar {
                     policy: ScrollBar.AsNeeded

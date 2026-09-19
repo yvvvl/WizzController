@@ -208,6 +208,7 @@ class WizzBridge(QObject):
         self._executor = ActionSequenceExecutor(controller)
         self._state: dict[str, Any] = {}
         self._main_window: Any = None
+        self._tray_available = False
         self._optimistic_color = ""
         self._optimistic_brightness: int | None = None
         self._optimistic_kelvin: int | None = None
@@ -233,6 +234,10 @@ class WizzBridge(QObject):
             {"key": "cool", "title_es": "Frío", "title_en": "Cool", "glyph": "\ue9ca", "color": "#38bdf8"},
             {"key": "reset", "title_es": "Restablecer", "title_en": "Reset", "glyph": "\ue777", "color": "#77849e"},
             {"key": "off", "title_es": "Apagar", "title_en": "Turn off", "glyph": "\ue7e8", "color": "#ef6b73"},
+            {"key": "on", "title_es": "Encender", "title_en": "Turn on", "glyph": "\ue7e8", "color": "#58d69a"},
+            {"key": "focus", "title_es": "Concentración", "title_en": "Focus", "glyph": "\ue70f", "color": "#6fa8ff"},
+            {"key": "night", "title_es": "Noche", "title_en": "Night", "glyph": "\ue708", "color": "#8b7cff"},
+            {"key": "dim", "title_es": "Atenuar", "title_en": "Dim", "glyph": "\ue9c5", "color": "#f4b860"},
         ]
         known_quick_actions = {item["key"] for item in self._quick_action_catalog}
         stored_quick_actions = self._runtime.get("quick_actions", [])
@@ -284,6 +289,13 @@ class WizzBridge(QObject):
     def setMainWindow(self, window: Any) -> None:
         """Attach the QML shell so floating UI can target its monitor."""
         self._main_window = window
+
+    def setTrayAvailable(self, available: bool) -> None:
+        self._tray_available = bool(available)
+
+    @Slot(result=bool)
+    def shouldCloseToTray(self) -> bool:
+        return bool(self._tray_available and self._runtime.get("minimize_to_tray", True))
 
     @Slot(result="QVariantMap")
     def quickPanelAvailableArea(self) -> dict[str, int]:
@@ -1131,6 +1143,10 @@ class WizzBridge(QObject):
             "cool": lambda: self.controller.set_white(6500),
             "reset": self.controller.reset_light,
             "off": self.controller.turn_off,
+            "on": self.controller.turn_on,
+            "focus": lambda: self.controller.set_white(5000),
+            "night": lambda: self.controller.set_white(2200),
+            "dim": lambda: self.controller.set_brightness(35),
         }
         callback = actions.get(str(action))
         if callback:

@@ -21,8 +21,8 @@ def _panel() -> SettingsPanel:
 def test_available_update_is_exposed_only_with_official_release_link():
     panel = _panel()
     release = ReleaseInfo(
-        version="1.4.0b6",
-        notes_url="https://github.com/yvvvl/WizzController/releases/tag/v1.4.0b6",
+        version="1.4.0b7",
+        notes_url="https://github.com/yvvvl/WizzController/releases/tag/v1.4.0b7",
     )
 
     panel._apply_update_result(release)
@@ -30,7 +30,7 @@ def test_available_update_is_exposed_only_with_official_release_link():
     assert panel.btn_check_updates.disabled is False
     assert panel.btn_open_release.visible is True
     assert panel._available_release == release
-    assert "1.4.0b6" in panel.update_status.value
+    assert "1.4.0b7" in panel.update_status.value
 
 
 def test_untrusted_release_link_is_not_exposed_to_the_user():

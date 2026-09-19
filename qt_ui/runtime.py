@@ -34,6 +34,7 @@ class QtDesktopRuntime(QObject):
         self._activate_requested.connect(self.show_main_window, Qt.ConnectionType.QueuedConnection)
         self._quit_requested.connect(self.quit_application, Qt.ConnectionType.QueuedConnection)
         self._create_tray(icon_path)
+        self.bridge.setTrayAvailable(self.tray_active)
         closing = getattr(self.window, "closing", None)
         if closing is not None:
             closing.connect(self._on_window_closing)
