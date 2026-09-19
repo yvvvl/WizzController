@@ -1,5 +1,28 @@
 # Changelog
 
+## v1.4.0
+
+### Added
+
+- Native Qt desktop shell as the official Windows experience, with tray,
+  single-instance activation and close-to-tray behavior.
+- Redesigned Quick Panel with editable quick actions, multi-light carousel,
+  page navigation and placement beside the taskbar.
+- Complete RGB/CCT editors for favorites, scenes and routines, including
+  previews and quick values.
+
+### Fixed
+
+- Close now sends WizZ Desktop to the system tray when enabled instead of
+  stopping light control and hotkeys.
+- Faster normal scrolling, resilient Quick Panel carousel selection and
+  clearer English/Spanish quick-action labels.
+
+### Not included
+
+- RGBIC, screen sync and audio sync remain experimental beta work and are not
+  part of this public release.
+
 ## v1.3.0
 
 ### Added

@@ -30,7 +30,7 @@ La aplicación combina control de iluminación, automatizaciones y una interfaz
 moderna en un único programa portable. Windows es la plataforma estable;
 Linux se entrega como beta para Ubuntu Desktop y otros escritorios compatibles.
 
-> Versión pública actual: **v1.2.0 · build 2**
+> Candidata de release pública actual: **v1.4.0 · build 7**
 
 ## Novedades v1.2.0
 
@@ -47,24 +47,23 @@ Linux se entrega como beta para Ubuntu Desktop y otros escritorios compatibles.
 > Screen Sync, streaming y actualización automática no están incluidos
 > en esta versión estable.
 
-## Beta cerrada v1.4.0b1 — guía para pruebas
+## Guía de validación para v1.4.0
 
-Esta sección aplica únicamente a la **preview Qt privada**. Es distinta de la
-versión estable pública y requiere una cuenta de GitHub invitada. Es una build
-portable de Windows: no la ejecutes dentro del ZIP y mantén `_internal` junto a
-`WizZDesktop.exe`.
+Esta guía aplica a la candidata de release con escritorio nativo **Qt**. Es una
+build portable de Windows: no la ejecutes dentro del ZIP y mantén `_internal`
+junto a `WizZDesktop.exe`.
 
 ### Comandos para instalar y abrir (Windows PowerShell)
 
-Descarga `WizZDesktop-v1.4.0b1-windows-x64.zip` y su archivo `.sha256` desde la
-release privada. Luego ejecuta lo siguiente. Cambia `$download` solo si los
+Descarga `WizZDesktop-v1.4.0-windows-x64.zip` y su archivo `.sha256` desde la
+release. Luego ejecuta lo siguiente. Cambia `$download` solo si los
 archivos no quedaron en Descargas.
 
 ```powershell
 $download = "$env:USERPROFILE\Downloads"
-$zip = Join-Path $download "WizZDesktop-v1.4.0b1-windows-x64.zip"
+$zip = Join-Path $download "WizZDesktop-v1.4.0-windows-x64.zip"
 $checksum = "$zip.sha256"
-$target = Join-Path $download "WizZDesktop-v1.4.0b1"
+$target = Join-Path $download "WizZDesktop-v1.4.0"
 
 Get-FileHash -LiteralPath $zip -Algorithm SHA256
 Get-Content -LiteralPath $checksum
@@ -116,7 +115,7 @@ resultado real.
   registra si la app de escritorio lo refleja y cuánto tarda. Es una prueba
   observacional, no una garantía para todos los modelos o firmwares.
 - **No incluido:** Screen Sync/Ambilight, sincronización de audio, efectos
-  experimentales para tiras, bucle de FPS y autoactualización de beta privada. No los
+  experimentales para tiras y bucle de FPS. No los
   reportes como fallas; márcalos como **N/A**.
 
 ### Comandos opcionales para probar desde el código (solo colaboradores)
@@ -137,7 +136,7 @@ python -m pytest -q
 
 ### Cómo enviar un reporte útil
 
-Incluye versión (`1.4.0b1`), versión de Windows y escala de pantalla, modelo y
+Incluye versión (`1.4.0`), versión de Windows y escala de pantalla, modelo y
 firmware de la ampolleta, pasos exactos, esperado versus real, repetibilidad y
 una captura/video corto cuando ayude. Para ver el log local sin compartir los
 archivos de configuración privada:
@@ -146,9 +145,7 @@ archivos de configuración privada:
 Get-Content "$env:LOCALAPPDATA\WizZDesktop\logs\wizz.log" -Tail 200
 ```
 
-Oculta IPs, MACs, tokens y archivos de la beta antes de enviar información
-fuera del grupo invitado. El checklist completo en inglés también está adjunto
-a la release privada como `BETA_TESTING_EN.md`.
+Oculta IPs, MACs, tokens y archivos privados antes de enviar información.
 
 ---
 

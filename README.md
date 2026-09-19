@@ -30,26 +30,25 @@ Internet access is unavailable.
 Windows is the stable platform. Linux is available as a beta for Ubuntu Desktop
 and compatible environments.
 
-> Current public release: **v1.2.0 · build 2**
+> Current public release candidate: **v1.4.0 · build 7**
 
-## Closed beta v1.4.0b1 — tester guide
+## v1.4.0 release validation guide
 
-This section applies only to the private **Qt preview** release. It is separate
-from the public stable release and requires an invited GitHub account. It is a
+This guide applies to the native **Qt desktop** release candidate. It is a
 portable Windows build: do not run it from inside the ZIP and keep `_internal`
 next to `WizZDesktop.exe`.
 
 ### Install and launch commands (Windows PowerShell)
 
-Download `WizZDesktop-v1.4.0b1-windows-x64.zip` and its `.sha256` file from the
-private release, then run the following. Change `$download` only if the files
+Download `WizZDesktop-v1.4.0-windows-x64.zip` and its `.sha256` file from the
+release, then run the following. Change `$download` only if the files
 were saved somewhere other than Downloads.
 
 ```powershell
 $download = "$env:USERPROFILE\Downloads"
-$zip = Join-Path $download "WizZDesktop-v1.4.0b1-windows-x64.zip"
+$zip = Join-Path $download "WizZDesktop-v1.4.0-windows-x64.zip"
 $checksum = "$zip.sha256"
-$target = Join-Path $download "WizZDesktop-v1.4.0b1"
+$target = Join-Path $download "WizZDesktop-v1.4.0"
 
 Get-FileHash -LiteralPath $zip -Algorithm SHA256
 Get-Content -LiteralPath $checksum
@@ -99,7 +98,7 @@ Use real WiZ lights on the same LAN where possible. For every test, note
   record whether the desktop view follows it and how long it takes. This is
   observational testing, not a guarantee for every model/firmware.
 - **Not included:** screen sync/Ambilight, audio sync, experimental strip effects,
-  an FPS loop, and private-beta auto-updates. Do not report these as failures;
+  and an FPS loop. Do not report these as failures;
   mark them **N/A**.
 
 ### Optional source-run commands (contributors only)
@@ -120,7 +119,7 @@ python -m pytest -q
 
 ### Send a useful report
 
-Include app version (`1.4.0b1`), Windows version and display scale, light model
+Include app version (`1.4.0`), Windows version and display scale, light model
 and firmware, the exact steps, expected versus actual behavior, repeatability,
 and a short screenshot/video when useful. To inspect the local log without
 sharing private configuration files:
@@ -129,9 +128,8 @@ sharing private configuration files:
 Get-Content "$env:LOCALAPPDATA\WizZDesktop\logs\wizz.log" -Tail 200
 ```
 
-Redact IP addresses, MAC addresses, access tokens, and private beta files
-before sending anything outside the invited group. The full release checklist
-is also attached to the private release as `BETA_TESTING_EN.md`.
+Redact IP addresses, MAC addresses, access tokens, and private files before
+sharing a report.
 
 ## What is new in v1.2.0
 
