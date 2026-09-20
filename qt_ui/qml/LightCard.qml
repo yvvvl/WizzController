@@ -40,12 +40,11 @@ PressSurface {
         width: 76; height: 76; radius: 38
         color: root.isOn ? root.lightColor : Theme.faint
         layer.enabled: root.isOn
-        Text {
+        Image {
             anchors.centerIn: parent
-            text: "\uEA80"
-            font.family: Theme.iconFont
-            font.pixelSize: 32
-            color: "white"
+            width: 40; height: 40
+            source: "../../assets/tray_icon.png"
+            fillMode: Image.PreserveAspectFit
         }
     }
     Column {

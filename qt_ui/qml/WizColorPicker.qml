@@ -60,11 +60,11 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            Text { text: "PALETA HUE / PUREZA"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.Bold }
+            Text { text: wizz.language === "en" ? "HUE / SATURATION PALETTE" : "PALETA HUE / PUREZA"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.Bold }
             Item { Layout.fillWidth: true }
             Text { text: "HEX"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
         }
-        Text { text: "Horizontal: matiz · vertical: pureza perceptual · sin negro"; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 11 }
+        Text { text: wizz.language === "en" ? "Horizontal: hue · vertical: perceptual saturation · no black" : "Horizontal: matiz · vertical: pureza perceptual · sin negro"; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 11 }
 
         Rectangle {
             id: spectrum
@@ -163,7 +163,7 @@ Item {
         }
 
         Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.stroke }
-        Text { text: "BLANCOS CCT"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.Bold }
+        Text { text: wizz.language === "en" ? "CCT WHITES" : "BLANCOS CCT"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.Bold }
         Rectangle {
             id: cctTrack
             Layout.fillWidth: true; Layout.preferredHeight: 34; radius: 12

@@ -37,8 +37,8 @@ Item {
             Layout.fillWidth: true
             ColumnLayout {
                 Layout.fillWidth: true; spacing: 3
-                Text { text: "Color Studio"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 30; font.weight: Font.Bold }
-                Text { text: "Color puro, blancos Kelvin y brillo independiente"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
+                Text { text: wizz.language === "en" ? "Color Studio" : "Color Studio"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 30; font.weight: Font.Bold }
+                Text { text: wizz.language === "en" ? "Pure color, Kelvin whites and independent brightness" : "Color puro, blancos Kelvin y brillo independiente"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
             }
         }
 
@@ -62,11 +62,11 @@ Item {
                     anchors.fill: parent; anchors.margins: 18; spacing: 12
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: "BRILLO"; color: Theme.muted; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.8 }
+                        Text { text: wizz.language === "en" ? "BRIGHTNESS" : "BRILLO"; color: Theme.muted; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.8 }
                         Item { Layout.fillWidth: true }
                         Text { text: Math.round(level.value) + "%"; color: Theme.text; font.pixelSize: 20; font.weight: Font.Bold }
                     }
-                    Text { text: "Dimming real de la ampolleta"; color: Theme.faint; font.pixelSize: 11 }
+                    Text { text: wizz.language === "en" ? "Physical light dimming" : "Dimming real de la ampolleta"; color: Theme.faint; font.pixelSize: 11 }
                     Slider {
                         id: level
                         Layout.fillWidth: true; from: 10; to: 100; value: wizz.brightness
@@ -113,7 +113,7 @@ Item {
                         PressSurface {
                             Layout.preferredWidth: 66; Layout.preferredHeight: 34; radius: 17; color: "transparent"; outlined: true; border.color: Theme.stroke
                             onClicked: root.applyExactValue(exactValue.text)
-                            Text { anchors.centerIn: parent; text: "Aplicar"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+                            Text { anchors.centerIn: parent; text: wizz.language === "en" ? "Apply" : "Aplicar"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
                         }
                     }
                 }
@@ -126,9 +126,9 @@ Item {
             ColumnLayout {
                 id: recentContent
                 anchors.fill: parent; anchors.margins: 16; spacing: 8
-                RowLayout { Layout.fillWidth: true; Text { text: "RECIENTES"; color: Theme.muted; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.8 } Item { Layout.fillWidth: true } PressSurface { visible: recentRepeater.count > 0; Layout.preferredWidth: 62; Layout.preferredHeight: 26; radius: 13; color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.error; onClicked: wizz.clearRecents(); Text { anchors.centerIn: parent; text: "Limpiar"; color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 9; font.weight: Font.Bold } } }
-                Text { text: "Últimos colores y blancos aplicados"; color: Theme.faint; font.pixelSize: 11 }
-                Text { visible: recentRepeater.count === 0; text: "Aún no hay colores recientes. Aplica uno para guardarlo aquí."; color: Theme.faint; font.pixelSize: 11 }
+                RowLayout { Layout.fillWidth: true; Text { text: wizz.language === "en" ? "RECENT" : "RECIENTES"; color: Theme.muted; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.8 } Item { Layout.fillWidth: true } PressSurface { visible: recentRepeater.count > 0; Layout.preferredWidth: 62; Layout.preferredHeight: 26; radius: 13; color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.error; onClicked: wizz.clearRecents(); Text { anchors.centerIn: parent; text: wizz.language === "en" ? "Clear" : "Limpiar"; color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 9; font.weight: Font.Bold } } }
+                Text { text: wizz.language === "en" ? "Last applied colors and whites" : "Últimos colores y blancos aplicados"; color: Theme.faint; font.pixelSize: 11 }
+                Text { visible: recentRepeater.count === 0; text: wizz.language === "en" ? "No recent colors yet. Apply one to save it here." : "Aún no hay colores recientes. Aplica uno para guardarlo aquí."; color: Theme.faint; font.pixelSize: 11 }
                 GridLayout {
                     // The history is capped at eight entries in the bridge;
                     // four columns intentionally produce a calm two-row grid.
@@ -153,8 +153,8 @@ Item {
             ColumnLayout {
                 id: favoriteContent
                 anchors.fill: parent; anchors.margins: 16; spacing: 9
-                RowLayout { Layout.fillWidth: true; Text { text: "FAVORITOS RÁPIDOS"; color: Theme.muted; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.8 } Item { Layout.fillWidth: true } Text { text: "Gestionar →"; color: Theme.primary; font.pixelSize: 10; MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: wizz.navigate(3) } } }
-                Text { text: "Accesos guardados en WiZ"; color: Theme.faint; font.pixelSize: 11 }
+                RowLayout { Layout.fillWidth: true; Text { text: wizz.language === "en" ? "QUICK FAVORITES" : "FAVORITOS RÁPIDOS"; color: Theme.muted; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.8 } Item { Layout.fillWidth: true } Text { text: wizz.language === "en" ? "Manage →" : "Gestionar →"; color: Theme.primary; font.pixelSize: 10; MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: wizz.navigate(3) } } }
+                Text { text: wizz.language === "en" ? "Shortcuts saved in WizZ" : "Accesos guardados en WiZ"; color: Theme.faint; font.pixelSize: 11 }
                 GridLayout {
                     Layout.fillWidth: true; columns: width >= 1120 ? 4 : width >= 600 ? 3 : 2; columnSpacing: 8; rowSpacing: 8
                     Repeater {

@@ -37,7 +37,9 @@ QtObject {
     // from looking faint against filled buttons and dark surfaces.
     readonly property string controlFont: "Segoe UI Semibold"
     readonly property string monoFont: "Cascadia Mono"
-    readonly property string iconFont: "Segoe Fluent Icons"
+    // Fluent Icons is not installed on every supported Windows build. MDL2
+    // ships with Windows 10/11 and provides the compatible fallback glyphs.
+    readonly property string iconFont: "Segoe MDL2 Assets"
 
     function setMode(name) {
         var n = String(name || "midnight").toLowerCase()

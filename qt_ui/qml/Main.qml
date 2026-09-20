@@ -99,7 +99,7 @@ ApplicationWindow {
                 anchors.fill: parent; anchors.leftMargin: 13; anchors.rightMargin: 9; spacing: 9
                 Rectangle {
                     Layout.preferredWidth: 22; Layout.preferredHeight: 22; radius: 8; color: Theme.primary
-                    Text { anchors.centerIn: parent; text: "\uEA80"; color: "white"; font.family: Theme.iconFont; font.pixelSize: 12 }
+                    Image { anchors.centerIn: parent; width: 15; height: 15; source: "../../assets/tray_icon.png"; fillMode: Image.PreserveAspectFit }
                 }
                 Text { text: "WizZ Desktop"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.DemiBold }
                 Item { Layout.fillWidth: true }
@@ -147,13 +147,7 @@ ApplicationWindow {
                     border.color: wizz.liveBrandAccent ? sidebar.liveColor : Theme.stroke
                     Behavior on color { ColorAnimation { duration: Theme.motionNormal; easing.type: Easing.InOutCubic } }
                     Behavior on border.color { ColorAnimation { duration: Theme.motionNormal; easing.type: Easing.InOutCubic } }
-                    Text {
-                        anchors.centerIn: parent; text: "\uEA80"
-                        // The light glyph remains neutral; the surrounding
-                        // frame carries the live colour instead.
-                        color: Theme.text
-                        font.family: Theme.iconFont; font.pixelSize: 24
-                    }
+                    Image { anchors.centerIn: parent; width: 30; height: 30; source: "../../assets/tray_icon.png"; fillMode: Image.PreserveAspectFit }
                 }
                 Text { anchors.horizontalCenter: parent.horizontalCenter; text: "WizZ"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.Bold }
                 Repeater {
@@ -283,7 +277,11 @@ ApplicationWindow {
                             Rectangle {
                                 Layout.preferredWidth: 70; Layout.preferredHeight: 70; radius: 23
                                 color: wizz.powerOn ? Theme.primary : Theme.cardHi
-                                Text { anchors.centerIn: parent; text: "\uE7E8"; color: Theme.text; font.family: Theme.iconFont; font.pixelSize: 31 }
+                                Item {
+                                    anchors.centerIn: parent; width: 30; height: 30
+                                    Rectangle { anchors.centerIn: parent; width: 22; height: 22; radius: 11; color: "transparent"; border.width: 2; border.color: Theme.text }
+                                    Rectangle { anchors.horizontalCenter: parent.horizontalCenter; y: 0; width: 3; height: 13; radius: 2; color: Theme.text }
+                                }
                             }
                             ColumnLayout {
                                 spacing: 2

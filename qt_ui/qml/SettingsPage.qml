@@ -223,7 +223,7 @@ Item {
             color: Theme.card; border.width: 1; border.color: Theme.stroke
             RowLayout {
                 anchors.fill: parent; anchors.margins: 16; spacing: 14
-                Rectangle { Layout.preferredWidth: 46; Layout.preferredHeight: 46; radius: 14; color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.16); Text { anchors.centerIn: parent; text: "◈"; color: Theme.primary; font.pixelSize: 20 } }
+                Rectangle { Layout.preferredWidth: 46; Layout.preferredHeight: 46; radius: 14; color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.16); Image { anchors.centerIn: parent; width: 25; height: 25; source: "../../assets/tray_icon.png"; fillMode: Image.PreserveAspectFit } }
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 3
                     Text { text: wizz.appProduct + " · " + wizz.appVersion; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 13; font.weight: Font.Bold }
