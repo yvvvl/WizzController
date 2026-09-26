@@ -24,6 +24,9 @@ def bridge():
     controller = VirtualLightController(3)
     controller.start()
     view_model = WizzBridge(controller)
+    # Runtime language is user-persistent; keep this suite deterministic and
+    # assert the established Spanish fixture copy explicitly.
+    view_model.setLanguage("es")
     yield view_model
     controller.stop()
 
@@ -56,9 +59,19 @@ def test_qt_appearance_preferences_update_the_bridge_state(bridge):
 
 
 def test_qt_public_release_stays_on_the_stable_update_channel(bridge):
+    bridge._allows_beta_updates = True
+    bridge.setUpdateChannel("stable")
+    bridge._allows_beta_updates = False
     bridge.setUpdateChannel("beta")
 
     assert bridge.updateChannel == "stable"
+
+
+def test_qt_release_candidate_can_opt_into_preview_channel(bridge):
+    bridge._allows_beta_updates = True
+    bridge.setUpdateChannel("beta")
+
+    assert bridge.updateChannel == "beta"
 
 
 def test_qt_bridge_selection_updates_immediately(bridge):

@@ -53,7 +53,7 @@ Item {
         anchors.fill: parent
         spacing: 7
         visible: root.mode === "rgb"
-        Text { text: "SELECTOR DE COLOR"; color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 0.7 }
+        Text { text: wizz.language === "en" ? "COLOR PICKER" : "SELECTOR DE COLOR"; color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 0.7 }
         Rectangle {
             id: rgbPlane
             width: parent.width; height: 94; radius: 12; clip: true
@@ -93,7 +93,7 @@ Item {
         anchors.fill: parent
         spacing: 7
         visible: root.mode === "white"
-        Text { text: "SELECTOR DE BLANCO"; color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 0.7 }
+        Text { text: wizz.language === "en" ? "WHITE PICKER" : "SELECTOR DE BLANCO"; color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 0.7 }
         Rectangle {
             id: whiteTrack
             width: parent.width; height: 38; radius: 13
@@ -119,7 +119,7 @@ Item {
         Row {
             width: parent.width
             Text { text: "2200K"; color: Theme.faint; font.pixelSize: 9 }
-            Text { width: parent.width - 76; text: "Neutro"; horizontalAlignment: Text.AlignHCenter; color: Theme.faint; font.pixelSize: 9 }
+            Text { width: parent.width - 76; text: wizz.language === "en" ? "Neutral" : "Neutro"; horizontalAlignment: Text.AlignHCenter; color: Theme.faint; font.pixelSize: 9 }
             Text { text: "6500K"; color: Theme.faint; font.pixelSize: 9 }
         }
     }

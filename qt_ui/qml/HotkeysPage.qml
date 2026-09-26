@@ -10,9 +10,11 @@ Item {
     property string feedback: ""
     property bool recording: false
     property string actionQuery: ""
-    property string actionGroup: "Todas"
+    property string actionGroup: ""
     property string exportText: ""
     property string customHex: "#ff0000"
+
+    function t(spanish, english) { return wizz.language === "en" ? english : spanish }
 
     readonly property bool editingCustomColor: String(actionBox.currentValue || "") === "color_custom"
 
@@ -33,7 +35,7 @@ Item {
     }
 
     function actionGroups() {
-        const groups = ["Todas"]
+        const groups = [root.t("Todas", "All")]
         const actions = wizz.hotkeyActions || []
         for (let i = 0; i < actions.length; ++i) {
             const group = String(actions[i].group || "General")
@@ -47,7 +49,7 @@ Item {
         return (wizz.hotkeyActions || []).filter(function(action) {
             const group = String(action.group || "General")
             const name = String(action.name || "")
-            return (actionGroup === "Todas" || group === actionGroup)
+            return (actionGroup === root.t("Todas", "All") || group === actionGroup)
                 && (!query || name.toLowerCase().indexOf(query) >= 0 || group.toLowerCase().indexOf(query) >= 0)
         })
     }
@@ -68,9 +70,9 @@ Item {
             root.recording = false
             if (value) {
                 comboField.text = value
-                root.feedback = "Combinación capturada. Revísala y guarda."
+                root.feedback = root.t("Combinación capturada. Revísala y guarda.", "Shortcut captured. Review it and save.")
             } else {
-                root.feedback = "La captura automática no está disponible; escribe la combinación manualmente."
+                root.feedback = root.t("La captura automática no está disponible; escribe la combinación manualmente.", "Automatic capture is unavailable; enter the shortcut manually.")
             }
         }
     }
@@ -84,8 +86,8 @@ Item {
             width: parent.width; spacing: 12
             ColumnLayout {
                 Layout.fillWidth: true; spacing: 3
-                Text { text: "Hotkeys globales"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 30; font.weight: Font.Bold }
-                Text { text: "Atajos para luz, escenas, favoritos y rutinas"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
+                Text { text: root.t("Atajos globales", "Global hotkeys"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 30; font.weight: Font.Bold }
+                Text { text: root.t("Atajos para luz, escenas, favoritos y rutinas", "Shortcuts for lights, scenes, favorites, and routines"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
             }
             Rectangle {
                 Layout.preferredWidth: 300; Layout.preferredHeight: 38; radius: 19
@@ -104,14 +106,14 @@ Item {
             color: Theme.card; border.width: 1; border.color: Theme.stroke
             ColumnLayout {
                 anchors.fill: parent; anchors.margins: 16; spacing: 12
-                Text { text: "ESTADO"; color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1 }
+                Text { text: root.t("ESTADO", "STATUS"); color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1 }
                 RowLayout {
                     Layout.fillWidth: true; spacing: 10
                     Repeater {
                         model: [
-                            { title: "Hotkeys activas", help: "Servicio global de la app", value: wizz.hotkeysEnabled, kind: "enabled" },
-                            { title: "Capturar teclas", help: "Bloquea la pulsación al grabar", value: wizz.hotkeysSuppress, kind: "suppress" },
-                            { title: "Ejecutar al soltar", help: "Evita repeticiones accidentales", value: wizz.hotkeysRelease, kind: "release" }
+                            { title: root.t("Atajos activos", "Hotkeys enabled"), help: root.t("Servicio global de la aplicación", "Global application service"), value: wizz.hotkeysEnabled, kind: "enabled" },
+                            { title: root.t("Capturar teclas", "Capture keys"), help: root.t("Bloquea la pulsación al grabar", "Blocks the key press while recording"), value: wizz.hotkeysSuppress, kind: "suppress" },
+                            { title: root.t("Ejecutar al soltar", "Run on release"), help: root.t("Evita repeticiones accidentales", "Avoids accidental repeats"), value: wizz.hotkeysRelease, kind: "release" }
                         ]
                         delegate: Rectangle {
                             id: settingCard
@@ -145,7 +147,7 @@ Item {
                 }
                 RowLayout {
                     Layout.fillWidth: true; spacing: 12
-                    Text { text: "Antirrebote"; color: Theme.muted; font.pixelSize: 11 }
+                    Text { text: root.t("Antirrebote", "Debounce"); color: Theme.muted; font.pixelSize: 11 }
                     Slider {
                         id: cooldown
                         Layout.fillWidth: true; from: 120; to: 900; stepSize: 60; value: wizz.hotkeysCooldown
@@ -160,9 +162,9 @@ Item {
                         // creating an empty set of shortcuts.  Keep it out
                         // of the primary flow until the backend has work to
                         // reconnect.
-                        outlined: true; visible: wizz.hotkeysAvailable && wizz.hotkeyModel.rowCount() > 0 && wizz.hotkeysStatus !== "sin atajos"
+                        outlined: true; visible: wizz.hotkeysAvailable && wizz.hotkeyModel.rowCount() > 0
                         onClicked: wizz.reregisterHotkeys()
-                        Text { anchors.centerIn: parent; text: "↻  Re-registrar"; color: Theme.text; font.pixelSize: 10; font.weight: Font.DemiBold }
+                        Text { anchors.centerIn: parent; text: root.t("Re-registrar", "Re-register"); color: Theme.text; font.pixelSize: 10; font.weight: Font.DemiBold }
                     }
                 }
             }
@@ -174,8 +176,8 @@ Item {
             Behavior on height { NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic } }
             ColumnLayout {
                 anchors.fill: parent; anchors.margins: 16; spacing: 11
-                Text { text: "CREAR / EDITAR ATAJO"; color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1 }
-                Text { text: "Elige una acción, escribe o captura la combinación y guárdala."; color: Theme.muted; font.pixelSize: 11 }
+                Text { text: root.t("CREAR / EDITAR ATAJO", "CREATE / EDIT SHORTCUT"); color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1 }
+                Text { text: root.t("Elige una acción, escribe o captura la combinación y guárdala.", "Choose an action, enter or capture the combination, then save it."); color: Theme.muted; font.pixelSize: 11 }
                 RowLayout {
                     Layout.fillWidth: true; spacing: 10
                     WizComboBox {
@@ -190,7 +192,7 @@ Item {
                     TextField {
                         id: actionSearch
                         Layout.fillWidth: true; Layout.preferredHeight: 40
-                        placeholderText: "Buscar acción"; placeholderTextColor: Theme.faint; color: Theme.text; leftPadding: 13; rightPadding: 13
+                        placeholderText: root.t("Buscar acción", "Search action"); placeholderTextColor: Theme.faint; color: Theme.text; leftPadding: 13; rightPadding: 13
                         onTextEdited: root.actionQuery = text
                         background: Rectangle { color: Theme.cardHi; radius: 11; border.width: 1; border.color: actionSearch.activeFocus ? Theme.primary : Theme.stroke }
                     }
@@ -221,29 +223,29 @@ Item {
                     PressSurface {
                         Layout.preferredWidth: 104; Layout.preferredHeight: 38; radius: 19; color: Theme.primary; accentColor: Theme.primary
                         enabled: !root.recording
-                        onClicked: { root.recording = true; root.feedback = "Pulsa la combinación…"; wizz.recordHotkey() }
-                        Text { anchors.centerIn: parent; text: root.recording ? "Escuchando…" : "⌨  Grabar"; color: "white"; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
+                        onClicked: { root.recording = true; root.feedback = root.t("Pulsa la combinación…", "Press the shortcut…"); wizz.recordHotkey() }
+                        Text { anchors.centerIn: parent; text: root.recording ? root.t("Escuchando…", "Listening…") : root.t("Grabar", "Record"); color: "white"; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
                     }
                     PressSurface {
                         Layout.preferredWidth: 100; Layout.preferredHeight: 38; radius: 19; color: Theme.primaryDark; accentColor: Theme.primary
                         onClicked: {
                             const actionId = root.selectedActionId()
-                            root.feedback = actionId ? wizz.saveHotkey(actionId, comboField.text) : "Indica un color HEX válido."
+                            root.feedback = actionId ? wizz.saveHotkey(actionId, comboField.text) : root.t("Indica un color HEX válido.", "Enter a valid HEX color.")
                         }
-                        Text { anchors.centerIn: parent; text: "▣  Guardar"; color: "white"; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
+                        Text { anchors.centerIn: parent; text: root.t("Guardar", "Save"); color: "white"; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
                     }
                     PressSurface {
                         Layout.preferredWidth: 92; Layout.preferredHeight: 38; radius: 19; color: "transparent"; outlined: true; border.color: Theme.stroke
                         onClicked: {
                             const actionId = root.selectedActionId()
-                            root.feedback = actionId && wizz.testHotkeyAction(actionId) ? "Acción ejecutada." : "No se pudo ejecutar esta acción."
+                            root.feedback = actionId && wizz.testHotkeyAction(actionId) ? root.t("Acción ejecutada.", "Action run.") : root.t("No se pudo ejecutar esta acción.", "Could not run this action.")
                         }
-                        Text { anchors.centerIn: parent; text: "▶  Probar"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
+                        Text { anchors.centerIn: parent; text: root.t("Probar", "Test"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
                     }
                     PressSurface {
                         Layout.preferredWidth: 92; Layout.preferredHeight: 38; radius: 19; color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.error
-                        onClicked: { const actionId = root.selectedActionId(); if (actionId) wizz.clearHotkey(actionId); comboField.text = ""; root.feedback = "Atajo quitado." }
-                        Text { anchors.centerIn: parent; text: "×  Quitar"; color: Theme.error; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
+                        onClicked: { const actionId = root.selectedActionId(); if (actionId) wizz.clearHotkey(actionId); comboField.text = ""; root.feedback = root.t("Atajo quitado.", "Shortcut removed.") }
+                        Text { anchors.centerIn: parent; text: root.t("Quitar", "Remove"); color: Theme.error; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
                     }
                     Item { Layout.fillWidth: true }
                 }
@@ -261,7 +263,7 @@ Item {
                             }
                             ColumnLayout {
                                 Layout.fillWidth: true; spacing: 2
-                                Text { text: "COLOR PERSONALIZADO"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 11; font.weight: Font.Bold }
+                                Text { text: root.t("COLOR PERSONALIZADO", "CUSTOM COLOR"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 11; font.weight: Font.Bold }
                                 Text { text: root.customHex; color: Theme.muted; font.family: Theme.monoFont; font.pixelSize: 11 }
                             }
                             TextField {
@@ -273,7 +275,7 @@ Item {
                                 background: Rectangle { color: Theme.cardHi; radius: 10; border.width: 1; border.color: customHexField.activeFocus ? Theme.primary : Theme.stroke }
                             }
                         }
-                        Text { text: "COLORES RÁPIDOS"; color: Theme.muted; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 0.8 }
+                        Text { text: root.t("COLORES RÁPIDOS", "QUICK COLORS"); color: Theme.muted; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 0.8 }
                         RowLayout {
                             Layout.fillWidth: true; spacing: 7
                             Repeater {
@@ -292,7 +294,7 @@ Item {
                         }
                         RowLayout {
                             Layout.fillWidth: true; spacing: 9
-                            Text { text: "Matiz"; color: Theme.muted; font.pixelSize: 10; Layout.preferredWidth: 58 }
+                            Text { text: root.t("Matiz", "Hue"); color: Theme.muted; font.pixelSize: 10; Layout.preferredWidth: 58 }
                             Slider {
                                 id: hueSlider
                                 Layout.fillWidth: true; from: 0; to: 360; stepSize: 1; value: 0
@@ -303,7 +305,7 @@ Item {
                         }
                         RowLayout {
                             Layout.fillWidth: true; spacing: 9
-                            Text { text: "Saturación"; color: Theme.muted; font.pixelSize: 10; Layout.preferredWidth: 58 }
+                            Text { text: root.t("Saturación", "Saturation"); color: Theme.muted; font.pixelSize: 10; Layout.preferredWidth: 58 }
                             Slider {
                                 id: saturationSlider
                                 Layout.fillWidth: true; from: 0; to: 100; stepSize: 1; value: 100
@@ -314,7 +316,7 @@ Item {
                         }
                         RowLayout {
                             Layout.fillWidth: true; spacing: 9
-                            Text { text: "Luminosidad"; color: Theme.muted; font.pixelSize: 10; Layout.preferredWidth: 58 }
+                            Text { text: root.t("Luminosidad", "Lightness"); color: Theme.muted; font.pixelSize: 10; Layout.preferredWidth: 58 }
                             Slider {
                                 id: lightnessSlider
                                 Layout.fillWidth: true; from: 10; to: 100; stepSize: 1; value: 100
@@ -336,18 +338,18 @@ Item {
                 anchors.fill: parent; anchors.margins: 16; spacing: 10
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: "PLANTILLAS ÚTILES"; color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1 }
+                    Text { text: root.t("PLANTILLAS ÚTILES", "USEFUL TEMPLATES"); color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1 }
                     Item { Layout.fillWidth: true }
-                    PressSurface { Layout.preferredWidth: 166; Layout.preferredHeight: 32; radius: 16; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: wizz.resetHotkeys(); Text { anchors.centerIn: parent; text: "↻  Restaurar predeterminados"; color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold } }
+                    PressSurface { Layout.preferredWidth: 166; Layout.preferredHeight: 32; radius: 16; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: wizz.resetHotkeys(); Text { anchors.centerIn: parent; text: root.t("Restaurar predeterminados", "Restore defaults"); color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold } }
                 }
                 RowLayout {
                     Layout.fillWidth: true; spacing: 9
                     Repeater {
                         model: [
-                            { name: "Alternar", action: "toggle", combo: "ctrl+alt+l" },
-                            { name: "Brillo +", action: "bri_up", combo: "ctrl+alt+up" },
-                            { name: "Brillo −", action: "bri_down", combo: "ctrl+alt+down" },
-                            { name: "Rojo", action: "color_red", combo: "ctrl+alt+r" }
+                            { name: root.t("Alternar", "Toggle"), action: "toggle", combo: "ctrl+alt+l" },
+                            { name: root.t("Brillo +", "Brightness +"), action: "bri_up", combo: "ctrl+alt+up" },
+                            { name: root.t("Brillo −", "Brightness −"), action: "bri_down", combo: "ctrl+alt+down" },
+                            { name: root.t("Rojo", "Red"), action: "color_red", combo: "ctrl+alt+r" }
                         ]
                         delegate: PressSurface {
                             id: presetCard
@@ -369,12 +371,12 @@ Item {
                 x: 16; y: 16; width: parent.width - 32; spacing: 8
                 RowLayout {
                     width: parent.width; height: 30
-                    Text { Layout.fillWidth: true; text: "ATAJOS ASIGNADOS"; color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1 }
+                    Text { Layout.fillWidth: true; text: root.t("ATAJOS ASIGNADOS", "ASSIGNED SHORTCUTS"); color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1 }
                     PressSurface {
                         Layout.preferredWidth: 100; Layout.preferredHeight: 30; radius: 15
                         color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.primary
                         onClicked: { root.exportText = wizz.exportHotkeys(); exportDialog.open() }
-                        Text { anchors.centerIn: parent; text: "▣  Exportar"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+                        Text { anchors.centerIn: parent; text: root.t("Exportar", "Export"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
                     }
                 }
                 Repeater {
@@ -435,7 +437,7 @@ Item {
             anchors.fill: parent; anchors.margins: 22; spacing: 12
             RowLayout {
                 Layout.fillWidth: true
-                ColumnLayout { Layout.fillWidth: true; spacing: 2; Text { text: "Exportar atajos"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 21; font.weight: Font.Bold } Text { text: "Copia este JSON para conservar tu configuración."; color: Theme.muted; font.pixelSize: 11 } }
+                ColumnLayout { Layout.fillWidth: true; spacing: 2; Text { text: root.t("Exportar atajos", "Export shortcuts"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 21; font.weight: Font.Bold } Text { text: root.t("Copia este JSON para conservar tu configuración.", "Copy this JSON to keep your configuration."); color: Theme.muted; font.pixelSize: 11 } }
                 PressSurface { Layout.preferredWidth: 32; Layout.preferredHeight: 32; radius: 16; color: "transparent"; onClicked: exportDialog.close(); Text { anchors.centerIn: parent; text: "×"; color: Theme.muted; font.pixelSize: 22 } }
             }
             TextArea {
@@ -444,7 +446,7 @@ Item {
                 color: Theme.text; font.family: Theme.monoFont; font.pixelSize: 11; leftPadding: 13; rightPadding: 13; topPadding: 12; bottomPadding: 12
                 background: Rectangle { color: Theme.bg; radius: 12; border.width: 1; border.color: Theme.stroke }
             }
-            RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } PressSurface { Layout.preferredWidth: 92; Layout.preferredHeight: 38; radius: 19; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: exportDialog.close(); Text { anchors.centerIn: parent; text: "Cerrar"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 11; font.weight: Font.Bold } } }
+            RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } PressSurface { Layout.preferredWidth: 92; Layout.preferredHeight: 38; radius: 19; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: exportDialog.close(); Text { anchors.centerIn: parent; text: root.t("Cerrar", "Close"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 11; font.weight: Font.Bold } } }
         }
     }
 }

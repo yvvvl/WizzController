@@ -71,6 +71,30 @@ def test_windows_frozen_build_uses_local_appdata(monkeypatch, tmp_path):
     assert (target / "config.json").exists()
 
 
+def test_migration_fills_missing_files_without_overwriting_new_data(monkeypatch, tmp_path):
+    """A newly created runtime file must not prevent bulb migration."""
+    legacy = tmp_path / "legacy"
+    legacy.mkdir()
+    (legacy / "bulbs.json").write_text('{"192.168.1.8": {"name": "Desk"}}', encoding="utf-8")
+    (legacy / "config.json").write_text('{"language": "es"}', encoding="utf-8")
+
+    target = tmp_path / "target"
+    target.mkdir()
+    (target / "app_runtime.json").write_text('{"ui_theme": "midnight"}', encoding="utf-8")
+    (target / "config.json").write_text('{"language": "en"}', encoding="utf-8")
+
+    monkeypatch.setattr(paths, "_legacy_candidates", lambda: [legacy])
+    paths._migrate_legacy_json(target)
+
+    assert json.loads((target / "bulbs.json").read_text(encoding="utf-8")) == {
+        "192.168.1.8": {"name": "Desk"}
+    }
+    assert json.loads((target / "config.json").read_text(encoding="utf-8")) == {"language": "en"}
+    assert json.loads((target / "app_runtime.json").read_text(encoding="utf-8")) == {
+        "ui_theme": "midnight"
+    }
+
+
 def test_windows_packaged_flet_runtime_uses_local_appdata_and_migrates(monkeypatch, tmp_path):
     local_app_data = tmp_path / "LocalAppData"
     flet_storage = tmp_path / "DocumentsFlet"

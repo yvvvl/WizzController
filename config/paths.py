@@ -139,9 +139,15 @@ def _prepare(target: Path, *, migrate: bool) -> Path:
 
 
 def _migrate_legacy_json(target: Path) -> None:
-    """Migra configuraciones de desarrollo en el primer arranque empaquetado."""
-    if any(p.is_file() and not p.name.endswith(".example.json") for p in target.glob("*.json")):
-        return
+    """Completa una instalación nueva con datos persistidos de una versión anterior.
+
+    El runtime crea ``app_runtime.json`` muy temprano durante el arranque.  La
+    migración anterior interpretaba ese único archivo nuevo como si toda la
+    instalación ya tuviera datos y, por ello, dejaba atrás ``bulbs.json`` y los
+    demás datos del usuario.  Importamos sólo archivos ausentes: nunca se
+    sobrescribe una preferencia o una ampolleta que la versión actual ya haya
+    guardado.
+    """
 
     for source in _legacy_candidates():
         try:
@@ -194,6 +200,20 @@ def _legacy_candidates() -> list[Path]:
             executable_dir() / APP_ARTIFACT / "config" / "json",
         ]
     )
+
+    # Algunas builds antiguas usaban el nombre del repositorio o el nombre
+    # visible de la aplicación para LocalAppData.  Se consideran sólo como
+    # origen de migración; el destino oficial sigue siendo WizZDesktop.
+    if sys.platform.startswith("win"):
+        local_app_data = Path(
+            os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))
+        )
+        candidates.extend(
+            [
+                local_app_data / "WizzController" / "config",
+                local_app_data / "WizZ Desktop" / "config",
+            ]
+        )
 
     unique: list[Path] = []
     seen: set[str] = set()

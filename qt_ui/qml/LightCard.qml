@@ -40,11 +40,10 @@ PressSurface {
         width: 76; height: 76; radius: 38
         color: root.isOn ? root.lightColor : Theme.faint
         layer.enabled: root.isOn
-        Image {
+        BulbIcon {
             anchors.centerIn: parent
             width: 40; height: 40
-            source: "../../assets/tray_icon.png"
-            fillMode: Image.PreserveAspectFit
+            iconColor: "white"
         }
     }
     Column {

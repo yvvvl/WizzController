@@ -24,3 +24,11 @@ def test_update_comparison_is_deterministic():
     release = select_latest_release(PAYLOADS)
     assert is_update_available("1.1.0", release)
     assert not is_update_available("1.1.1", release)
+
+
+def test_final_release_replaces_its_release_candidate():
+    final = select_latest_release([{"tag_name": "v1.4.2", "prerelease": False}])
+
+    assert final is not None
+    assert is_update_available("1.4.2-rc.1", final)
+    assert not is_update_available("1.4.2", final)

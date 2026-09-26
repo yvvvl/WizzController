@@ -19,7 +19,7 @@ Item {
 
     Component.onCompleted: {
         if (openEditorOnLoad) Qt.callLater(function() {
-            root.openCustom("", "Mi escena", "rgb", "{}")
+            root.openCustom("", root.t("Mi escena", "My scene"), "rgb", "{}")
         })
     }
 
@@ -65,14 +65,14 @@ Item {
 
     function previewSubtitle() {
         const kind = root.customType(customTypeBox.currentIndex)
-        if (kind === "rgb") return (customValue.text || "#FF4FA3").toUpperCase() + " · Brillo " + Math.round(customDimming.value) + "%"
-        if (kind === "white") return (customValue.text || "4000") + "K · Brillo " + Math.round(customDimming.value) + "%"
-        return root.sceneNameFor(customValue.text || 18) + " · Velocidad " + Math.round(customSpeed.value)
+        if (kind === "rgb") return (customValue.text || "#FF4FA3").toUpperCase() + " · " + root.t("Brillo ", "Brightness ") + Math.round(customDimming.value) + "%"
+        if (kind === "white") return (customValue.text || "4000") + "K · " + root.t("Brillo ", "Brightness ") + Math.round(customDimming.value) + "%"
+        return root.sceneNameFor(customValue.text || 18) + " · " + root.t("Velocidad ", "Speed ") + Math.round(customSpeed.value)
     }
 
     function openCustom(uid, title, mode, rawValue) {
         editingCustomUid = uid || ""
-        customName.text = title || "Mi escena"
+        customName.text = title || root.t("Mi escena", "My scene")
         customTypeBox.currentIndex = customTypeIndex(mode)
         let payload = {}
         try { payload = JSON.parse(rawValue || "{}") } catch (error) { payload = {} }
@@ -107,7 +107,7 @@ Item {
             PressSurface {
                 width: 126; height: 38; radius: 19
                 color: Theme.primary; accentColor: Theme.primary
-                onClicked: root.openCustom("", "Mi escena", "rgb", "{}")
+                onClicked: root.openCustom("", root.t("Mi escena", "My scene"), "rgb", "{}")
                 Text { anchors.centerIn: parent; text: root.t("+  Nueva escena", "+  New scene"); color: "white"; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.Bold }
             }
             }
@@ -179,7 +179,7 @@ Item {
                 width: parent.width
                 Text { text: root.t("MIS ESCENAS", "MY SCENES"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 1 }
                 Item { Layout.fillWidth: true }
-                Text { text: customRepeater.count + " guardadas"; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 11 }
+                Text { text: customRepeater.count + root.t(" guardadas", " saved"); color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 11 }
             }
             Rectangle {
                 width: parent.width; height: 54; radius: 12
@@ -299,20 +299,20 @@ Item {
         background: Rectangle { color: Theme.card; radius: 20; border.width: 1; border.color: Theme.stroke }
         contentItem: ColumnLayout {
             anchors.fill: parent; anchors.margins: 22; spacing: 12
-            Text { text: "Guardar escena actual"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 21; font.weight: Font.Bold }
-            Text { text: "Captura color, blanco, brillo o escena activa."; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 12 }
+            Text { text: root.t("Guardar escena actual", "Save current scene"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 21; font.weight: Font.Bold }
+            Text { text: root.t("Captura color, blanco, brillo o escena activa.", "Capture the current color, white, brightness, or scene."); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 12 }
             TextField {
                 id: sceneName
                 Layout.fillWidth: true; Layout.preferredHeight: 46
-                text: "Mi escena"; color: Theme.text; font.family: Theme.uiFont; leftPadding: 14
+                text: root.t("Mi escena", "My scene"); color: Theme.text; font.family: Theme.uiFont; leftPadding: 14
                 background: Rectangle { color: Theme.bg; radius: 11; border.width: 1; border.color: sceneName.activeFocus ? Theme.primary : Theme.stroke }
             }
             Item { Layout.fillHeight: true }
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                PressSurface { Layout.preferredWidth: 94; Layout.preferredHeight: 40; radius: 20; color: "transparent"; border.color: Theme.stroke; onClicked: captureDialog.close(); Text { anchors.centerIn: parent; text: "Cancelar"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12 } }
-                PressSurface { Layout.preferredWidth: 110; Layout.preferredHeight: 40; radius: 20; color: Theme.primary; onClicked: { if (wizz.captureCurrentScene(sceneName.text)) captureDialog.close() } Text { anchors.centerIn: parent; text: "Guardar"; color: "white"; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.Bold } }
+                PressSurface { Layout.preferredWidth: 94; Layout.preferredHeight: 40; radius: 20; color: "transparent"; border.color: Theme.stroke; onClicked: captureDialog.close(); Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12 } }
+                PressSurface { Layout.preferredWidth: 110; Layout.preferredHeight: 40; radius: 20; color: Theme.primary; onClicked: { if (wizz.captureCurrentScene(sceneName.text)) captureDialog.close() } Text { anchors.centerIn: parent; text: root.t("Guardar", "Save"); color: "white"; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.Bold } }
             }
         }
     }
@@ -337,8 +337,8 @@ Item {
                 Layout.fillWidth: true; Layout.preferredHeight: 42
                 Column {
                     anchors.left: parent.left; anchors.top: parent.top; anchors.right: closeScene.left; anchors.rightMargin: 12; spacing: 2
-                    Text { text: root.editingCustomUid ? "Editar escena" : "Nueva escena"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 22; font.weight: Font.Bold }
-                    Text { text: "Guarda un preset local sin escribir JSON."; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 12 }
+                    Text { text: root.editingCustomUid ? root.t("Editar escena", "Edit scene") : root.t("Nueva escena", "New scene"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 22; font.weight: Font.Bold }
+                    Text { text: root.t("Guarda un preset local sin escribir JSON.", "Save a local preset without writing JSON."); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 12 }
                 }
                 PressSurface { id: closeScene; width: 34; height: 34; anchors.right: parent.right; anchors.top: parent.top; radius: 17; color: "transparent"; onClicked: customEditor.close(); Text { anchors.centerIn: parent; text: "×"; color: Theme.muted; font.pixelSize: 24 } }
             }
@@ -358,7 +358,7 @@ Item {
                     }
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 2
-                        Text { Layout.fillWidth: true; text: customName.text || "Mi escena"; color: root.previewTextColor(); font.family: Theme.uiFont; font.pixelSize: 18; font.weight: Font.Bold; elide: Text.ElideRight }
+                        Text { Layout.fillWidth: true; text: customName.text || root.t("Mi escena", "My scene"); color: root.previewTextColor(); font.family: Theme.uiFont; font.pixelSize: 18; font.weight: Font.Bold; elide: Text.ElideRight }
                         Text { Layout.fillWidth: true; text: root.previewSubtitle(); color: Qt.rgba(Qt.color(root.previewTextColor()).r, Qt.color(root.previewTextColor()).g, Qt.color(root.previewTextColor()).b, 0.78); font.family: Theme.uiFont; font.pixelSize: 12; elide: Text.ElideRight }
                     }
                 }
@@ -369,7 +369,7 @@ Item {
                 spacing: 12
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 7
-                    Text { text: "NOMBRE"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
+                    Text { text: root.t("NOMBRE", "NAME"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
                     TextField {
                         id: customName
                         Layout.fillWidth: true; Layout.preferredHeight: 44
@@ -379,11 +379,11 @@ Item {
                 }
                 ColumnLayout {
                     Layout.preferredWidth: 178; spacing: 7
-                    Text { text: "TIPO"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
+                    Text { text: root.t("TIPO", "TYPE"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
                     WizComboBox {
                         id: customTypeBox
                         Layout.fillWidth: true; Layout.preferredHeight: 44
-                        model: ["Color RGB", "Blanco CCT", "Escena WiZ"]
+                        model: [root.t("Color RGB", "RGB color"), root.t("Blanco CCT", "CCT white"), root.t("Escena WiZ", "WiZ scene")]
                         onActivated: function(index) { customValue.text = index === 0 ? "#FF4FA3" : index === 1 ? "4000" : "18" }
                         contentItem: Text { leftPadding: 14; text: customTypeBox.displayText; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.family: Theme.uiFont; font.pixelSize: 12 }
                         background: Rectangle { color: Theme.cardHi; radius: 11; border.width: 1; border.color: customTypeBox.activeFocus ? Theme.primary : Theme.stroke }
@@ -453,7 +453,7 @@ Item {
                 Layout.fillWidth: true; spacing: 12
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 7
-                    Text { text: customTypeBox.currentIndex === 0 ? "HEX" : customTypeBox.currentIndex === 1 ? "KELVIN" : "ESCENA WIZ"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
+                    Text { text: customTypeBox.currentIndex === 0 ? "HEX" : customTypeBox.currentIndex === 1 ? "KELVIN" : root.t("ESCENA WIZ", "WIZ SCENE"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
                     TextField {
                         id: customValue
                         Layout.fillWidth: true; Layout.preferredHeight: 44
@@ -478,7 +478,7 @@ Item {
                     Layout.preferredWidth: 170; spacing: 7
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: "BRILLO"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
+                        Text { text: root.t("BRILLO", "BRIGHTNESS"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
                         Item { Layout.fillWidth: true }
                         Text { text: Math.round(customDimming.value) + "%"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.Bold }
                     }
@@ -515,7 +515,7 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 visible: customTypeBox.currentIndex === 2
-                Text { text: "VELOCIDAD"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
+                Text { text: root.t("VELOCIDAD", "SPEED"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
                 Slider {
                     id: customSpeed
                     Layout.fillWidth: true
@@ -541,14 +541,14 @@ Item {
             RowLayout {
                 Layout.fillWidth: true; spacing: 10
                 Item { Layout.fillWidth: true }
-                PressSurface { Layout.preferredWidth: 96; Layout.preferredHeight: 40; radius: 20; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: customEditor.close(); Text { anchors.centerIn: parent; text: "Cancelar"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold } }
+                PressSurface { Layout.preferredWidth: 96; Layout.preferredHeight: 40; radius: 20; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: customEditor.close(); Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold } }
                 PressSurface {
                     Layout.preferredWidth: 110; Layout.preferredHeight: 40; radius: 20; color: Theme.primary; accentColor: Theme.primary
                     onClicked: {
                         if (wizz.upsertCustomScene(root.editingCustomUid, customName.text, root.customType(customTypeBox.currentIndex), customValue.text, Math.round(customDimming.value), Math.round(customSpeed.value)))
                             customEditor.close()
                     }
-                    Text { anchors.centerIn: parent; text: "Guardar"; color: "white"; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
+                    Text { anchors.centerIn: parent; text: root.t("Guardar", "Save"); color: "white"; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
                 }
             }
         }
@@ -565,14 +565,14 @@ Item {
         background: Rectangle { color: Theme.card; radius: 20; border.width: 1; border.color: Theme.stroke }
         contentItem: ColumnLayout {
             anchors.fill: parent; anchors.margins: 22; spacing: 10
-            Text { text: "Eliminar escena"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 21; font.weight: Font.Bold }
-            Text { Layout.fillWidth: true; text: "¿Quieres eliminar “" + root.deletingCustomName + "”? Esta acción no afecta a la luz."; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 12; wrapMode: Text.WordWrap }
+            Text { text: root.t("Eliminar escena", "Delete scene"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 21; font.weight: Font.Bold }
+            Text { Layout.fillWidth: true; text: root.t("¿Quieres eliminar “", "Do you want to delete “") + root.deletingCustomName + root.t("”? Esta acción no afecta a la luz.", "”? This does not affect the light."); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 12; wrapMode: Text.WordWrap }
             Item { Layout.fillHeight: true }
             RowLayout {
                 Layout.fillWidth: true; spacing: 10
                 Item { Layout.fillWidth: true }
-                PressSurface { Layout.preferredWidth: 96; Layout.preferredHeight: 40; radius: 20; color: "transparent"; border.color: Theme.stroke; onClicked: confirmDelete.close(); Text { anchors.centerIn: parent; text: "Cancelar"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12 } }
-                PressSurface { Layout.preferredWidth: 104; Layout.preferredHeight: 40; radius: 20; color: Theme.error; accentColor: Theme.error; onClicked: { wizz.deleteCustomScene(root.deletingCustomUid); confirmDelete.close() } Text { anchors.centerIn: parent; text: "Eliminar"; color: "white"; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.Bold } }
+                PressSurface { Layout.preferredWidth: 96; Layout.preferredHeight: 40; radius: 20; color: "transparent"; border.color: Theme.stroke; onClicked: confirmDelete.close(); Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12 } }
+                PressSurface { Layout.preferredWidth: 104; Layout.preferredHeight: 40; radius: 20; color: Theme.error; accentColor: Theme.error; onClicked: { wizz.deleteCustomScene(root.deletingCustomUid); confirmDelete.close() } Text { anchors.centerIn: parent; text: root.t("Eliminar", "Delete"); color: "white"; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.Bold } }
             }
         }
     }

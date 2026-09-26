@@ -18,6 +18,8 @@ Item {
     property bool openEditorOnLoad: false
     property string qaEditorKind: ""
 
+    function t(spanish, english) { return wizz.language === "en" ? english : spanish }
+
     function favoritePayload() {
         if (typeKind(typeBox.currentIndex) !== "scene") return valueField.text
         return JSON.stringify({ sceneId: Number(valueField.text || 18), speed: Math.round(sceneSpeed.value) })
@@ -73,12 +75,12 @@ Item {
     function selectedSceneLabel() {
         const choices = wizz.favoriteSceneChoices
         const index = sceneIndexForSource(editingSceneSource)
-        return choices.length > index ? choices[index].title : "Escena WiZ"
+        return choices.length > index ? choices[index].title : root.t("Escena WiZ", "WiZ scene")
     }
 
     function openNew() {
         editingUid = ""
-        editingName = "Nuevo favorito"
+        editingName = root.t("Nuevo favorito", "New favorite")
         editingKind = "rgb"
         editingValue = "#FF4FA3"
         nameField.text = editingName
@@ -130,8 +132,8 @@ Item {
             width: parent.width; height: 48
             Column {
                 anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; spacing: 3
-                Text { text: "Favoritos"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 30; font.weight: Font.Bold }
-                Text { text: "Colores, blancos, escenas y brillo guardados"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
+                Text { text: root.t("Favoritos", "Favorites"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 30; font.weight: Font.Bold }
+                Text { text: root.t("Colores, blancos, escenas y brillo guardados", "Saved colors, whites, scenes, and brightness"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
             }
             PressSurface {
                 width: 112; height: 38; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
@@ -141,7 +143,7 @@ Item {
                 accentColor: Theme.primary
                 border.color: Theme.primary
                 onClicked: root.openNew()
-                Text { anchors.centerIn: parent; text: "+  Nuevo"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.DemiBold }
+                Text { anchors.centerIn: parent; text: "+  " + root.t("Nuevo", "New"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.DemiBold }
             }
         }
 
@@ -226,8 +228,8 @@ Item {
                 Layout.fillWidth: true; Layout.preferredHeight: 42
                 Column {
                     anchors.left: parent.left; anchors.top: parent.top; anchors.right: closeFavorite.left; anchors.rightMargin: 12; spacing: 2
-                    Text { text: root.editingUid ? "Editar favorito" : "Nuevo favorito"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 22; font.weight: Font.Bold }
-                    Text { text: "Guarda un estado fácil de reconocer y aplicar."; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 12 }
+                    Text { text: root.editingUid ? root.t("Editar favorito", "Edit favorite") : root.t("Nuevo favorito", "New favorite"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 22; font.weight: Font.Bold }
+                    Text { text: root.t("Guarda un estado fácil de reconocer y aplicar.", "Save a state that is easy to recognize and apply."); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 12 }
                 }
                 PressSurface { id: closeFavorite; width: 34; height: 34; anchors.right: parent.right; anchors.top: parent.top; radius: 17; color: "transparent"; onClicked: editor.close(); Text { anchors.centerIn: parent; text: "×"; color: Theme.muted; font.pixelSize: 24 } }
             }
@@ -279,7 +281,7 @@ Item {
 
             RowLayout {
                 Layout.fillWidth: true; spacing: 10; visible: typeBox.currentIndex === 3
-                Text { text: "VELOCIDAD"; color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold }
+                Text { text: root.t("VELOCIDAD", "SPEED"); color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold }
                 Slider {
                     id: sceneSpeed
                     Layout.fillWidth: true
@@ -301,11 +303,11 @@ Item {
                 Text { text: Math.round(sceneSpeed.value); color: Theme.text; font.pixelSize: 11; font.weight: Font.DemiBold }
             }
 
-            Text { text: "NOMBRE"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
+            Text { text: root.t("NOMBRE", "NAME"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
             TextField {
                 id: nameField
                 Layout.fillWidth: true; Layout.preferredHeight: 46
-                color: Theme.text; placeholderText: "Nombre del favorito"; placeholderTextColor: Theme.faint
+                color: Theme.text; placeholderText: root.t("Nombre del favorito", "Favorite name"); placeholderTextColor: Theme.faint
                 font.family: Theme.uiFont; font.pixelSize: 13; leftPadding: 14; rightPadding: 14
                 background: Rectangle { color: Theme.cardHi; radius: 11; border.width: 1; border.color: nameField.activeFocus ? Theme.primary : Theme.stroke }
             }
@@ -314,11 +316,11 @@ Item {
                 Layout.fillWidth: true; spacing: 12
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 7
-                    Text { text: "TIPO"; color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold }
+                    Text { text: root.t("TIPO", "TYPE"); color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold }
                     WizComboBox {
                         id: typeBox
                         Layout.fillWidth: true; Layout.preferredHeight: 46
-                        model: ["Color RGB", "Blanco CCT", "Brillo", "Escena WiZ"]
+                        model: [root.t("Color RGB", "RGB color"), root.t("Blanco CCT", "CCT white"), root.t("Brillo", "Brightness"), root.t("Escena WiZ", "WiZ scene")]
                         onActivated: root.syncDefaultValue()
                         contentItem: Text { leftPadding: 14; text: typeBox.displayText; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: 13 }
                         background: Rectangle { color: Theme.cardHi; radius: 11; border.width: 1; border.color: typeBox.activeFocus ? Theme.primary : Theme.stroke }
@@ -326,7 +328,7 @@ Item {
                 }
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 7
-                    Text { text: typeBox.currentIndex === 0 ? "HEX" : typeBox.currentIndex === 1 ? "KELVIN" : typeBox.currentIndex === 2 ? "PORCENTAJE" : "ESCENA WIZ"; color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold }
+                    Text { text: typeBox.currentIndex === 0 ? "HEX" : typeBox.currentIndex === 1 ? "KELVIN" : typeBox.currentIndex === 2 ? root.t("PORCENTAJE", "PERCENTAGE") : root.t("ESCENA WIZ", "WIZ SCENE"); color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold }
                     TextField {
                         id: valueField
                         Layout.fillWidth: true; Layout.preferredHeight: 46
@@ -364,7 +366,7 @@ Item {
                 onPicked: function(value) { valueField.text = value }
             }
 
-            Text { text: "VISTA PREVIA"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
+            Text { text: root.t("VISTA PREVIA", "PREVIEW"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
             Rectangle {
                 Layout.fillWidth: true; Layout.preferredHeight: 72; radius: 14
                 color: root.previewColor()
@@ -372,7 +374,7 @@ Item {
                 RowLayout {
                     anchors.fill: parent; anchors.margins: 14; spacing: 12
                     Rectangle { Layout.preferredWidth: 42; Layout.preferredHeight: 42; radius: 13; color: Qt.rgba(0, 0, 0, 0.16); Text { anchors.centerIn: parent; text: typeBox.currentIndex === 3 ? "✦" : "●"; color: "white"; font.pixelSize: 18 } }
-                    ColumnLayout { Layout.fillWidth: true; spacing: 2; Text { text: nameField.text || "Nuevo favorito"; color: root.previewTextColor(); font.pixelSize: 14; font.weight: Font.DemiBold } Text { text: typeBox.currentIndex === 3 ? root.selectedSceneLabel() + " · Velocidad " + Math.round(sceneSpeed.value) : valueField.text; color: Qt.rgba(Qt.color(root.previewTextColor()).r, Qt.color(root.previewTextColor()).g, Qt.color(root.previewTextColor()).b, 0.78); font.pixelSize: 11 } }
+                    ColumnLayout { Layout.fillWidth: true; spacing: 2; Text { text: nameField.text || root.t("Nuevo favorito", "New favorite"); color: root.previewTextColor(); font.pixelSize: 14; font.weight: Font.DemiBold } Text { text: typeBox.currentIndex === 3 ? root.selectedSceneLabel() + " · " + root.t("Velocidad ", "Speed ") + Math.round(sceneSpeed.value) : valueField.text; color: Qt.rgba(Qt.color(root.previewTextColor()).r, Qt.color(root.previewTextColor()).g, Qt.color(root.previewTextColor()).b, 0.78); font.pixelSize: 11 } }
                 }
             }
 
@@ -380,7 +382,7 @@ Item {
             RowLayout {
                 Layout.fillWidth: true; spacing: 10
                 Item { Layout.fillWidth: true }
-                PressSurface { Layout.preferredWidth: 100; Layout.preferredHeight: 40; radius: 20; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: editor.close(); Text { anchors.centerIn: parent; text: "Cancelar"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold } }
+                PressSurface { Layout.preferredWidth: 100; Layout.preferredHeight: 40; radius: 20; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: editor.close(); Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold } }
                 PressSurface {
                     Layout.preferredWidth: 112; Layout.preferredHeight: 40; radius: 20; color: Theme.primary; accentColor: Theme.primary
                     onClicked: {
@@ -390,7 +392,7 @@ Item {
                             : wizz.upsertFavorite(root.editingUid, nameField.text, root.typeKind(typeBox.currentIndex), root.favoritePayload())
                         if (saved) editor.close()
                     }
-                    Text { anchors.centerIn: parent; text: "Guardar"; color: "white"; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
+                    Text { anchors.centerIn: parent; text: root.t("Guardar", "Save"); color: "white"; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
                 }
             }
         }
@@ -406,10 +408,10 @@ Item {
         background: Rectangle { color: Theme.card; radius: 20; border.width: 1; border.color: Theme.stroke }
         contentItem: ColumnLayout {
             anchors.fill: parent; anchors.margins: 22; spacing: 10
-            Text { text: "Eliminar favorito"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 21; font.weight: Font.Bold }
-            Text { Layout.fillWidth: true; text: "¿Quieres eliminar “" + root.deletingName + "”? Esta acción no afecta a la luz."; color: Theme.muted; font.pixelSize: 12; wrapMode: Text.WordWrap }
+            Text { text: root.t("Eliminar favorito", "Delete favorite"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 21; font.weight: Font.Bold }
+            Text { Layout.fillWidth: true; text: root.t("¿Quieres eliminar “", "Do you want to delete “") + root.deletingName + root.t("”? Esta acción no afecta a la luz.", "”? This does not affect the light."); color: Theme.muted; font.pixelSize: 12; wrapMode: Text.WordWrap }
             Item { Layout.fillHeight: true }
-            RowLayout { Layout.fillWidth: true; spacing: 10; Item { Layout.fillWidth: true } PressSurface { Layout.preferredWidth: 96; Layout.preferredHeight: 40; radius: 20; color: "transparent"; border.color: Theme.stroke; onClicked: confirmDelete.close(); Text { anchors.centerIn: parent; text: "Cancelar"; color: Theme.text; font.pixelSize: 12 } } PressSurface { Layout.preferredWidth: 104; Layout.preferredHeight: 40; radius: 20; color: Theme.error; accentColor: Theme.error; onClicked: { wizz.deleteFavorite(root.deletingUid); confirmDelete.close() } Text { anchors.centerIn: parent; text: "Eliminar"; color: "white"; font.pixelSize: 12; font.weight: Font.Bold } } }
+            RowLayout { Layout.fillWidth: true; spacing: 10; Item { Layout.fillWidth: true } PressSurface { Layout.preferredWidth: 96; Layout.preferredHeight: 40; radius: 20; color: "transparent"; border.color: Theme.stroke; onClicked: confirmDelete.close(); Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.pixelSize: 12 } } PressSurface { Layout.preferredWidth: 104; Layout.preferredHeight: 40; radius: 20; color: Theme.error; accentColor: Theme.error; onClicked: { wizz.deleteFavorite(root.deletingUid); confirmDelete.close() } Text { anchors.centerIn: parent; text: root.t("Eliminar", "Delete"); color: "white"; font.pixelSize: 12; font.weight: Font.Bold } } }
         }
     }
 }

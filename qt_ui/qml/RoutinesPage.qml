@@ -14,6 +14,8 @@ Item {
     property string feedback: ""
     property bool openEditorOnLoad: false
 
+    function t(spanish, english) { return wizz.language === "en" ? english : spanish }
+
     function routinePreviewColor(kind, value) {
         if (kind === "rgb" && /^#[0-9a-fA-F]{6}$/.test(value)) return value
         const point = Math.max(0, Math.min(1, (Number(value || 4000) - 2200) / 4300))
@@ -41,24 +43,24 @@ Item {
 
     function actionLabel(kind) {
         const labels = {
-            turn_on: "Encender", turn_off: "Apagar", toggle: "Alternar encendido",
-            brightness: "Brillo", brightness_delta: "Ajustar brillo", rgb: "Color RGB",
-            white_kelvin: "Blanco Kelvin", white_percent: "Blanco porcentual",
-            scene: "Escena WiZ", favorite: "Aplicar favorito", custom_scene: "Escena personalizada",
-            routine: "Ejecutar rutina", target_mode: "Cambiar destino", wait: "Esperar", condition: "Condición"
+            turn_on: root.t("Encender", "Turn on"), turn_off: root.t("Apagar", "Turn off"), toggle: root.t("Alternar encendido", "Toggle power"),
+            brightness: root.t("Brillo", "Brightness"), brightness_delta: root.t("Ajustar brillo", "Adjust brightness"), rgb: root.t("Color RGB", "RGB color"),
+            white_kelvin: root.t("Blanco Kelvin", "Kelvin white"), white_percent: root.t("Blanco porcentual", "White percentage"),
+            scene: root.t("Escena WiZ", "WiZ scene"), favorite: root.t("Aplicar favorito", "Apply favorite"), custom_scene: root.t("Escena personalizada", "Custom scene"),
+            routine: root.t("Ejecutar rutina", "Run routine"), target_mode: root.t("Cambiar destino", "Change target"), wait: root.t("Esperar", "Wait"), condition: root.t("Condición", "Condition")
         }
         return labels[kind] || kind
     }
 
     function valueHint(kind) {
-        if (kind === "wait") return "Milisegundos"
+        if (kind === "wait") return root.t("Milisegundos", "Milliseconds")
         if (kind === "brightness") return "10–100%"
-        if (kind === "brightness_delta") return "Ej.: +10 o -10"
+        if (kind === "brightness_delta") return root.t("Ej.: +10 o -10", "E.g. +10 or -10")
         if (kind === "rgb") return "#RRGGBB"
         if (kind === "white_kelvin") return "2200–6500K"
         if (kind === "white_percent") return "0–100%"
         if (kind === "scene") return "Scene ID"
-        if (["favorite", "custom_scene", "routine"].indexOf(kind) >= 0) return "ID guardado"
+        if (["favorite", "custom_scene", "routine"].indexOf(kind) >= 0) return root.t("Valor guardado", "Saved value")
         return ""
     }
 
@@ -80,7 +82,7 @@ Item {
 
     function openNew() {
         editingUid = ""
-        routineName.text = "Nueva rutina"
+        routineName.text = root.t("Nueva rutina", "New routine")
         routineDescription.text = ""
         routineColor.text = "#5F91FF"
         actionDraft.clear()
@@ -123,8 +125,8 @@ Item {
             width: parent.width; height: 48
             Column {
                 anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; spacing: 3
-                Text { text: "Rutinas"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 30; font.weight: Font.Bold }
-                Text { text: "Secuencias visuales para acciones rápidas y hotkeys"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
+                Text { text: root.t("Rutinas", "Routines"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 30; font.weight: Font.Bold }
+                Text { text: root.t("Secuencias visuales para acciones rápidas y hotkeys", "Visual sequences for quick actions and hotkeys"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
             }
             Row {
                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing: 10
@@ -132,19 +134,19 @@ Item {
                 width: 142; height: 38; radius: 19
                 color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.primary
                 onClicked: { if (wizz.captureCurrentRoutine()) root.feedback = "Estado actual guardado como rutina." }
-                Text { anchors.centerIn: parent; text: "▣  Capturar estado"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.DemiBold }
+                Text { anchors.centerIn: parent; text: root.t("Capture state", "Capture state"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.DemiBold }
             }
             PressSurface {
                 width: 154; height: 38; radius: 19
                 color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.accent
                 onClicked: wizz.resetRoutineDefaults()
-                Text { anchors.centerIn: parent; text: "↻  Restaurar presets"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.DemiBold }
+                Text { anchors.centerIn: parent; text: root.t("Restaurar valores", "Restore defaults"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.DemiBold }
             }
             PressSurface {
                 width: 108; height: 38; radius: 19
                 color: Theme.primary; accentColor: Theme.primary
                 onClicked: root.openNew()
-                Text { anchors.centerIn: parent; text: "+  Nueva"; color: "white"; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.Bold }
+                Text { anchors.centerIn: parent; text: "+  " + root.t("Nueva", "New"); color: "white"; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.Bold }
             }
             }
         }
@@ -158,7 +160,7 @@ Item {
                 Text { text: "ⓘ"; color: Theme.primary; font.pixelSize: 17 }
                 Text {
                     Layout.fillWidth: true
-                    text: root.feedback || "Combina color, blanco, brillo, escenas, esperas y condiciones sin editar JSON."
+                    text: root.feedback || root.t("Combina color, blanco, brillo, escenas, esperas y condiciones sin editar JSON.", "Combine color, white, brightness, scenes, waits, and conditions without editing JSON.")
                     color: root.feedback ? Theme.accent : Theme.muted; font.family: Theme.uiFont; font.pixelSize: 12
                     wrapMode: Text.WordWrap
                 }
@@ -195,7 +197,7 @@ Item {
                         PressSurface {
                             Layout.preferredWidth: 108; Layout.preferredHeight: 38; radius: 19; color: Theme.primary; accentColor: Theme.primary
                             onClicked: wizz.runRoutine(routineCard.uid)
-                            Text { anchors.centerIn: parent; text: "▶  Aplicar"; color: "white"; font.pixelSize: 11; font.weight: Font.Bold }
+                            Text { anchors.centerIn: parent; text: root.t("Aplicar", "Apply"); color: "white"; font.pixelSize: 11; font.weight: Font.Bold }
                         }
                         PressSurface {
                             Layout.preferredWidth: 36; Layout.preferredHeight: 36; radius: 18; color: "transparent"; accentColor: Theme.primary
@@ -238,8 +240,8 @@ Item {
                 Layout.fillWidth: true; Layout.preferredHeight: 42
                 Column {
                     anchors.left: parent.left; anchors.top: parent.top; anchors.right: closeRoutine.left; anchors.rightMargin: 12; spacing: 2
-                    Text { text: root.editingUid ? "Editar rutina" : "Nueva rutina"; color: Theme.text; font.pixelSize: 22; font.weight: Font.Bold }
-                    Text { text: "Construye la secuencia y ordena cada paso visualmente."; color: Theme.muted; font.pixelSize: 12 }
+                    Text { text: root.editingUid ? root.t("Editar rutina", "Edit routine") : root.t("Nueva rutina", "New routine"); color: Theme.text; font.pixelSize: 22; font.weight: Font.Bold }
+                    Text { text: root.t("Construye la secuencia y ordena cada paso visualmente.", "Build the sequence and arrange each step visually."); color: Theme.muted; font.pixelSize: 12 }
                 }
                 PressSurface { id: closeRoutine; width: 34; height: 34; anchors.right: parent.right; anchors.top: parent.top; radius: 17; color: "transparent"; onClicked: editor.close(); Text { anchors.centerIn: parent; text: "×"; color: Theme.muted; font.pixelSize: 24 } }
             }
@@ -249,7 +251,7 @@ Item {
                 TextField {
                     id: routineName
                     Layout.fillWidth: true; Layout.preferredHeight: 44
-                    placeholderText: "Nombre de la rutina"; placeholderTextColor: Theme.faint; color: Theme.text; leftPadding: 13; rightPadding: 13
+                    placeholderText: root.t("Nombre de la rutina", "Routine name"); placeholderTextColor: Theme.faint; color: Theme.text; leftPadding: 13; rightPadding: 13
                     background: Rectangle { color: Theme.cardHi; radius: 11; border.width: 1; border.color: routineName.activeFocus ? Theme.primary : Theme.stroke }
                 }
                 TextField {
@@ -262,15 +264,15 @@ Item {
             TextField {
                 id: routineDescription
                 Layout.fillWidth: true; Layout.preferredHeight: 44
-                placeholderText: "Descripción corta"; placeholderTextColor: Theme.faint; color: Theme.text; leftPadding: 13; rightPadding: 13
+                placeholderText: root.t("Descripción corta", "Short description"); placeholderTextColor: Theme.faint; color: Theme.text; leftPadding: 13; rightPadding: 13
                 background: Rectangle { color: Theme.cardHi; radius: 11; border.width: 1; border.color: routineDescription.activeFocus ? Theme.primary : Theme.stroke }
             }
 
             RowLayout {
                 Layout.fillWidth: true
-                Text { text: "PASOS"; color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1 }
+                Text { text: root.t("PASOS", "STEPS"); color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1 }
                 Item { Layout.fillWidth: true }
-                Text { text: actionDraft.count + (actionDraft.count === 1 ? " paso" : " pasos"); color: Theme.faint; font.pixelSize: 11 }
+                Text { text: actionDraft.count + (actionDraft.count === 1 ? root.t(" paso", " step") : root.t(" pasos", " steps")); color: Theme.faint; font.pixelSize: 11 }
             }
 
             Rectangle {
@@ -300,10 +302,10 @@ Item {
                                 searchable: true
                                 sectionRole: "section"
                                 model: [
-                                    {label:"Encender", value:"turn_on", section:"Control"}, {label:"Apagar", value:"turn_off", section:"Control"}, {label:"Alternar", value:"toggle", section:"Control"},
-                                    {label:"Brillo", value:"brightness", section:"Color y ambiente"}, {label:"Ajustar brillo", value:"brightness_delta", section:"Color y ambiente"}, {label:"Color RGB", value:"rgb", section:"Color y ambiente"}, {label:"Blanco Kelvin", value:"white_kelvin", section:"Color y ambiente"}, {label:"Blanco porcentual", value:"white_percent", section:"Color y ambiente"}, {label:"Escena WiZ", value:"scene", section:"Color y ambiente"},
-                                    {label:"Aplicar favorito", value:"favorite", section:"Biblioteca"}, {label:"Escena personalizada", value:"custom_scene", section:"Biblioteca"}, {label:"Ejecutar rutina", value:"routine", section:"Biblioteca"},
-                                    {label:"Esperar", value:"wait", section:"Flujo"}, {label:"Condición", value:"condition", section:"Flujo"}
+                                    {label:root.t("Encender", "Turn on"), value:"turn_on", section:root.t("Control", "Control")}, {label:root.t("Apagar", "Turn off"), value:"turn_off", section:root.t("Control", "Control")}, {label:root.t("Alternar", "Toggle"), value:"toggle", section:root.t("Control", "Control")},
+                                    {label:root.t("Brillo", "Brightness"), value:"brightness", section:root.t("Color y ambiente", "Color and ambience")}, {label:root.t("Ajustar brillo", "Adjust brightness"), value:"brightness_delta", section:root.t("Color y ambiente", "Color and ambience")}, {label:root.t("Color RGB", "RGB color"), value:"rgb", section:root.t("Color y ambiente", "Color and ambience")}, {label:root.t("Blanco Kelvin", "Kelvin white"), value:"white_kelvin", section:root.t("Color y ambiente", "Color and ambience")}, {label:root.t("Blanco porcentual", "White percentage"), value:"white_percent", section:root.t("Color y ambiente", "Color and ambience")}, {label:root.t("Escena WiZ", "WiZ scene"), value:"scene", section:root.t("Color y ambiente", "Color and ambience")},
+                                    {label:root.t("Aplicar favorito", "Apply favorite"), value:"favorite", section:root.t("Biblioteca", "Library")}, {label:root.t("Escena personalizada", "Custom scene"), value:"custom_scene", section:root.t("Biblioteca", "Library")}, {label:root.t("Ejecutar rutina", "Run routine"), value:"routine", section:root.t("Biblioteca", "Library")},
+                                    {label:root.t("Esperar", "Wait"), value:"wait", section:root.t("Flujo", "Flow")}, {label:root.t("Condición", "Condition"), value:"condition", section:root.t("Flujo", "Flow")}
                                 ]
                                 textRole: "label"; valueRole: "value"
                                 function kindIndex(kind) {
@@ -336,7 +338,7 @@ Item {
                                 id: targetModeValue
                                 visible: stepRow.kind === "target_mode"
                                 Layout.fillWidth: true; Layout.preferredHeight: 40
-                                model: ["Todas las luces", "Sólo la selección"]
+                                model: [root.t("Todas las luces", "All lights"), root.t("Sólo la selección", "Selected lights only")]
                                 currentIndex: stepRow.value === "single" ? 1 : 0
                                 onActivated: function(index) { actionDraft.setProperty(stepRow.index, "value", index === 1 ? "single" : "all") }
                                 contentItem: Text { leftPadding: 11; text: targetModeValue.displayText; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: 12 }
@@ -349,7 +351,7 @@ Item {
                                 model: wizz.favoriteModel; textRole: "title"; valueRole: "uid"
                                 currentIndex: Math.max(0, favoriteValue.indexOfValue(stepRow.value))
                                 onActivated: actionDraft.setProperty(stepRow.index, "value", currentValue)
-                                contentItem: Text { leftPadding: 11; text: favoriteValue.count ? favoriteValue.displayText : "Sin favoritos guardados"; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: 12; elide: Text.ElideRight }
+                                contentItem: Text { leftPadding: 11; text: favoriteValue.count ? favoriteValue.displayText : root.t("Sin favoritos guardados", "No saved favorites"); color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: 12; elide: Text.ElideRight }
                                 background: Rectangle { color: Theme.card; radius: 10; border.width: 1; border.color: favoriteValue.activeFocus ? Theme.primary : Theme.stroke }
                             }
                             WizComboBox {
@@ -359,7 +361,7 @@ Item {
                                 model: wizz.customSceneModel; textRole: "title"; valueRole: "uid"
                                 currentIndex: Math.max(0, customSceneValue.indexOfValue(stepRow.value))
                                 onActivated: actionDraft.setProperty(stepRow.index, "value", currentValue)
-                                contentItem: Text { leftPadding: 11; text: customSceneValue.count ? customSceneValue.displayText : "Sin escenas personalizadas"; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: 12; elide: Text.ElideRight }
+                                contentItem: Text { leftPadding: 11; text: customSceneValue.count ? customSceneValue.displayText : root.t("Sin escenas personalizadas", "No custom scenes"); color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: 12; elide: Text.ElideRight }
                                 background: Rectangle { color: Theme.card; radius: 10; border.width: 1; border.color: customSceneValue.activeFocus ? Theme.primary : Theme.stroke }
                             }
                             WizComboBox {
@@ -369,7 +371,7 @@ Item {
                                 model: wizz.routineModel; textRole: "title"; valueRole: "uid"
                                 currentIndex: Math.max(0, nestedRoutineValue.indexOfValue(stepRow.value))
                                 onActivated: actionDraft.setProperty(stepRow.index, "value", currentValue)
-                                contentItem: Text { leftPadding: 11; text: nestedRoutineValue.count ? nestedRoutineValue.displayText : "Sin otras rutinas"; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: 12; elide: Text.ElideRight }
+                                contentItem: Text { leftPadding: 11; text: nestedRoutineValue.count ? nestedRoutineValue.displayText : root.t("Sin otras rutinas", "No other routines"); color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: 12; elide: Text.ElideRight }
                                 background: Rectangle { color: Theme.card; radius: 10; border.width: 1; border.color: nestedRoutineValue.activeFocus ? Theme.primary : Theme.stroke }
                             }
                             TextField {
@@ -417,17 +419,17 @@ Item {
                 PressSurface {
                     Layout.preferredWidth: 124; Layout.preferredHeight: 40; radius: 20; color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.primary
                     onClicked: actionDraft.append({ kind: "wait", value: "500" })
-                    Text { anchors.centerIn: parent; text: "+  Agregar paso"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 11; font.weight: Font.Bold }
+                    Text { anchors.centerIn: parent; text: "+  " + root.t("Agregar paso", "Add step"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 11; font.weight: Font.Bold }
                 }
                 Item { Layout.fillWidth: true }
-                PressSurface { Layout.preferredWidth: 94; Layout.preferredHeight: 40; radius: 20; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: editor.close(); Text { anchors.centerIn: parent; text: "Cancelar"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold } }
+                PressSurface { Layout.preferredWidth: 94; Layout.preferredHeight: 40; radius: 20; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: editor.close(); Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold } }
                 PressSurface {
                     Layout.preferredWidth: 112; Layout.preferredHeight: 40; radius: 20; color: Theme.primary; accentColor: Theme.primary
                     onClicked: {
                         const result = wizz.upsertRoutine(root.editingUid, routineName.text, routineDescription.text, routineColor.text, root.serializedActions())
                         if (result) editor.close()
                     }
-                    Text { anchors.centerIn: parent; text: "Guardar"; color: "white"; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
+                    Text { anchors.centerIn: parent; text: root.t("Guardar", "Save"); color: "white"; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
                 }
             }
         }
@@ -452,7 +454,7 @@ Item {
             anchors.fill: parent; anchors.margins: 18; spacing: 10
             RowLayout {
                 Layout.fillWidth: true
-                Text { Layout.fillWidth: true; text: routineValuePicker.stepKind === "rgb" ? "Color de este paso" : "Blanco de este paso"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 18; font.weight: Font.Bold }
+                Text { Layout.fillWidth: true; text: routineValuePicker.stepKind === "rgb" ? root.t("Color de este paso", "Color for this step") : root.t("Blanco de este paso", "White for this step"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 18; font.weight: Font.Bold }
                 PressSurface { Layout.preferredWidth: 30; Layout.preferredHeight: 30; radius: 15; color: "transparent"; onClicked: routineValuePicker.close(); Text { anchors.centerIn: parent; text: "×"; color: Theme.muted; font.pixelSize: 20 } }
             }
             WizPresetPicker {
@@ -480,13 +482,13 @@ Item {
         background: Rectangle { color: Theme.card; radius: 20; border.width: 1; border.color: Theme.stroke }
         contentItem: ColumnLayout {
             anchors.fill: parent; anchors.margins: 22; spacing: 10
-            Text { text: "Eliminar rutina"; color: Theme.text; font.pixelSize: 21; font.weight: Font.Bold }
-            Text { Layout.fillWidth: true; text: "¿Quieres eliminar “" + root.deletingName + "”?"; color: Theme.muted; font.pixelSize: 12; wrapMode: Text.WordWrap }
+            Text { text: root.t("Eliminar rutina", "Delete routine"); color: Theme.text; font.pixelSize: 21; font.weight: Font.Bold }
+            Text { Layout.fillWidth: true; text: root.t("¿Quieres eliminar “", "Do you want to delete “") + root.deletingName + "”?"; color: Theme.muted; font.pixelSize: 12; wrapMode: Text.WordWrap }
             Item { Layout.fillHeight: true }
             RowLayout {
                 Layout.fillWidth: true; spacing: 10; Item { Layout.fillWidth: true }
-                PressSurface { Layout.preferredWidth: 96; Layout.preferredHeight: 40; radius: 20; color: "transparent"; border.color: Theme.stroke; onClicked: confirmDelete.close(); Text { anchors.centerIn: parent; text: "Cancelar"; color: Theme.text; font.pixelSize: 12 } }
-                PressSurface { Layout.preferredWidth: 104; Layout.preferredHeight: 40; radius: 20; color: Theme.error; accentColor: Theme.error; onClicked: { wizz.deleteRoutine(root.deletingUid); confirmDelete.close() } Text { anchors.centerIn: parent; text: "Eliminar"; color: "white"; font.pixelSize: 12; font.weight: Font.Bold } }
+                PressSurface { Layout.preferredWidth: 96; Layout.preferredHeight: 40; radius: 20; color: "transparent"; border.color: Theme.stroke; onClicked: confirmDelete.close(); Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.pixelSize: 12 } }
+                PressSurface { Layout.preferredWidth: 104; Layout.preferredHeight: 40; radius: 20; color: Theme.error; accentColor: Theme.error; onClicked: { wizz.deleteRoutine(root.deletingUid); confirmDelete.close() } Text { anchors.centerIn: parent; text: root.t("Eliminar", "Delete"); color: "white"; font.pixelSize: 12; font.weight: Font.Bold } }
             }
         }
     }

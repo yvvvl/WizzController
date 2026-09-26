@@ -77,7 +77,12 @@ class QtDesktopRuntime(QObject):
         self.window.hide()
 
     def _handle_tray_activation(self, reason: QSystemTrayIcon.ActivationReason) -> None:
-        if reason in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick):
+        # A quick panel needs to be available in one gesture while the main
+        # window remains in the background.  Double click deliberately keeps
+        # the conventional "restore the app" behaviour.
+        if reason == QSystemTrayIcon.ActivationReason.Trigger:
+            self.show_quick_panel()
+        elif reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self.show_main_window()
 
     def show_main_window(self) -> None:

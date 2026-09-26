@@ -17,8 +17,29 @@ class ReleaseInfo:
 
 
 def _version_key(value: str) -> tuple[int, ...]:
-    numbers = re.findall(r"\d+", str(value))
-    return tuple(int(item) for item in numbers) or (0,)
+    """Return a predictable key that understands final vs prerelease builds.
+
+    A final ``1.4.2`` must sort after ``1.4.2-rc.1``.  The old approach
+    extracted every number indiscriminately, making the RC's ``.1`` appear
+    newer than its final release and preventing the last update.
+    """
+    normalized = str(value or "").strip().lstrip("vV")
+    base, separator, prerelease = normalized.partition("-")
+    numbers = tuple(int(item) for item in re.findall(r"\d+", base)) or (0,)
+    if not separator:
+        # The stable marker intentionally sorts above a prerelease marker.
+        return numbers + (1,)
+
+    label = prerelease.lower()
+    rank = 0
+    if "alpha" in label:
+        rank = 1
+    elif "beta" in label:
+        rank = 2
+    elif "rc" in label:
+        rank = 3
+    sequence = tuple(int(item) for item in re.findall(r"\d+", label)) or (0,)
+    return numbers + (0, rank) + sequence
 
 
 def parse_release(payload: dict[str, Any], *, platform: str = "windows") -> ReleaseInfo | None:

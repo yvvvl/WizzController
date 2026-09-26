@@ -32,7 +32,14 @@ from core.update_installer import (
     launch_staged_update,
     stage_windows_update,
 )
-from localization import RuntimeLanguagePreference, get_manager, translated_scene_group, translated_scene_name
+from localization import (
+    RuntimeLanguagePreference,
+    get_manager,
+    translated_default_routine_description,
+    translated_default_routine_name,
+    translated_scene_group,
+    translated_scene_name,
+)
 
 
 class LightListModel(QAbstractListModel):
@@ -191,20 +198,22 @@ class WizzBridge(QObject):
         self.custom_scenes = EntryListModel()
         self.routines = EntryListModel()
         self.hotkeys = EntryListModel()
+        self._runtime = AppRuntimeManager()
+        self._i18n = get_manager()
+        self._i18n.set_preference(RuntimeLanguagePreference(self._runtime).load())
         self._favorites_manager = FavoritesManager()
         self._scenes_manager = CustomScenesManager()
         self._routines_manager = RoutinesManager()
         self._hotkeys_manager = HotkeysManager(
-            controller, auto_apply=not bool(getattr(controller, "is_virtual", False))
+            controller,
+            auto_apply=not bool(getattr(controller, "is_virtual", False)),
+            i18n=self._i18n,
         )
         self._hotkey_actions_cache: list[dict[str, Any]] = []
         self._hotkey_actions_loading = False
         # Keep Qt's appearance preferences in the same durable runtime store
         # used by the Flet shell.  The two clients can now be alternated
         # without each one silently resetting the user's visual choices.
-        self._runtime = AppRuntimeManager()
-        self._i18n = get_manager()
-        self._i18n.set_preference(RuntimeLanguagePreference(self._runtime).load())
         self._executor = ActionSequenceExecutor(controller)
         self._state: dict[str, Any] = {}
         self._main_window: Any = None
@@ -244,13 +253,19 @@ class WizzBridge(QObject):
         self._quick_actions = [str(key) for key in stored_quick_actions if str(key) in known_quick_actions][:6]
         if not self._quick_actions:
             self._quick_actions = ["warm", "reading", "cool", "relax", "party", "off"]
-        self._update_status = "Comprueba si hay una versión nueva cuando lo necesites."
+        self._update_status = self._ui(
+            "Comprueba si hay una versión nueva cuando lo necesites.",
+            "Check for a new version whenever you need to.",
+        )
         self._update_url = ""
         self._update_in_progress = False
         stored_channel = str(self._runtime.get("update_channel", "stable") or "stable").lower()
         # Public builds must never silently follow a private beta channel left
         # behind by an earlier test install.  Beta builds retain that option.
-        self._allows_beta_updates = "b" in APP_VERSION.lower()
+        version_label = APP_VERSION.lower()
+        self._allows_beta_updates = any(
+            marker in version_label for marker in ("alpha", "beta", "-b", "rc")
+        )
         self._update_channel = (
             stored_channel
             if self._allows_beta_updates and stored_channel in {"stable", "beta"}
@@ -289,6 +304,14 @@ class WizzBridge(QObject):
         self.controller.set_callback(self._receive_controller_state)
         self.refresh()
         QTimer.singleShot(0, self.refreshHotkeyActions)
+
+    def _ui(self, spanish: str, english: str) -> str:
+        """Return UI copy in the active runtime language.
+
+        Qt models are refreshed after a language change, so model-provided
+        labels (not only QML text bindings) stay in the chosen language.
+        """
+        return english if self._i18n.language == "en" else spanish
 
     def shutdown(self) -> None:
         self._hotkeys_manager.stop()
@@ -452,12 +475,12 @@ class WizzBridge(QObject):
         self.favorites.replace([self._favorite_entry(item) for item in favorites])
         self.favoriteStateChanged.emit()
         built_in_scenes = [
-            {"title": scene.name, "subtitle": "WiZ · " + ("dinámica" if scene.dynamic else "estática"),
+            {"title": scene.name, "subtitle": "WiZ · " + self._ui("dinámica", "dynamic") if scene.dynamic else "WiZ · " + self._ui("estática", "static"),
              "entryColor": scene.color, "uid": f"wiz:{scene.id}", "kind": "scene"}
             for scene in wiz_scenes.CATALOG.values()
         ]
         custom_scenes = [
-            {"title": str(item.get("name") or "Escena"), "subtitle": str(item.get("mode") or "rgb").upper(),
+            {"title": str(item.get("name") or self._ui("Escena", "Scene")), "subtitle": str(item.get("mode") or "rgb").upper(),
              "entryColor": self._custom_scene_color(item), "uid": str(item.get("id") or ""),
              "kind": str(item.get("mode") or "rgb"),
              "rawValue": json.dumps(item.get("value"), separators=(",", ":"))}
@@ -466,11 +489,11 @@ class WizzBridge(QObject):
         self.scenes.replace(built_in_scenes + custom_scenes)
         self.custom_scenes.replace(custom_scenes)
         self.routines.replace([
-            {"title": str(item.get("name") or "Rutina"),
+            {"title": translated_default_routine_name(self._i18n, item) or str(item.get("name") or self._ui("Rutina", "Routine")),
              "subtitle": (
-                 f"{str(item.get('description') or '').strip()} · {len(item.get('actions') or [])} pasos"
+                 f"{translated_default_routine_description(self._i18n, item) or str(item.get('description') or '').strip()} · {len(item.get('actions') or [])} {self._ui('pasos', 'steps')}"
                  if str(item.get("description") or "").strip()
-                 else f"{len(item.get('actions') or [])} pasos"
+                 else f"{len(item.get('actions') or [])} {self._ui('pasos', 'steps')}"
              ),
              "entryColor": str(item.get("color") or "#5f91ff"), "uid": str(item.get("id") or ""), "kind": "routine",
              "rawValue": json.dumps({
@@ -484,8 +507,8 @@ class WizzBridge(QObject):
     def _refresh_hotkey_model(self) -> None:
         self.hotkeys.replace([
             {
-                "title": str(row.get("name") or row.get("id") or "Acción"),
-                "subtitle": str(row.get("group") or "General"),
+                "title": str(row.get("name") or row.get("id") or self._ui("Acción", "Action")),
+                "subtitle": str(row.get("group") or self._ui("General", "General")),
                 "entryColor": "#5f91ff",
                 "uid": str(row.get("id") or ""),
                 "kind": "hotkey",
@@ -506,8 +529,8 @@ class WizzBridge(QObject):
             try:
                 items = [
                     {"id": str(item.get("id") or ""),
-                     "name": str(item.get("name") or item.get("id") or "Acción"),
-                     "group": str(item.get("group") or "General")}
+                     "name": str(item.get("name") or item.get("id") or self._ui("Acción", "Action")),
+                     "group": str(item.get("group") or self._ui("General", "General"))}
                     for item in self._hotkeys_manager.list_actions()
                     if item.get("id")
                 ]
@@ -637,11 +660,13 @@ class WizzBridge(QObject):
     def scanMessage(self) -> str:
         status = self.controller.get_scan_status()
         if bool(status.get("in_progress", status.get("running", False))):
-            return "Buscando ampolletas en tu red…"
+            return self._ui("Buscando ampolletas en tu red…", "Searching for lights on your network…")
         error = str(status.get("error") or "").strip()
         if error:
-            return "No se pudo completar la búsqueda: " + error
+            return self._ui("No se pudo completar la búsqueda: ", "The search could not be completed: ") + error
         found = int(status.get("found", self.totalCount) or 0)
+        if self._i18n.language == "en":
+            return f"{found} light{'s' if found != 1 else ''} found"
         return f"{found} ampolleta{'s' if found != 1 else ''} detectada{'s' if found != 1 else ''}"
 
     @Property(int, notify=statusChanged)
@@ -854,9 +879,9 @@ class WizzBridge(QObject):
         self._available_release = None
         self._update_url = ""
         self._update_status = (
-            "Canal beta activo. Recibirás versiones preliminares."
+            self._ui("Canal beta activo. Recibirás versiones preliminares.", "Beta channel enabled. You will receive preview builds.")
             if selected == "beta"
-            else "Canal estable activo. Recibirás sólo versiones finales."
+            else self._ui("Canal estable activo. Recibirás sólo versiones finales.", "Stable channel enabled. You will receive final releases only.")
         )
         self.updateChanged.emit()
 
@@ -865,7 +890,7 @@ class WizzBridge(QObject):
         if self._update_in_progress:
             return
         self._update_in_progress = True
-        self._update_status = "Buscando actualizaciones…"
+        self._update_status = self._ui("Buscando actualizaciones…", "Checking for updates…")
         self._update_url = ""
         self._available_release = None
         self.updateChanged.emit()
@@ -874,15 +899,15 @@ class WizzBridge(QObject):
             try:
                 release = ReleaseClient().latest(channel=self._update_channel)
                 if release is None:
-                    message = "No hay una versión publicada disponible para este canal."
+                    message = self._ui("No hay una versión publicada disponible para este canal.", "No published version is available for this channel.")
                 elif is_update_available(APP_VERSION, release):
-                    message = f"Nueva versión disponible: v{release.version}."
+                    message = self._ui(f"Nueva versión disponible: v{release.version}.", f"New version available: v{release.version}.")
                 else:
-                    message = "Ya tienes la versión más reciente."
+                    message = self._ui("Ya tienes la versión más reciente.", "You already have the latest version.")
                     release = None
             except Exception:
                 release = None
-                message = "No se pudo comprobar actualizaciones. Inténtalo más tarde."
+                message = self._ui("No se pudo comprobar actualizaciones. Inténtalo más tarde.", "Could not check for updates. Try again later.")
             self.updateResultReceived.emit(release, message)
 
         threading.Thread(target=check, name="WizzQtUpdateCheck", daemon=True).start()
@@ -905,24 +930,26 @@ class WizzBridge(QObject):
             return
         if not can_self_update():
             self._update_status = (
-                "Esta copia se ejecuta desde código fuente. Descarga la primera "
-                "build portable para activar actualizaciones automáticas."
+                self._ui(
+                    "Esta copia se ejecuta desde código fuente. Descarga la primera build portable para activar actualizaciones automáticas.",
+                    "This copy runs from source. Download the first portable build to enable automatic updates.",
+                )
             )
             self.updateChanged.emit()
             return
         self._update_in_progress = True
-        self._update_status = "Descargando y verificando la actualización…"
+        self._update_status = self._ui("Descargando y verificando la actualización…", "Downloading and verifying the update…")
         self.updateChanged.emit()
 
         def install() -> None:
             try:
                 script = stage_windows_update(release)
                 launch_staged_update(script)
-                message, action = "Actualización lista. WizZ se reiniciará ahora.", "quit"
+                message, action = self._ui("Actualización lista. WizZ se reiniciará ahora.", "Update ready. WizZ will restart now."), "quit"
             except UpdateInstallError as exc:
                 message, action = str(exc), ""
             except Exception:
-                message, action = "No se pudo preparar la actualización. Inténtalo más tarde.", ""
+                message, action = self._ui("No se pudo preparar la actualización. Inténtalo más tarde.", "Could not prepare the update. Try again later."), ""
             self.updateInstallResultReceived.emit(message, action)
 
         threading.Thread(target=install, name="WizzQtUpdateInstall", daemon=True).start()
@@ -941,10 +968,31 @@ class WizzBridge(QObject):
 
     @Slot(str)
     def setLanguage(self, preference: str) -> None:
-        normalized = RuntimeLanguagePreference(self._runtime).save(preference)
+        self._set_language(preference, persist=True)
+
+    def setPreviewLanguage(self, preference: str) -> None:
+        """Apply a QA-only language override without touching user settings."""
+        self._set_language(preference, persist=False)
+
+    def _set_language(self, preference: str, *, persist: bool) -> None:
+        normalized = (
+            RuntimeLanguagePreference(self._runtime).save(preference)
+            if persist
+            else str(preference or "es").strip().lower()
+        )
+        if normalized not in {"es", "en"}:
+            normalized = "es"
         self._i18n.set_preference(normalized)
+        self._hotkeys_manager.i18n = self._i18n
+        if not self._update_in_progress and self._available_release is None:
+            self._update_status = self._ui(
+                "Comprueba si hay una versión nueva cuando lo necesites.",
+                "Check for a new version whenever you need to.",
+            )
         self._refresh_library_models()
+        self.refreshHotkeyActions()
         self.languageChanged.emit()
+        self.hotkeysChanged.emit()
         self.quickActionsChanged.emit()
         self.stateChanged.emit()
         self.statusChanged.emit()

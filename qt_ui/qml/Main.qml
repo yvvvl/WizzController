@@ -99,7 +99,7 @@ ApplicationWindow {
                 anchors.fill: parent; anchors.leftMargin: 13; anchors.rightMargin: 9; spacing: 9
                 Rectangle {
                     Layout.preferredWidth: 22; Layout.preferredHeight: 22; radius: 8; color: Theme.primary
-                    Image { anchors.centerIn: parent; width: 15; height: 15; source: "../../assets/tray_icon.png"; fillMode: Image.PreserveAspectFit }
+                    BulbIcon { anchors.centerIn: parent; width: 15; height: 15; iconColor: "white" }
                 }
                 Text { text: "WizZ Desktop"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.DemiBold }
                 Item { Layout.fillWidth: true }
@@ -147,7 +147,7 @@ ApplicationWindow {
                     border.color: wizz.liveBrandAccent ? sidebar.liveColor : Theme.stroke
                     Behavior on color { ColorAnimation { duration: Theme.motionNormal; easing.type: Easing.InOutCubic } }
                     Behavior on border.color { ColorAnimation { duration: Theme.motionNormal; easing.type: Easing.InOutCubic } }
-                    Image { anchors.centerIn: parent; width: 30; height: 30; source: "../../assets/tray_icon.png"; fillMode: Image.PreserveAspectFit }
+                    BulbIcon { anchors.centerIn: parent; width: 30; height: 30; iconColor: Theme.text }
                 }
                 Text { anchors.horizontalCenter: parent.horizontalCenter; text: "WizZ"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.Bold }
                 Repeater {

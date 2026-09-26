@@ -119,6 +119,10 @@ def main() -> int:
         print("[QT] Real WiZ LAN control enabled.")
         controller.start()
         bridge = WizzBridge(controller)
+        # Test captures can validate either language without changing the
+        # user's saved preference.
+        if language := os.environ.get("WIZZ_QT_LANGUAGE"):
+            bridge.setPreviewLanguage(language)
         if theme := os.environ.get("WIZZ_QT_THEME"):
             bridge.setTheme(theme)
 

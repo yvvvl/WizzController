@@ -87,7 +87,7 @@ ComboBox {
                 id: filterField
                 visible: control.searchable
                 width: parent.width; height: 34
-                placeholderText: "Buscar…"; placeholderTextColor: Theme.faint
+                placeholderText: wizz.language === "en" ? "Search…" : "Buscar…"; placeholderTextColor: Theme.faint
                 color: Theme.text; font: control.font; leftPadding: 10; rightPadding: 10
                 onTextEdited: control.filterText = text
                 background: Rectangle { color: Theme.bg; radius: 9; border.width: 1; border.color: filterField.activeFocus ? Theme.primary : Theme.stroke }
@@ -96,7 +96,9 @@ ComboBox {
                 visible: control.searchable
                 width: parent.width; height: visible ? 16 : 0
                 leftPadding: 4
-                text: control.filterText.length ? "Coincidencias" : control.count + " opciones"
+                text: control.filterText.length
+                    ? (wizz.language === "en" ? "Matches" : "Coincidencias")
+                    : control.count + (wizz.language === "en" ? " options" : " opciones")
                 color: Theme.faint
                 font.family: Theme.controlFont
                 font.pixelSize: 9
