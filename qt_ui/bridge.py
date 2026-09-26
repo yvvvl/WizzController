@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import threading
 from typing import Any
 
@@ -182,6 +183,7 @@ class WizzBridge(QObject):
     updateChanged = Signal()
     updateResultReceived = Signal(object, str)
     updateInstallResultReceived = Signal(str, str)
+    quitRequested = Signal()
     hotkeyCaptured = Signal(str)
     navigateRequested = Signal(int)
     controllerStateReceived = Signal(dict)
@@ -949,6 +951,7 @@ class WizzBridge(QObject):
             except UpdateInstallError as exc:
                 message, action = str(exc), ""
             except Exception:
+                logging.exception("[Update] Could not launch the staged Windows update")
                 message, action = self._ui("No se pudo preparar la actualización. Inténtalo más tarde.", "Could not prepare the update. Try again later."), ""
             self.updateInstallResultReceived.emit(message, action)
 
@@ -960,7 +963,10 @@ class WizzBridge(QObject):
         self._update_status = str(message)
         self.updateChanged.emit()
         if action == "quit":
-            QTimer.singleShot(180, QGuiApplication.quit)
+            # The normal window-close event hides to the tray.  Updating is
+            # different: the external updater cannot replace a running app,
+            # so hand the request to the desktop runtime for a real exit.
+            self.quitRequested.emit()
 
     @Property(str, notify=languageChanged)
     def language(self) -> str:

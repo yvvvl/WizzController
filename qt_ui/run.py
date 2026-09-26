@@ -145,6 +145,7 @@ def main() -> int:
             app, window, bridge, AppRuntimeManager(), guard,
             icon_path=root / "assets" / "tray_icon.png",
         )
+        bridge.quitRequested.connect(desktop_runtime.quit_application)
         desktop_runtime.start_single_instance_listener()
         desktop_runtime.start_initial_visibility()
         if screenshot_path:

@@ -15,6 +15,21 @@ class _RuntimeSpy:
         self.main_window += 1
 
 
+class _QuitAppSpy:
+    def __init__(self) -> None:
+        self.quit_calls = 0
+
+    def quit(self) -> None:
+        self.quit_calls += 1
+
+
+class _QuitRuntimeSpy:
+    def __init__(self) -> None:
+        self._quitting = False
+        self.tray = None
+        self.app = _QuitAppSpy()
+
+
 def test_single_tray_click_opens_quick_panel():
     runtime = _RuntimeSpy()
 
@@ -35,3 +50,12 @@ def test_double_tray_click_restores_main_window():
 
     assert runtime.quick_panel == 0
     assert runtime.main_window == 1
+
+
+def test_runtime_quit_bypasses_close_to_tray_behaviour():
+    runtime = _QuitRuntimeSpy()
+
+    QtDesktopRuntime.quit_application(runtime)
+
+    assert runtime._quitting
+    assert runtime.app.quit_calls == 1

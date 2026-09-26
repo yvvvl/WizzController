@@ -74,6 +74,14 @@ def test_qt_release_candidate_can_opt_into_preview_channel(bridge):
     assert bridge.updateChannel == "beta"
 
 
+def test_qt_update_requests_a_real_runtime_exit(bridge):
+    signal = QSignalSpy(bridge.quitRequested)
+
+    bridge._apply_update_install_result("Ready", "quit")
+
+    assert signal.count() == 1
+
+
 def test_qt_bridge_selection_updates_immediately(bridge):
     first_ip = bridge.lights._items[0]["ip"]
 
