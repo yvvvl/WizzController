@@ -28,7 +28,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libcairo2-dev libgirepository1.0-dev \
+            libcairo2-dev libegl1 libgirepository1.0-dev \
             gir1.2-ayatanaappindicator3-0.1
 
       - name: Install dependencies
