@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from core.update_checker import ReleaseInfo
@@ -33,5 +34,27 @@ def test_windows_update_is_staged_with_verified_release_assets(monkeypatch, tmp_
     assert script.name == "apply-update.ps1"
     assert "Expand-Archive" in content
     assert "Wait-Process" in content
+    assert "Move-WithRetry" in content
+    assert "update-error.log" in content
     assert "WizZDesktop.exe" in content
     assert "unins*" in content
+    state = json.loads(update_installer.update_state_path().read_text(encoding="utf-8"))
+    assert state["state"] == "preparing"
+
+
+def test_pending_update_marker_expires_safely(monkeypatch, tmp_path):
+    monkeypatch.setattr(update_installer, "config_dir", lambda: tmp_path / "config")
+    state = update_installer.update_state_path()
+    state.parent.mkdir(parents=True)
+    state.write_text('{"state":"applying","updated_at":0}', encoding="utf-8")
+
+    assert not update_installer.update_is_applying()
+
+
+def test_pending_update_marker_expires_safely(monkeypatch, tmp_path):
+    monkeypatch.setattr(update_installer, "config_dir", lambda: tmp_path / "config")
+    state = update_installer.update_state_path()
+    state.parent.mkdir(parents=True)
+    state.write_text('{"state":"applying","updated_at":0}', encoding="utf-8")
+
+    assert not update_installer.update_is_applying()

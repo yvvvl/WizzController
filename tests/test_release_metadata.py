@@ -83,11 +83,14 @@ def test_qt_beta_build_packages_the_qt_shell_and_its_resources():
 
 
 def test_linux_build_declares_native_x64_and_arm64_artifacts():
-    build_script = (ROOT / "scripts" / "build_linux.sh").read_text(encoding="utf-8")
+    build_script = (ROOT / "scripts" / "build_qt_linux.sh").read_text(encoding="utf-8")
     workflow = (ROOT / ".github" / "workflows" / "linux-beta-build.yml").read_text(encoding="utf-8")
 
     assert "--arch x64|arm64" in build_script
     assert '"architecture": "$ARCH"' in build_script
+    assert "PyInstaller" in build_script
+    assert "qt_ui/run.py" in build_script
+    assert "flet build" not in build_script.casefold()
     assert "linux-${ARCH}.tar.gz" in build_script
     assert "ubuntu-24.04-arm" in workflow
     assert "architecture: arm64" in workflow

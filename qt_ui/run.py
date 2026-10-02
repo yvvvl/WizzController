@@ -14,6 +14,7 @@ from app_meta import APP_ID, APP_NAME
 from config.app_runtime_manager import AppRuntimeManager
 from core.light_controller import LightController
 from core.single_instance import SingleInstanceGuard
+from core.update_installer import update_is_applying
 from qt_ui.bridge import WizzBridge
 from qt_ui.runtime import QtDesktopRuntime, activate_existing_instance
 
@@ -98,6 +99,11 @@ def _schedule_screenshot(app, window, screenshot_path: str, quick_panel: bool) -
 
 def main() -> int:
     os.environ.setdefault("QT_QUICK_CONTROLS_STYLE", "Basic")
+    # Never let a manually reopened old copy lock the app files while the
+    # detached helper is extracting and replacing an update.
+    if update_is_applying():
+        print("[QT] Update is still being applied; startup is temporarily deferred.")
+        return 0
     guard = SingleInstanceGuard(APP_ID)
     if not guard.acquire():
         activate_existing_instance(guard)
