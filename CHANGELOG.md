@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.3
+
+### Fixed
+
+- Embed the WizZ light-bulb icon in the Windows executable so desktop
+  shortcuts and Explorer no longer show a Python or generic icon.
+
 ## v1.4.0
 
 ### Added

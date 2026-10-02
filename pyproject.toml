@@ -1,6 +1,6 @@
 [project]
 name = "wizz-controller"
-version = "1.3.2"
+version = "1.3.3"
 description = "Control local de ampolletas WiZ por LAN."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"

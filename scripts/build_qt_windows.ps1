@@ -42,6 +42,7 @@ New-Item -ItemType Directory -Force -Path $ResolvedOutput, $BuildWork | Out-Null
 $PyInstallerArgs = @(
     "--noconfirm", "--clean", "--windowed",
     "--name", $Artifact,
+    "--icon", "$Root\assets\icon_windows.ico",
     "--distpath", $ResolvedOutput,
     "--workpath", $BuildWork,
     "--specpath", $BuildWork,
