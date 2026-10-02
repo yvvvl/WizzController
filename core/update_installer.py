@@ -37,7 +37,9 @@ def _write_update_state(state: str, detail: str = "") -> None:
 def update_is_applying(*, max_age_seconds: int = 300) -> bool:
     """True only while a recently-started helper owns the app replacement."""
     try:
-        state = json.loads(update_state_path().read_text(encoding="utf-8"))
+        # Windows PowerShell 5 writes UTF-8 JSON with a BOM when using
+        # Set-Content -Encoding utf8.
+        state = json.loads(update_state_path().read_text(encoding="utf-8-sig"))
         age = time.time() - float(state.get("updated_at", 0))
         return state.get("state") in {"preparing", "applying"} and 0 <= age <= max_age_seconds
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
@@ -119,6 +121,10 @@ def stage_windows_update(release: ReleaseInfo) -> Path:
     script.write_text(
         "param([int]$ProcessId)\n"
         "$ErrorActionPreference = 'Stop'\n"
+        # The app is commonly launched with its install directory as the
+        # process working directory. PowerShell inherits it, which prevents
+        # Windows from renaming that directory even after the app exits.
+        "Set-Location -LiteralPath $PSScriptRoot\n"
         f"$stateFile = {ps_literal(state_file)}\n$diagnostic = {ps_literal(diagnostic)}\n"
         f"$archive = {ps_literal(archive)}\n$replacement = {ps_literal(replacement)}\n"
         f"$install = {ps_literal(install_dir)}\n$backup = {ps_literal(backup)}\n"
@@ -156,7 +162,16 @@ def stage_windows_update(release: ReleaseInfo) -> Path:
         "  $message = ($_ | Out-String).Trim()\n"
         "  Set-Content -LiteralPath $diagnostic -Value $message -Encoding utf8\n"
         "  Set-UpdateState 'failed' $message\n"
-        "  if ((Test-Path $backup) -and -not (Test-Path $install)) { Move-Item -LiteralPath $backup -Destination $install -ErrorAction SilentlyContinue }\n"
+        "  if (Test-Path $backup) {\n"
+        "    $failedInstall = $install + '.failed'\n"
+        "    Remove-Item $failedInstall -Recurse -Force -ErrorAction SilentlyContinue\n"
+        "    if (Test-Path $install) { Move-WithRetry $install $failedInstall }\n"
+        "    try { Move-WithRetry $backup $install } catch {\n"
+        "      if ((Test-Path $failedInstall) -and -not (Test-Path $install)) { Move-WithRetry $failedInstall $install }\n"
+        "      throw\n"
+        "    }\n"
+        "    Remove-Item $failedInstall -Recurse -Force -ErrorAction SilentlyContinue\n"
+        "  }\n"
         "  exit 1\n"
         "}\n",
         encoding="utf-8",
@@ -169,4 +184,5 @@ def launch_staged_update(script: Path) -> None:
     subprocess.Popen(
         ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script), str(os.getpid())],
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        cwd=str(script.parent),
     )

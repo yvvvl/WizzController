@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.4
+
+### Fixed
+
+- Prevent the updater from locking the installed application directory while
+  replacing it, and restore the previous build if the new executable fails to
+  launch.
+- Show “Preparing…” while an update downloads and verifies instead of leaving
+  the update-check button labeled “Checking…”.
+
 ## v1.3.3
 
 ### Fixed
