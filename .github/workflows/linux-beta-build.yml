@@ -32,7 +32,9 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          # Python 3.12 has stable wheels on both GitHub Linux runners for
+          # the current Qt stack. The portable app itself is Qt-only.
+          python-version: "3.12"
 
       - name: Install Qt Linux prerequisites
         run: |
@@ -43,8 +45,8 @@ jobs:
             libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
             libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1
 
-      - name: Install Python dependencies
-        run: python -m pip install -r requirements.txt -r requirements-dev.txt -r requirements-build.txt
+      - name: Install official Qt dependencies
+        run: python -m pip install -r requirements-qt-linux.txt -r requirements-dev.txt -r requirements-build.txt
 
       - name: Test and package Linux Qt beta
         run: bash scripts/build_qt_linux.sh --arch ${{ matrix.architecture }} --output dist/linux

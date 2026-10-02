@@ -53,7 +53,14 @@ if [[ "$CLEAN" == true ]]; then
 fi
 if [[ "$SKIP_TESTS" != true ]]; then
   "$PYTHON" -m compileall -q app_meta.py core config qt_ui tests tools
-  "$PYTHON" -m pytest -q
+  # The official bundle is Qt-only. Legacy Flet tests live in a separate
+  # compatibility suite and must not pull Flet into the Linux artifact.
+  "$PYTHON" -m pytest -q \
+    tests/test_qt_runtime.py \
+    tests/test_qt_bridge.py \
+    tests/test_update_installer.py \
+    tests/test_app_paths.py \
+    tests/test_release_metadata.py
 fi
 
 mkdir -p "$OUTPUT_DIR" "$WORK_DIR" "$RELEASE_DIR"

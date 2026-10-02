@@ -1,0 +1,10 @@
+# Runtime dependencies for the official Qt/PySide Linux bundle.
+# Keep the retired Flet UI and optional GTK/AppIndicator backend out of the
+# release environment: Qt provides the desktop interface and system tray.
+pywizlight==0.6.3
+psutil>=5.9
+keyboard>=0.13.5
+pystray>=0.19.5
+Pillow>=10.0.0
+certifi==2026.6.17
+PySide6==6.9.3

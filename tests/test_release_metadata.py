@@ -112,3 +112,10 @@ def test_qt_build_does_not_bundle_legacy_flet_ui():
     build_script = (ROOT / "scripts" / "build_qt_windows.ps1").read_text(encoding="utf-8")
     assert "qt_ui\\run.py" in build_script
     assert "flet build" not in build_script.casefold()
+
+
+def test_linux_qt_requirements_exclude_retired_ui_stack():
+    requirements = (ROOT / "requirements-qt-linux.txt").read_text(encoding="utf-8").casefold()
+    assert "flet==" not in requirements
+    assert "pygobject" not in requirements
+    assert "pyside6" in requirements
