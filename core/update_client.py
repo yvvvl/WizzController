@@ -23,6 +23,10 @@ class ReleaseClient:
 
     @staticmethod
     def current_platform_asset() -> str:
+        if sys.platform == "darwin":
+            # macOS packages are published as macos-arm64 or macos-x64 ZIPs;
+            # use the shared prefix so either architecture can be discovered.
+            return "macos"
         if not sys.platform.startswith("linux"):
             return "windows"
         machine = host_platform.machine().strip().lower()

@@ -1,0 +1,6 @@
+# Runtime dependencies for an experimental native macOS Qt smoke build.
+pywizlight==0.6.3
+psutil>=5.9
+keyboard>=0.13.5
+certifi==2026.6.17
+PySide6==6.9.3

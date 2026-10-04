@@ -84,6 +84,10 @@ def config_dir() -> Path:
             target = Path(xdg_config) / APP_ARTIFACT / "config"
             return _prepare(target, migrate=True)
 
+        if sys.platform == "darwin":
+            target = Path.home() / "Library" / "Application Support" / APP_ARTIFACT / "config"
+            return _prepare(target, migrate=True)
+
         # Other packaged platforms honor Flet's explicit storage directory.
         if flet_storage:
             target = Path(flet_storage).expanduser().resolve() / "config"
@@ -106,6 +110,8 @@ def logs_dir() -> Path:
     elif sys.platform.startswith("linux") and is_flet_build():
         xdg_state = os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local" / "state"))
         target = Path(xdg_state) / APP_ARTIFACT / "logs"
+    elif sys.platform == "darwin" and is_flet_build():
+        target = Path.home() / "Library" / "Logs" / APP_ARTIFACT
     elif flet_storage:
         target = Path(flet_storage).expanduser().resolve() / "logs"
     else:

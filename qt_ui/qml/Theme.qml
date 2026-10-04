@@ -34,9 +34,9 @@ QtObject {
     // Use the actual installed variable family name. The former Text/Display
     // aliases are not exposed as separate families on many systems, so Qt
     // silently fell back to a plainer default face.
-    readonly property string displayFont: "Segoe UI Variable"
-    readonly property string uiFont: "Segoe UI Variable"
-    readonly property string controlFont: "Segoe UI Variable"
+    readonly property string displayFont: Qt.platform.os === "osx" ? "Helvetica Neue" : "Segoe UI Variable"
+    readonly property string uiFont: Qt.platform.os === "osx" ? "Helvetica Neue" : "Segoe UI Variable"
+    readonly property string controlFont: Qt.platform.os === "osx" ? "Helvetica Neue" : "Segoe UI Variable"
     readonly property string monoFont: "Cascadia Code"
     function setMode(name) {
         var n = String(name || "midnight").toLowerCase()

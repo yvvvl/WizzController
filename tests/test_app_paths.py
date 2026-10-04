@@ -71,6 +71,20 @@ def test_windows_frozen_build_uses_local_appdata(monkeypatch, tmp_path):
     assert (target / "config.json").exists()
 
 
+def test_macos_frozen_build_uses_application_support_and_logs(monkeypatch, tmp_path):
+    monkeypatch.delenv("WIZZ_CONFIG_DIR", raising=False)
+    monkeypatch.delenv("FLET_APP_STORAGE_DATA", raising=False)
+    monkeypatch.setattr(paths.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(paths.sys, "platform", "darwin")
+    monkeypatch.setattr(paths.Path, "home", staticmethod(lambda: tmp_path))
+    _reset_paths()
+
+    assert paths.config_dir() == (
+        tmp_path / "Library" / "Application Support" / paths.APP_ARTIFACT / "config"
+    ).resolve()
+    assert paths.logs_dir() == (tmp_path / "Library" / "Logs" / paths.APP_ARTIFACT).resolve()
+
+
 def test_migration_fills_missing_files_without_overwriting_new_data(monkeypatch, tmp_path):
     """A newly created runtime file must not prevent bulb migration."""
     legacy = tmp_path / "legacy"

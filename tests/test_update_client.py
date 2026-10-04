@@ -62,3 +62,23 @@ def test_release_client_selects_linux_asset_for_host_architecture(monkeypatch):
     assert release is not None
     assert release.download_url == "https://example.test/x64.tar.gz"
     assert release.checksum_url == "https://example.test/x64.sha256"
+
+
+def test_release_client_selects_macos_bundle_instead_of_windows(monkeypatch):
+    payload = [{
+        "tag_name": "v1.5.0",
+        "prerelease": False,
+        "assets": [
+            {"name": "WizZDesktop-v1.5.0-windows-x64.zip", "browser_download_url": "https://example.test/windows.zip"},
+            {"name": "WizZDesktop-v1.5.0-macos-arm64.zip", "browser_download_url": "https://example.test/macos.zip"},
+            {"name": "WizZDesktop-v1.5.0-macos-arm64.zip.sha256", "browser_download_url": "https://example.test/macos.sha256"},
+        ],
+    }]
+    monkeypatch.setattr("core.update_client.sys.platform", "darwin")
+    monkeypatch.setattr("core.update_client.urlopen", lambda *args, **kwargs: _Response(payload))
+
+    release = ReleaseClient().latest()
+
+    assert release is not None
+    assert release.download_url == "https://example.test/macos.zip"
+    assert release.checksum_url == "https://example.test/macos.sha256"
