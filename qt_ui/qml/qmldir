@@ -1,5 +1,6 @@
 module Wizz
 singleton Theme 1.0 Theme.qml
+AppIcon 1.0 AppIcon.qml
 PressSurface 1.0 PressSurface.qml
 NavButton 1.0 NavButton.qml
 LightCard 1.0 LightCard.qml

@@ -16,11 +16,10 @@ PressSurface {
         y: 8
         width: 30; height: 30; radius: 10
         color: Qt.rgba(root.actionColor.r, root.actionColor.g, root.actionColor.b, 0.15)
-        Text {
+        AppIcon {
             anchors.centerIn: parent
-            text: root.glyph
-            font.family: Theme.iconFont
-            font.pixelSize: 16
+            width: 18; height: 18
+            glyph: root.glyph
             color: root.actionColor
         }
     }

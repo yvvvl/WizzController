@@ -39,6 +39,8 @@ class AppRuntimeManager:
         "reduced_motion": False,
         "live_brand_accent": True,
         "quick_panel_placement": "bottom-right",
+        "quick_panel_x": None,
+        "quick_panel_y": None,
         # These actions are shared by Inicio and the quick panel. Keeping
         # their identifiers here makes the selection survive app restarts.
         "quick_actions": ["warm", "reading", "cool", "relax", "party", "off"],

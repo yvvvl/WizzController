@@ -1,4 +1,4 @@
-name: Publish Qt Windows
+name: Publish Qt release
 
 on:
   workflow_dispatch:
@@ -39,13 +39,6 @@ jobs:
             requirements.txt
             requirements-dev.txt
             requirements-build.txt
-
-      - name: Read application version
-        id: version
-        shell: pwsh
-        run: |
-          $version = python -c "from app_meta import APP_VERSION; print(APP_VERSION)"
-          "version=$version" >> $env:GITHUB_OUTPUT
 
       - name: Enable Windows developer mode when available
         shell: pwsh
@@ -102,15 +95,123 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publicar GitHub Release
+  build-linux:
+    if: github.event.repository.private == false && !contains(github.ref_name, 'beta')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            architecture: x64
+          - runner: ubuntu-24.04-arm
+            architecture: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Linux desktop prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            binutils patchelf libdbus-1-3 libegl1 libfontconfig1 libgl1 \
+            libglib2.0-0 libnss3 libopengl0 libxkbcommon0 libxcb-cursor0 \
+            libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
+            libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1 \
+            libcairo2-dev libgirepository1.0-dev gir1.2-ayatanaappindicator3-0.1
+
+      - name: Install build and test dependencies
+        run: python -m pip install -r requirements-qt-linux.txt -r requirements-dev.txt -r requirements-build.txt
+
+      - name: Build and test Linux bundle
+        run: bash scripts/build_qt_linux.sh --clean --arch ${{ matrix.architecture }} --output dist/linux
+
+      - name: Verify per-user installer preserves separate config
+        shell: bash
+        run: |
+          set -euo pipefail
+          export XDG_DATA_HOME="$RUNNER_TEMP/wizz-xdg-data"
+          export XDG_CONFIG_HOME="$RUNNER_TEMP/wizz-xdg-config"
+          bundle="dist/linux/WizZDesktop"
+          mkdir -p "$XDG_CONFIG_HOME/WizZDesktop/config"
+          printf 'preserve-me\n' > "$XDG_CONFIG_HOME/WizZDesktop/config/sentinel.json"
+          bash "$bundle/install.sh"
+          test -x "$XDG_DATA_HOME/WizZDesktop/WizZDesktop"
+          test -f "$XDG_DATA_HOME/applications/io.github.yvvvl.wizz-controller.desktop"
+          test "$(cat "$XDG_CONFIG_HOME/WizZDesktop/config/sentinel.json")" = "preserve-me"
+          bash "$bundle/install.sh"
+          test "$(cat "$XDG_CONFIG_HOME/WizZDesktop/config/sentinel.json")" = "preserve-me"
+          bash "$XDG_DATA_HOME/WizZDesktop/uninstall.sh"
+          test ! -e "$XDG_DATA_HOME/WizZDesktop"
+          test ! -e "$XDG_DATA_HOME/applications/io.github.yvvvl.wizz-controller.desktop"
+          test "$(cat "$XDG_CONFIG_HOME/WizZDesktop/config/sentinel.json")" = "preserve-me"
+
+      - name: Upload Linux release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: WizZDesktop-linux-${{ matrix.architecture }}
+          path: |
+            dist/release/*.tar.gz
+            dist/release/*.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    if: github.event.repository.private == false && !contains(github.ref_name, 'beta')
+    needs: [build, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Read release version
+        id: version
+        run: echo "version=$(python -c 'from app_meta import APP_VERSION; print(APP_VERSION)')" >> "$GITHUB_OUTPUT"
+
+      - name: Download platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: WizZDesktop-*
+          path: dist/release
+          merge-multiple: true
+
+      - name: Prepare version changelog
+        run: |
+          mkdir -p dist/release
+          python - <<'PY'
+          from pathlib import Path
+          from app_meta import APP_VERSION
+
+          changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
+          heading = f"## v{APP_VERSION}"
+          start = changelog.find(heading)
+          if start < 0:
+              raise SystemExit(f"Missing {heading} in CHANGELOG.md")
+          next_heading = changelog.find("\n## ", start + len(heading))
+          entry = changelog[start:] if next_heading < 0 else changelog[start:next_heading]
+          Path("dist/release/CHANGELOG_ENTRY.md").write_text(entry.strip() + "\n", encoding="utf-8")
+          PY
+
+      - name: Publish GitHub Release with Windows and Linux downloads
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ format('v{0}', steps.version.outputs.version) }}
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', steps.version.outputs.version) }}
           target_commitish: ${{ github.sha }}
           name: ${{ format('WizZ Desktop v{0}', steps.version.outputs.version) }}
           prerelease: false
-          generate_release_notes: true
+          generate_release_notes: false
+          body_path: dist/release/CHANGELOG_ENTRY.md
           files: |
             dist/release/*.zip
-            dist/release/*.sha256
+            dist/release/*.zip.sha256
             dist/release/*-setup.exe
+            dist/release/*.tar.gz
+            dist/release/*.tar.gz.sha256

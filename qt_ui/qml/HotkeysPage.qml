@@ -95,7 +95,14 @@ Item {
                 border.width: 1; border.color: Theme.stroke
                 RowLayout {
                     anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 14; spacing: 9
-                    Rectangle { Layout.preferredWidth: 9; Layout.preferredHeight: 9; radius: 5; color: wizz.hotkeysEnabled && wizz.hotkeysAvailable ? Theme.success : Theme.warning }
+                    Item {
+                        Layout.preferredWidth: 16; Layout.preferredHeight: 16
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 11; height: 11; radius: 6
+                            color: wizz.hotkeysEnabled && wizz.hotkeysAvailable ? Theme.success : Theme.warning
+                        }
+                    }
                     Text { Layout.fillWidth: true; text: wizz.hotkeysStatus; color: Theme.muted; font.pixelSize: 11; elide: Text.ElideRight }
                 }
             }
@@ -112,7 +119,7 @@ Item {
                     Repeater {
                         model: [
                             { title: root.t("Atajos activos", "Hotkeys enabled"), help: root.t("Servicio global de la aplicación", "Global application service"), value: wizz.hotkeysEnabled, kind: "enabled" },
-                            { title: root.t("Capturar teclas", "Capture keys"), help: root.t("Bloquea la pulsación al grabar", "Blocks the key press while recording"), value: wizz.hotkeysSuppress, kind: "suppress" },
+                            { title: root.t("Bloquear combinación", "Suppress shortcut"), help: root.t("Evita que el atajo llegue a la app activa (si el backend lo admite)", "Keep the shortcut from reaching the active app (when supported by the backend)"), value: wizz.hotkeysSuppress, kind: "suppress" },
                             { title: root.t("Ejecutar al soltar", "Run on release"), help: root.t("Evita repeticiones accidentales", "Avoids accidental repeats"), value: wizz.hotkeysRelease, kind: "release" }
                         ]
                         delegate: Rectangle {
@@ -206,7 +213,7 @@ Item {
                         sectionRole: "group"
                         model: root.filteredActions(); textRole: "name"; valueRole: "id"
                         contentItem: Text { leftPadding: 13; text: actionBox.displayText; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: 12; elide: Text.ElideRight }
-                        indicator: Text { x: actionBox.width - width - 12; anchors.verticalCenter: parent.verticalCenter; text: "⌄"; color: Theme.muted; font.pixelSize: 18 }
+                        indicator: AppIcon { x: actionBox.width - width - 12; anchors.verticalCenter: parent.verticalCenter; width: 12; height: 12; name: "chevronDown"; color: Theme.muted }
                         background: Rectangle { color: Theme.cardHi; radius: 12; border.width: 1; border.color: actionBox.activeFocus ? Theme.primary : Theme.stroke }
                     }
                     TextField {
@@ -400,7 +407,7 @@ Item {
                             x: 11; anchors.verticalCenter: parent.verticalCenter
                             width: 32; height: 32; radius: 10
                             color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.16)
-                            Text { anchors.centerIn: parent; text: "⌨"; color: Theme.primary; font.pixelSize: 14 }
+                            AppIcon { anchors.centerIn: parent; width: 15; height: 15; name: "keyboard"; color: Theme.primary }
                         }
                         Column {
                             x: 56; anchors.verticalCenter: parent.verticalCenter; width: 190; spacing: 1
@@ -418,7 +425,7 @@ Item {
                             width: 30; height: 30; anchors.right: parent.right; anchors.rightMargin: 11; anchors.verticalCenter: parent.verticalCenter
                             radius: 15; color: "transparent"; accentColor: Theme.error
                             onClicked: wizz.clearHotkey(assignedCard.uid)
-                            Text { anchors.centerIn: parent; text: "×"; color: Theme.error; font.pixelSize: 18 }
+                            AppIcon { anchors.centerIn: parent; width: 13; height: 13; name: "close"; color: Theme.error }
                         }
                     }
                 }
@@ -438,7 +445,7 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 ColumnLayout { Layout.fillWidth: true; spacing: 2; Text { text: root.t("Exportar atajos", "Export shortcuts"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 21; font.weight: Font.Bold } Text { text: root.t("Copia este JSON para conservar tu configuración.", "Copy this JSON to keep your configuration."); color: Theme.muted; font.pixelSize: 11 } }
-                PressSurface { Layout.preferredWidth: 32; Layout.preferredHeight: 32; radius: 16; color: "transparent"; onClicked: exportDialog.close(); Text { anchors.centerIn: parent; text: "×"; color: Theme.muted; font.pixelSize: 22 } }
+                PressSurface { Layout.preferredWidth: 32; Layout.preferredHeight: 32; radius: 16; color: "transparent"; onClicked: exportDialog.close(); AppIcon { anchors.centerIn: parent; width: 14; height: 14; name: "close"; color: Theme.muted } }
             }
             TextArea {
                 Layout.fillWidth: true; Layout.fillHeight: true

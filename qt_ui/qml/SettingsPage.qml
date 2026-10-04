@@ -76,7 +76,7 @@ Item {
                 }
                 RowLayout {
                     Layout.fillWidth: true; spacing: 12
-                    Rectangle { Layout.preferredWidth: 42; Layout.preferredHeight: 42; radius: 13; color: Qt.rgba(Theme.warning.r, Theme.warning.g, Theme.warning.b, 0.16); Text { anchors.centerIn: parent; text: "◉"; color: Theme.warning; font.pixelSize: 18 } }
+                    Rectangle { Layout.preferredWidth: 42; Layout.preferredHeight: 42; radius: 13; color: Qt.rgba(Theme.warning.r, Theme.warning.g, Theme.warning.b, 0.16); AppIcon { anchors.centerIn: parent; width: 18; height: 18; name: "target"; color: Theme.warning } }
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 2
                         Text { text: wizz.targetLine; color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold }
@@ -115,7 +115,7 @@ Item {
                         contentItem: Text { leftPadding: 13; text: intervalBox.displayText; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: 11 }
                         background: Rectangle { color: Theme.bg; radius: 11; border.width: 1; border.color: intervalBox.activeFocus ? Theme.primary : Theme.stroke }
                     }
-                    PressSurface { Layout.preferredWidth: 112; Layout.preferredHeight: 38; radius: 19; color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.error; onClicked: wizz.cleanupOfflineLights(); Text { anchors.centerIn: parent; text: root.t("Limpiar desconectadas", "Remove offline"); color: Theme.text; font.pixelSize: 10; font.weight: Font.DemiBold } }
+                    PressSurface { Layout.preferredWidth: 128; Layout.preferredHeight: 38; radius: 19; color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.error; onClicked: wizz.cleanupOfflineLights(); Text { anchors.centerIn: parent; text: root.t("Limpiar desconectadas", "Remove offline"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.DemiBold } }
                 }
             }
         }
@@ -171,7 +171,7 @@ Item {
                                 anchors.fill: parent; anchors.margins: 12; spacing: 9
                                 Rectangle { Layout.preferredWidth: 24; Layout.preferredHeight: 24; radius: 8; color: themeCard.modelData.color; border.width: themeCard.modelData.name === "light" ? 1 : 0; border.color: Theme.stroke }
                                 Text { Layout.fillWidth: true; text: themeCard.modelData.label; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 11; font.weight: Font.Bold }
-                                Text { visible: themeCard.selected; text: "✓"; color: Theme.primary; font.pixelSize: 14; font.weight: Font.Bold }
+                                AppIcon { visible: themeCard.selected; Layout.preferredWidth: 13; Layout.preferredHeight: 13; name: "check"; color: Theme.primary }
                             }
                         }
                     }
@@ -233,10 +233,32 @@ Item {
                     Text { text: wizz.appProduct + " · " + wizz.appVersion; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 13; font.weight: Font.Bold }
                     Text { Layout.fillWidth: true; text: wizz.updateStatus; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; elide: Text.ElideRight }
                 }
-                ColumnLayout {
-                    spacing: 7
-                    PressSurface { Layout.preferredWidth: 142; Layout.preferredHeight: 32; radius: 16; color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.primary; enabled: !wizz.updateInProgress; onClicked: wizz.checkUpdates(); Text { anchors.centerIn: parent; text: wizz.updateInProgress ? (wizz.updateAvailable ? root.t("Preparando…", "Preparing…") : root.t("Buscando…", "Checking…")) : root.t("Buscar actualización", "Check for updates"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold } }
-                    PressSurface { Layout.preferredWidth: 142; Layout.preferredHeight: 32; radius: 16; visible: wizz.updateAvailable; color: Theme.primary; accentColor: Theme.primary; enabled: !wizz.updateInProgress; onClicked: { if (wizz.updateCanInstall) wizz.installUpdate(); else Qt.openUrlExternally(wizz.updateUrl) } Text { anchors.centerIn: parent; text: wizz.updateCanInstall ? root.t("Instalar y reiniciar", "Install and restart") : root.t("Abrir descarga", "Open download"); color: "white"; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold } }
+                RowLayout {
+                    spacing: 8
+                    PressSurface {
+                        Layout.preferredWidth: 142; Layout.preferredHeight: 34; radius: 17
+                        visible: !wizz.updatePreparing
+                        color: "transparent"; outlined: true; border.color: Theme.stroke
+                        accentColor: Theme.primary; enabled: !wizz.updateInProgress
+                        onClicked: wizz.checkUpdates()
+                        Text {
+                            anchors.centerIn: parent
+                            text: wizz.updateInProgress ? root.t("Buscando…", "Checking…") : root.t("Buscar actualización", "Check for updates")
+                            color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold
+                        }
+                    }
+                    PressSurface {
+                        Layout.preferredWidth: 142; Layout.preferredHeight: 34; radius: 17
+                        visible: wizz.updateAvailable || wizz.updatePreparing
+                        color: Theme.primary; accentColor: Theme.primary
+                        enabled: !wizz.updateInProgress
+                        onClicked: { if (wizz.updateCanInstall) wizz.installUpdate(); else Qt.openUrlExternally(wizz.updateUrl) }
+                        Text {
+                            anchors.centerIn: parent
+                            text: wizz.updatePreparing ? root.t("Preparando…", "Preparing…") : wizz.updateCanInstall ? root.t("Instalar y reiniciar", "Install and restart") : root.t("Abrir descarga", "Open download")
+                            color: "white"; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold
+                        }
+                    }
                 }
             }
         }
@@ -271,7 +293,7 @@ Item {
                     onClicked: wizz.toggleLight(address)
                     RowLayout {
                         anchors.fill: parent; anchors.margins: 14; spacing: 12
-                        Rectangle { Layout.preferredWidth: 44; Layout.preferredHeight: 44; radius: 14; color: Qt.rgba(deviceCard.accentColor.r, deviceCard.accentColor.g, deviceCard.accentColor.b, 0.16); Text { anchors.centerIn: parent; text: "●"; color: deviceCard.accentColor; font.pixelSize: 17 } }
+                        Rectangle { Layout.preferredWidth: 44; Layout.preferredHeight: 44; radius: 14; color: Qt.rgba(deviceCard.accentColor.r, deviceCard.accentColor.g, deviceCard.accentColor.b, 0.16); AppIcon { anchors.centerIn: parent; width: 17; height: 17; name: "bulb"; color: deviceCard.accentColor } }
                         ColumnLayout {
                             Layout.fillWidth: true; spacing: 2
                             Text { Layout.fillWidth: true; text: deviceCard.displayName; color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold; elide: Text.ElideRight }
@@ -284,16 +306,16 @@ Item {
                             color: deviceCard.address === wizz.activeLightIp ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.18) : "transparent"
                             accentColor: Theme.primary
                             onClicked: wizz.setActiveLight(deviceCard.address)
-                            Text { anchors.centerIn: parent; text: "◎"; color: Theme.primary; font.pixelSize: 17 }
+                            AppIcon { anchors.centerIn: parent; width: 16; height: 16; name: "target"; color: Theme.primary }
                         }
                         PressSurface {
                             Layout.preferredWidth: 34; Layout.preferredHeight: 34; radius: 17
                             color: "transparent"; accentColor: Theme.primary
                             onClicked: root.openInfo(deviceCard.address)
-                            Text { anchors.centerIn: parent; text: "i"; color: Theme.muted; font.family: Theme.displayFont; font.pixelSize: 16; font.weight: Font.Bold }
+                            AppIcon { anchors.centerIn: parent; width: 15; height: 15; name: "info"; color: Theme.muted }
                         }
-                        PressSurface { Layout.preferredWidth: 34; Layout.preferredHeight: 34; radius: 17; color: "transparent"; border.width: 0; onClicked: root.openRename(deviceCard.address, deviceCard.displayName); Text { anchors.centerIn: parent; text: "✎"; color: Theme.primary; font.pixelSize: 15 } }
-                        PressSurface { Layout.preferredWidth: 34; Layout.preferredHeight: 34; radius: 17; color: "transparent"; border.width: 0; accentColor: Theme.error; onClicked: { root.deletingIp = deviceCard.address; root.deletingName = deviceCard.displayName; deleteDialog.open() } Text { anchors.centerIn: parent; text: "×"; color: Theme.error; font.pixelSize: 20 } }
+                        PressSurface { Layout.preferredWidth: 34; Layout.preferredHeight: 34; radius: 17; color: "transparent"; border.width: 0; onClicked: root.openRename(deviceCard.address, deviceCard.displayName); AppIcon { anchors.centerIn: parent; width: 14; height: 14; name: "edit"; color: Theme.primary } }
+                        PressSurface { Layout.preferredWidth: 34; Layout.preferredHeight: 34; radius: 17; color: "transparent"; border.width: 0; accentColor: Theme.error; onClicked: { root.deletingIp = deviceCard.address; root.deletingName = deviceCard.displayName; deleteDialog.open() } AppIcon { anchors.centerIn: parent; width: 13; height: 13; name: "close"; color: Theme.error } }
                     }
                 }
             }
@@ -311,7 +333,7 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 ColumnLayout { Layout.fillWidth: true; spacing: 2; Text { text: root.selectedInfo.name || root.t("Ampolleta WiZ", "WiZ light"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 21; font.weight: Font.Bold } Text { text: root.t("Información del dispositivo", "Device information"); color: Theme.muted; font.pixelSize: 11 } }
-                PressSurface { Layout.preferredWidth: 32; Layout.preferredHeight: 32; radius: 16; color: "transparent"; onClicked: infoDialog.close(); Text { anchors.centerIn: parent; text: "×"; color: Theme.muted; font.pixelSize: 22 } }
+                PressSurface { Layout.preferredWidth: 32; Layout.preferredHeight: 32; radius: 16; color: "transparent"; onClicked: infoDialog.close(); AppIcon { anchors.centerIn: parent; width: 14; height: 14; name: "close"; color: Theme.muted } }
             }
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.stroke }
             GridLayout {

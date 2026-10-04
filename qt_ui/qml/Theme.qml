@@ -27,8 +27,10 @@ QtObject {
     // Shared motion preference.  Pages and controls consume these tokens so
     // the accessibility setting behaves consistently across the shell.
     property bool reduceMotion: false
-    property int motionFast: reduceMotion ? 0 : 220
-    property int motionNormal: reduceMotion ? 0 : 360
+    property int motionPress: reduceMotion ? 0 : 95
+    property int motionFast: reduceMotion ? 0 : 180
+    property int motionNormal: reduceMotion ? 0 : 280
+    property int motionPage: reduceMotion ? 0 : 240
     // Windows 11 variable faces give controls a calmer, more deliberate
     // rhythm while preserving a safe Segoe fallback on older systems.
     readonly property string displayFont: "Segoe UI Variable Display"
@@ -37,10 +39,6 @@ QtObject {
     // from looking faint against filled buttons and dark surfaces.
     readonly property string controlFont: "Segoe UI Semibold"
     readonly property string monoFont: "Cascadia Mono"
-    // Fluent Icons is not installed on every supported Windows build. MDL2
-    // ships with Windows 10/11 and provides the compatible fallback glyphs.
-    readonly property string iconFont: "Segoe MDL2 Assets"
-
     function setMode(name) {
         var n = String(name || "midnight").toLowerCase()
         mode = n

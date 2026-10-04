@@ -102,3 +102,22 @@ def test_duplicate_rescan_is_rejected_instead_of_queued(monkeypatch, tmp_path):
         assert controller.get_scan_status()["running"] is False
     finally:
         _close(controller)
+
+
+def test_individual_brightness_does_not_change_the_target_selection(monkeypatch, tmp_path):
+    controller = _controller(monkeypatch, tmp_path)
+    try:
+        other_ip = "192.168.1.45"
+        controller.bulb_ips.update({IP, other_ip})
+        controller._selected_ips = {IP, other_ip}
+        controller._target_mode = "selected"
+        before = controller.get_target_config()
+
+        assert controller.set_brightness_for(other_ip, 43) is True
+        assert controller._individual_brightness_pending == {other_ip: 43}
+        after = controller.get_target_config()
+        assert after["mode"] == before["mode"]
+        assert after["selected_ips"] == before["selected_ips"]
+        assert controller.set_brightness_for("not-an-ip", 50) is False
+    finally:
+        _close(controller)

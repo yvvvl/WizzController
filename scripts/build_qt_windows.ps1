@@ -23,7 +23,16 @@ $ResolvedOutput = if ([System.IO.Path]::IsPathRooted($OutputDir)) { [System.IO.P
 $BuildWork = Join-Path $Root "build\pyinstaller"
 
 if (-not $SkipInstall) {
-    & $Python -m pip install -r requirements.txt -r requirements-dev.txt -r requirements-build.txt
+    $Uv = Get-Command uv -ErrorAction SilentlyContinue
+    if ($Uv) {
+        # uv can install directly into a venv created without pip.
+        & $Uv.Source pip install --python $Python -r requirements.txt -r requirements-dev.txt -r requirements-build.txt
+    } else {
+        # Keep compatibility with standard venvs on machines without uv.
+        & $Python -m ensurepip --upgrade
+        if ($LASTEXITCODE -ne 0) { throw "Could not bootstrap pip in the build environment." }
+        & $Python -m pip install -r requirements.txt -r requirements-dev.txt -r requirements-build.txt
+    }
     if ($LASTEXITCODE -ne 0) { throw "Dependency installation failed." }
 }
 if (-not $SkipTests) {

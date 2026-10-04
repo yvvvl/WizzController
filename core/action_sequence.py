@@ -57,12 +57,23 @@ class ActionSequenceExecutor:
             return str(obj.get("name") or obj.get("title") or "Rutina")
         return "Rutina"
 
-    def _execute_safe(self, actions: list[dict[str, Any]], name: str) -> str:
+    def _execute_safe(self, actions: list[dict[str, Any]], name: str, force_ordered: bool = False) -> str:
         # Phase 39: cola ligera. Evita que dos rutinas se mezclen si entran
         # por hotkey/UI casi al mismo tiempo. No bloquea la UI porque esto
         # normalmente corre en thread daemon.
         with _SEQUENCE_LOCK:
             labels: list[str] = []
+            ordered = force_ordered or any(
+                (
+                    (isinstance(action.get("target"), list) and bool(action.get("target")))
+                    or (isinstance(action.get("target"), str) and bool(action.get("target").strip()))
+                )
+                and str(action.get("type") or action.get("kind") or "") in {
+                    "turn_on", "turn_off", "toggle", "brightness", "brightness_delta",
+                    "rgb", "white_kelvin", "white_percent", "scene",
+                }
+                for action in actions
+            )
             try:
                 for action in actions:
                     # Una condición es una compuerta: si no se cumple, no se
@@ -75,13 +86,13 @@ class ActionSequenceExecutor:
                             labels.append("Detenida por condición")
                             break
                         continue
-                    labels.append(self.execute_action(action))
+                    labels.append(self.execute_action(action, preserve_order=ordered))
             except Exception as exc:
                 _LOG.warning("Rutina %s falló: %s", name, exc, exc_info=True)
                 raise
             return " + ".join([x for x in labels if x]) or name
 
-    def execute_action(self, action: dict[str, Any]) -> str:
+    def execute_action(self, action: dict[str, Any], *, preserve_order: bool = False) -> str:
         kind = str(action.get("type") or action.get("kind") or "").strip()
         value = action.get("value")
 
@@ -104,6 +115,25 @@ class ActionSequenceExecutor:
                 method()
                 return str(action.get("name") or method_name)
             raise RuntimeError(f"Método no disponible: {method_name}")
+
+        raw_target = action.get("target")
+        target = (
+            [str(item).strip() for item in raw_target if isinstance(item, str) and item.strip()]
+            if isinstance(raw_target, list)
+            else str(raw_target or "").strip()
+        )
+        if (target or preserve_order) and kind in {
+            "turn_on", "turn_off", "toggle", "brightness", "brightness_delta",
+            "rgb", "white_kelvin", "white_percent", "scene",
+        }:
+            apply_targeted = getattr(self.wiz, "apply_targeted_action", None)
+            if not callable(apply_targeted):
+                raise RuntimeError("Este controlador no admite pasos dirigidos a una ampolleta")
+            destination = target or "current"
+            if not apply_targeted(action, destination):
+                return f"Destino no disponible: {destination}"
+            target_label = f"{len(destination)} lights" if isinstance(destination, list) else destination
+            return f"{kind} ({target_label})"
 
         if kind == "turn_on":
             self.wiz.turn_on()
@@ -180,7 +210,7 @@ class ActionSequenceExecutor:
             stack.append(uid)
             self._routine_stack.ids = stack
             try:
-                return self._execute_safe(self._extract_actions(routine), str(routine.get("name") or "Rutina"))
+                return self._execute_safe(self._extract_actions(routine), str(routine.get("name") or "Rutina"), force_ordered=preserve_order)
             finally:
                 try:
                     stack.pop()

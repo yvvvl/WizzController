@@ -5,6 +5,10 @@ import QtQuick.Layouts
 
 Window {
     id: panel
+    // This popup is opened directly from the system tray while the main
+    // window may be hidden. A nested Window otherwise inherits the main
+    // window as transientParent and the window manager keeps it hidden.
+    transientParent: null
     width: 368
     height: 480
     minimumWidth: 368
@@ -16,6 +20,17 @@ Window {
     flags: Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
     title: "WizZ Quick Panel"
     property var ownerWindow: null
+    property bool savePositionAfterDrag: false
+
+    Timer {
+        id: deactivateHideTimer
+        interval: 400
+        repeat: false
+        onTriggered: {
+            if (!panel.active && panel.visible && !panel.savePositionAfterDrag)
+                panel.hide()
+        }
+    }
 
     function selectedQuickActionKeys() {
         const selected = []
@@ -50,19 +65,73 @@ Window {
         lightCarousel.contentX = Math.min(page * lightCarousel.width, maximum)
     }
 
+    function finishDrag() {
+        const area = wizz.quickPanelAvailableArea()
+        const margin = 8
+        const snapDistance = 32
+        const minX = area.x + margin
+        const minY = area.y + margin
+        const maxX = Math.max(minX, area.x + area.width - width - margin)
+        const maxY = Math.max(minY, area.y + area.height - height - margin)
+        let nextX = Math.max(minX, Math.min(maxX, panel.x))
+        let nextY = Math.max(minY, Math.min(maxY, panel.y))
+
+        const distances = [
+            { edge: "left", distance: Math.abs(nextX - minX) },
+            { edge: "right", distance: Math.abs(maxX - nextX) },
+            { edge: "top", distance: Math.abs(nextY - minY) },
+            { edge: "bottom", distance: Math.abs(maxY - nextY) }
+        ]
+        let closest = distances[0]
+        for (let index = 1; index < distances.length; ++index) {
+            if (distances[index].distance < closest.distance)
+                closest = distances[index]
+        }
+        if (closest.distance <= snapDistance) {
+            if (closest.edge === "left") nextX = minX
+            else if (closest.edge === "right") nextX = maxX
+            else if (closest.edge === "top") nextY = minY
+            else nextY = maxY
+        }
+
+        panel.x = nextX
+        panel.y = nextY
+        if (wizz.quickPanelCanRememberPosition)
+            wizz.saveQuickPanelPosition(Math.round(nextX), Math.round(nextY))
+    }
+
     function reveal() {
-        // QScreen's available area is the exact safe area beside the Windows
-        // taskbar (even when the taskbar lives on another edge or monitor).
+        // Use the native tray icon to identify the monitor and dock edge when
+        // the desktop exposes it. QScreen's available area keeps the panel
+        // beside the taskbar/dock and inside the work area.
         const area = wizz.quickPanelAvailableArea()
         const areaX = area.x
         const areaY = area.y
         const areaWidth = area.width
         const areaHeight = area.height
         const placement = wizz.quickPanelPlacement
-        x = (placement === "bottom-left" || placement === "top-left")
-          ? areaX + 8 : areaX + areaWidth - width - 8
-        y = (placement === "top-left" || placement === "top-right")
-          ? areaY + 8 : areaY + areaHeight - height
+        const maxX = areaX + Math.max(0, areaWidth - width)
+        const maxY = areaY + Math.max(0, areaHeight - height)
+        const savedPosition = wizz.quickPanelSavedPosition()
+        if (wizz.quickPanelCanRememberPosition && savedPosition.valid) {
+            x = Math.max(areaX + 8, Math.min(maxX - 8, savedPosition.x))
+            y = Math.max(areaY + 8, Math.min(maxY - 8, savedPosition.y))
+        } else if (area.edge === "top" || area.edge === "bottom") {
+            const anchorX = area.tray_x + area.tray_width / 2
+            x = Math.max(areaX + 8, Math.min(maxX - 8, anchorX - width / 2))
+            y = area.edge === "top" ? areaY + 8 : maxY - 8
+        } else if (area.edge === "left" || area.edge === "right") {
+            const anchorY = area.tray_y + area.tray_height / 2
+            x = area.edge === "left" ? areaX + 8 : maxX - 8
+            y = Math.max(areaY + 8, Math.min(maxY - 8, anchorY - height / 2))
+        } else {
+            // Fallback for desktops (such as Wayland sessions) that don't
+            // provide tray icon coordinates to Qt.
+            x = (placement === "bottom-left" || placement === "top-left")
+              ? areaX + 8 : maxX - 8
+            y = (placement === "top-left" || placement === "top-right")
+              ? areaY + 8 : maxY - 8
+        }
         panelShell.opacity = 0
         panelShell.scale = 0.965
         show()
@@ -70,9 +139,32 @@ Window {
         Qt.callLater(function() { panelShell.opacity = 1; panelShell.scale = 1 })
     }
 
+    function showMainApp() {
+        placementPopup.close()
+        panel.hide()
+        if (ownerWindow) {
+            ownerWindow.showNormal()
+            ownerWindow.raise()
+            ownerWindow.requestActivate()
+        }
+    }
+
+    function quitApp() {
+        placementPopup.close()
+        panel.hide()
+        wizz.quitApplication()
+    }
+
     // A quick panel should behave like a menu, not a second application
     // window.  Clicking elsewhere hands focus back and dismisses it.
-    onActiveChanged: if (!active && visible) hide()
+    onActiveChanged: {
+        // Allow the pointer press to cross DragHandler's drag threshold before
+        // dismissing on focus loss. System moves can also deactivate the window.
+        if (active)
+            deactivateHideTimer.stop()
+        else if (visible)
+            deactivateHideTimer.restart()
+    }
 
     Rectangle {
         id: panelShell
@@ -82,7 +174,7 @@ Window {
         border.width: 1
         border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.38)
         Behavior on opacity { NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic } }
-        Behavior on scale { NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutBack } }
+        Behavior on scale { NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic } }
 
         ColumnLayout {
             anchors.fill: parent
@@ -95,25 +187,70 @@ Window {
                 Rectangle {
                     Layout.preferredWidth: 38; Layout.preferredHeight: 38; radius: 13
                     color: Theme.primary
-                    Text { anchors.centerIn: parent; text: "\uEA80"; font.family: Theme.iconFont; font.pixelSize: 19; color: "white" }
+                    AppIcon { anchors.centerIn: parent; width: 20; height: 20; name: "bulb"; color: "white" }
                 }
                 ColumnLayout {
                     spacing: 1
                     Text { text: wizz.language === "en" ? "Quick control" : "Control rápido"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 18; font.weight: Font.DemiBold }
                     Text { text: wizz.language === "en" ? wizz.selectedCount + " lights selected" : wizz.selectedCount + " luces seleccionadas"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11 }
                 }
+                Item {
+                    id: dragHandle
+                    Layout.preferredWidth: 22; Layout.preferredHeight: 34
+                    ToolTip.visible: dragHover.hovered
+                    ToolTip.delay: 650
+                    ToolTip.text: wizz.language === "en" ? "Drag to move" : "Arrastra para mover"
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 3
+                        Repeater {
+                            model: 3
+                            delegate: Row {
+                                required property int index
+                                spacing: 3
+                                Repeater {
+                                    model: 2
+                                    delegate: Rectangle {
+                                        width: 3; height: 3; radius: 2
+                                        color: dragHover.hovered ? Theme.text : Theme.faint
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    HoverHandler { id: dragHover }
+                    DragHandler {
+                        target: null
+                        acceptedButtons: Qt.LeftButton
+                        onActiveChanged: {
+                            if (active) {
+                                deactivateHideTimer.stop()
+                                panel.savePositionAfterDrag = true
+                                panel.startSystemMove()
+                            } else if (panel.savePositionAfterDrag) {
+                                panel.savePositionAfterDrag = false
+                                panel.finishDrag()
+                                // Native system moves can make the panel lose
+                                // activation; restart dismissal once dragging
+                                // ends instead of leaving it stuck open.
+                                if (!panel.active)
+                                    deactivateHideTimer.restart()
+                            }
+                        }
+                    }
+                }
                 Item { Layout.fillWidth: true }
                 PressSurface {
                     Layout.preferredWidth: 28; Layout.preferredHeight: 28; radius: 14
                     color: "transparent"; accentColor: Theme.primary
                     onClicked: placementPopup.open()
-                    Text { anchors.centerIn: parent; text: "\uE713"; color: Theme.muted; font.family: Theme.iconFont; font.pixelSize: 16 }
+                    AppIcon { anchors.centerIn: parent; width: 15; height: 15; name: "settings"; color: Theme.muted }
                 }
                 PressSurface {
                     Layout.preferredWidth: 28; Layout.preferredHeight: 28; radius: 14
                     color: "transparent"; accentColor: Theme.error
                     onClicked: panel.hide()
-                    Text { anchors.centerIn: parent; text: "\uE711"; color: Theme.muted; font.family: Theme.iconFont; font.pixelSize: 15 }
+                    AppIcon { anchors.centerIn: parent; width: 13; height: 13; name: "close"; color: Theme.muted }
                 }
             }
 
@@ -151,7 +288,7 @@ Window {
                             color: Qt.rgba(lightColor.r, lightColor.g, lightColor.b, isOnline ? 0.22 : 0.10)
                             border.width: isSelected ? 1 : 0
                             border.color: lightColor
-                            Text { anchors.centerIn: parent; text: "\uEA80"; color: lightColor; font.family: Theme.iconFont; font.pixelSize: 13 }
+                            AppIcon { anchors.centerIn: parent; width: 13; height: 13; name: "bulb"; color: lightColor }
                         }
                         Text {
                             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
@@ -191,7 +328,7 @@ Window {
                     Rectangle {
                         Layout.preferredWidth: 38; Layout.preferredHeight: 38; radius: 12
                         color: wizz.powerOn ? Theme.primary : Theme.cardHi
-                        Text { anchors.centerIn: parent; text: "\uE7E8"; color: Theme.text; font.family: Theme.iconFont; font.pixelSize: 23 }
+                        AppIcon { anchors.centerIn: parent; width: 22; height: 22; name: "power"; color: Theme.text }
                     }
                     ColumnLayout {
                         spacing: 2
@@ -199,7 +336,7 @@ Window {
                         Text { text: wizz.powerOn ? (wizz.language === "en" ? "ON" : "ENCENDIDO") : (wizz.language === "en" ? "OFF" : "APAGADO"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 15; font.weight: Font.Bold }
                     }
                     Item { Layout.fillWidth: true }
-                    Text { text: "\uE72A"; color: Theme.accent; font.family: Theme.iconFont; font.pixelSize: 18 }
+                    AppIcon { Layout.preferredWidth: 18; Layout.preferredHeight: 18; name: "arrowRight"; color: Theme.accent }
                 }
             }
 
@@ -227,7 +364,7 @@ Window {
                             x: brightnessSlider.leftPadding
                             y: brightnessSlider.topPadding + brightnessSlider.availableHeight / 2 - height / 2
                             width: brightnessSlider.availableWidth; height: 5; radius: 3; color: Theme.stroke
-                            Rectangle { width: brightnessSlider.visualPosition * parent.width; height: parent.height; radius: parent.radius; color: Theme.accent }
+                            Rectangle { width: brightnessSlider.visualPosition * parent.width; height: parent.height; radius: parent.radius; color: Theme.primary }
                         }
                         handle: Rectangle {
                             x: brightnessSlider.leftPadding + brightnessSlider.visualPosition * (brightnessSlider.availableWidth - width)
@@ -283,6 +420,16 @@ Window {
                 onClicked: { placementPopup.close(); quickActionsPopup.open() }
                 Text { anchors.centerIn: parent; text: wizz.language === "en" ? "Edit quick actions" : "Editar accesos rápidos"; color: Theme.primary; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
             }
+            PressSurface {
+                width: parent.width; height: 36; radius: 9; accentColor: Theme.primary
+                onClicked: panel.showMainApp()
+                Text { anchors.centerIn: parent; text: wizz.language === "en" ? "Open WizZ Desktop" : "Abrir WizZ Desktop"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.DemiBold }
+            }
+            PressSurface {
+                width: parent.width; height: 36; radius: 9; accentColor: Theme.error
+                onClicked: panel.quitApp()
+                Text { anchors.centerIn: parent; text: wizz.language === "en" ? "Quit WizZ Desktop" : "Salir de WizZ Desktop"; color: Theme.error; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.DemiBold }
+            }
         }
     }
 
@@ -307,7 +454,7 @@ Window {
                         onClicked: panel.toggleQuickAction(modelData.key)
                         Row {
                             anchors.centerIn: parent; spacing: 6
-                            Text { text: modelData.glyph; color: modelData.color; font.family: Theme.iconFont; font.pixelSize: 14 }
+                            AppIcon { width: 14; height: 14; glyph: modelData.glyph; color: modelData.color }
                             Text { text: modelData.title; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.DemiBold }
                         }
                     }

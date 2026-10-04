@@ -142,17 +142,14 @@ Item {
         }
 
         RowLayout {
-            Layout.fillWidth: true; spacing: 12
+            Layout.fillWidth: true; spacing: 10
             PressSurface {
-                Layout.preferredWidth: 38; Layout.preferredHeight: 38; radius: 19
+                Layout.preferredWidth: 132; Layout.preferredHeight: 36; radius: 18
                 color: wizz.currentFavoriteSaved && wizz.colorMode === "rgb" ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.20) : Theme.cardHi
                 accentColor: Theme.primary
+                outlined: true
                 onClicked: wizz.saveCurrentFavorite()
-                Text { anchors.centerIn: parent; text: wizz.currentFavoriteSaved && wizz.colorMode === "rgb" ? "♥" : "♡"; color: Theme.primary; font.pixelSize: 21 }
-            }
-            Repeater {
-                model: ["#6120f5", "#ff5f82"]
-                delegate: PressSurface { required property string modelData; Layout.preferredWidth: 38; Layout.preferredHeight: 38; radius: 19; color: modelData; accentColor: modelData; border.width: 0; onClicked: root.sendHex(modelData) }
+                Row { anchors.centerIn: parent; spacing: 7; AppIcon { anchors.verticalCenter: parent.verticalCenter; width: 15; height: 15; name: "heart"; color: Theme.primary; filled: wizz.currentFavoriteSaved && wizz.colorMode === "rgb" } Text { text: wizz.currentFavoriteSaved && wizz.colorMode === "rgb" ? (wizz.language === "en" ? "Saved" : "Guardado") : (wizz.language === "en" ? "Save favorite" : "Guardar favorito"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.DemiBold } }
             }
             Rectangle {
                 Layout.preferredWidth: 88; Layout.preferredHeight: 30; radius: 15
@@ -177,15 +174,27 @@ Item {
             MouseArea { anchors.fill: parent; preventStealing: true; onPressed: (mouse) => updateWhite(mouse.x); onPositionChanged: (mouse) => { if (pressed) updateWhite(mouse.x) }; onReleased: { root.flushPreview(); wizz.commitWhite(root.kelvin) } function updateWhite(px) { root.kelvin = Math.round(2200 + Math.max(0,Math.min(1,px/width))*4300); root.whiteDirty = true; root.schedulePreview() } }
         }
         RowLayout {
-            Layout.fillWidth: true; spacing: 12
+            Layout.fillWidth: true; spacing: 8
             PressSurface {
-                Layout.preferredWidth: 38; Layout.preferredHeight: 38; radius: 19
+                Layout.preferredWidth: 132; Layout.preferredHeight: 36; radius: 18
                 color: wizz.currentFavoriteSaved && wizz.colorMode === "white" ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.20) : Theme.cardHi
                 accentColor: Theme.primary
+                outlined: true
                 onClicked: wizz.saveCurrentFavorite()
-                Text { anchors.centerIn: parent; text: wizz.currentFavoriteSaved && wizz.colorMode === "white" ? "♥" : "♡"; color: Theme.primary; font.pixelSize: 21 }
+                Row { anchors.centerIn: parent; spacing: 7; AppIcon { anchors.verticalCenter: parent.verticalCenter; width: 15; height: 15; name: "heart"; color: Theme.primary; filled: wizz.currentFavoriteSaved && wizz.colorMode === "white" } Text { text: wizz.currentFavoriteSaved && wizz.colorMode === "white" ? (wizz.language === "en" ? "Saved" : "Guardado") : (wizz.language === "en" ? "Save favorite" : "Guardar favorito"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.DemiBold } }
             }
-            Repeater { model: [{c:"#edf8ff",k:6500},{c:"#ffe9b5",k:2700}]; delegate: PressSurface { required property var modelData; Layout.preferredWidth: 38; Layout.preferredHeight: 38; radius: 19; color: modelData.c; accentColor: modelData.c; border.width: 0; onClicked: { root.kelvin=modelData.k; wizz.setWhite(modelData.k); wizz.commitWhite(modelData.k) } } }
+            PressSurface {
+                Layout.preferredWidth: 116; Layout.preferredHeight: 36; radius: 18
+                color: Theme.cardHi; accentColor: Theme.warning; outlined: true
+                onClicked: { root.kelvin = 2700; wizz.setWhite(2700); wizz.commitWhite(2700) }
+                Row { anchors.centerIn: parent; spacing: 6; Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 11; height: 11; radius: 6; color: "#ffe0a5" } Text { text: wizz.language === "en" ? "Warm · 2700 K" : "Cálido · 2700 K"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 9; font.weight: Font.DemiBold } }
+            }
+            PressSurface {
+                Layout.preferredWidth: 116; Layout.preferredHeight: 36; radius: 18
+                color: Theme.cardHi; accentColor: Theme.primary; outlined: true
+                onClicked: { root.kelvin = 6500; wizz.setWhite(6500); wizz.commitWhite(6500) }
+                Row { anchors.centerIn: parent; spacing: 6; Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 11; height: 11; radius: 6; color: "#d8efff" } Text { text: wizz.language === "en" ? "Cool · 6500 K" : "Frío · 6500 K"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 9; font.weight: Font.DemiBold } }
+            }
             Rectangle {
                 Layout.preferredWidth: 88; Layout.preferredHeight: 30; radius: 15
                 color: Theme.cardHi; border.width: 1; border.color: Theme.stroke

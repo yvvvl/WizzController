@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 import sys
+import tempfile
+from ctypes.util import find_library
 from pathlib import Path
 
 from PySide6.QtCore import QMetaObject, QSize, QTimer, QUrl
@@ -12,6 +14,7 @@ from PySide6.QtWidgets import QApplication
 
 from app_meta import APP_ID, APP_NAME
 from config.app_runtime_manager import AppRuntimeManager
+from core.dev_virtual_lights import VirtualLightController, virtual_bulb_count_from_environment
 from core.light_controller import LightController
 from core.single_instance import SingleInstanceGuard
 from core.update_installer import update_is_applying
@@ -20,8 +23,66 @@ from qt_ui.runtime import QtDesktopRuntime, activate_existing_instance
 
 
 def create_controller() -> LightController:
-    """The official desktop shell always controls the user's real WiZ devices."""
+    """Use real WiZ devices unless source-run QA explicitly requests fakes."""
+    virtual_count = virtual_bulb_count_from_environment()
+    if virtual_count:
+        return VirtualLightController(virtual_count)
     return LightController()
+
+
+def _prefer_xcb_for_wayland() -> bool:
+    """Use XWayland on Linux so movable panels can be positioned after drag.
+
+    Qt's Wayland backend does not support setting a top-level window position;
+    the compositor owns that geometry. XWayland preserves native drag support
+    while allowing the Quick Panel to snap to and remember screen edges.
+    Respect explicit backend choices and stay on Wayland if XCB requirements
+    are missing, rather than preventing the app from starting.
+    """
+    if (
+        sys.platform != "linux"
+        or os.environ.get("QT_QPA_PLATFORM")
+        or not os.environ.get("WAYLAND_DISPLAY")
+        or not os.environ.get("DISPLAY")
+    ):
+        return False
+
+    required_libraries = {
+        "xcb-cursor": "libxcb-cursor0",
+        "xcb-icccm": "libxcb-icccm4",
+        "xcb-keysyms": "libxcb-keysyms1",
+    }
+    missing = [
+        package for library, package in required_libraries.items()
+        if find_library(library) is None
+    ]
+    if missing:
+        print(
+            "[QT] XWayland positioning unavailable; missing XCB libraries: "
+            + ", ".join(missing)
+            + ". Install the listed packages to enable Quick Panel edge snapping."
+        )
+        return False
+
+    os.environ["QT_QPA_PLATFORM"] = "xcb"
+    print("[QT] Using XWayland for reliable Quick Panel positioning and edge snapping.")
+    return True
+
+
+def _prepare_virtual_profile(virtual_count: int) -> None:
+    """Keep QA routines/settings out of the user's real app profile."""
+    if virtual_count:
+        os.environ["WIZZ_CONFIG_DIR"] = str(
+            Path(tempfile.gettempdir()) / "WizZDesktop-virtual-qt"
+        )
+
+
+def _prepare_virtual_runtime_settings(settings: AppRuntimeManager, virtual_count: int) -> None:
+    """Keep the simulated app visible and exercise its tray like the real app."""
+    if virtual_count:
+        # Earlier QA builds persisted tray_enabled=False in the isolated
+        # profile. Override that value so existing test installs recover too.
+        settings.update(tray_enabled=True, open_minimized=False)
 
 
 def _apply_qa_overrides(window, *, screenshot_path: str | None) -> tuple[bool, str | None]:
@@ -51,8 +112,6 @@ def _apply_qa_overrides(window, *, screenshot_path: str | None) -> tuple[bool, s
         except (TypeError, ValueError):
             print(f"[QT] Ignoring invalid preview page: {preview_page}")
     quick_panel = os.environ.get("WIZZ_QT_QUICK_PANEL") == "1"
-    if quick_panel:
-        QMetaObject.invokeMethod(window, "showQuickPanel")
     scroll_value = os.environ.get("WIZZ_QT_SCROLL_Y")
     if scroll_value:
         def apply_scroll() -> None:
@@ -99,12 +158,15 @@ def _schedule_screenshot(app, window, screenshot_path: str, quick_panel: bool) -
 
 def main() -> int:
     os.environ.setdefault("QT_QUICK_CONTROLS_STYLE", "Basic")
+    _prefer_xcb_for_wayland()
+    virtual_count = virtual_bulb_count_from_environment()
+    _prepare_virtual_profile(virtual_count)
     # Never let a manually reopened old copy lock the app files while the
     # detached helper is extracting and replacing an update.
     if update_is_applying():
         print("[QT] Update is still being applied; startup is temporarily deferred.")
         return 0
-    guard = SingleInstanceGuard(APP_ID)
+    guard = SingleInstanceGuard(f"{APP_ID}.virtual" if virtual_count else APP_ID)
     if not guard.acquire():
         activate_existing_instance(guard)
         return 0
@@ -122,7 +184,10 @@ def main() -> int:
     bridge: WizzBridge | None = None
     desktop_runtime: QtDesktopRuntime | None = None
     try:
-        print("[QT] Real WiZ LAN control enabled.")
+        if virtual_count:
+            print(f"[QT] Virtual-light QA mode: {virtual_count} simulated bulbs; no WiZ LAN traffic.")
+        else:
+            print("[QT] Real WiZ LAN control enabled.")
         controller.start()
         bridge = WizzBridge(controller)
         # Test captures can validate either language without changing the
@@ -142,13 +207,22 @@ def main() -> int:
             return 1
 
         window = engine.rootObjects()[0]
+        if virtual_count and not os.environ.get("WIZZ_QT_TITLE"):
+            window.setProperty("title", "WizZ Desktop — Virtual lights (test mode)")
         bridge.setMainWindow(window)
         quick_panel, screenshot_path = _apply_qa_overrides(window, screenshot_path=screenshot_path)
         window.show()
         window.raise_()
         window.requestActivate()
+        if quick_panel:
+            # The Quick Panel is a separate top-level window. Show it only
+            # after the owner window has a native handle; otherwise Qt may
+            # leave the panel hidden on some desktop backends.
+            QTimer.singleShot(200, lambda: QMetaObject.invokeMethod(window, "showQuickPanel"))
+        runtime_settings = AppRuntimeManager()
+        _prepare_virtual_runtime_settings(runtime_settings, virtual_count)
         desktop_runtime = QtDesktopRuntime(
-            app, window, bridge, AppRuntimeManager(), guard,
+            app, window, bridge, runtime_settings, guard,
             icon_path=root / "assets" / "tray_icon.png",
         )
         bridge.quitRequested.connect(desktop_runtime.quit_application)

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import platform as host_platform
+import sys
 from urllib.request import Request, urlopen
 from typing import Any
 
@@ -19,6 +21,17 @@ class ReleaseClient:
     def endpoint(self) -> str:
         return f"https://api.github.com/repos/{self.owner}/{self.repo}/releases"
 
+    @staticmethod
+    def current_platform_asset() -> str:
+        if not sys.platform.startswith("linux"):
+            return "windows"
+        machine = host_platform.machine().strip().lower()
+        if machine in {"aarch64", "arm64"}:
+            return "linux-arm64"
+        if machine in {"x86_64", "amd64"}:
+            return "linux-x64"
+        return f"linux-{machine}"
+
     def latest(self, *, channel: str = "stable") -> ReleaseInfo | None:
         request = Request(
             self.endpoint,
@@ -31,7 +44,11 @@ class ReleaseClient:
             payload: Any = json.loads(response.read().decode("utf-8"))
         if not isinstance(payload, list):
             return None
-        return select_latest_release(payload, channel=channel)
+        return select_latest_release(
+            payload,
+            channel=channel,
+            platform=self.current_platform_asset(),
+        )
 
 
 __all__ = ["ReleaseClient"]

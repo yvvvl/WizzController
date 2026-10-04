@@ -10,6 +10,7 @@ LightController v8 — sync externo preciso + verificación post-acción.
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 import ipaddress
 import logging
 import threading
@@ -124,6 +125,10 @@ class LightController:
         self._target: dict[str, Any] = {}
         self._mirror: dict[str, Any] = {"state": True, "dimming": 100}
         self._dirty = False
+        self._individual_brightness_lock = threading.Lock()
+        self._individual_brightness_pending: dict[str, int] = {}
+        self._targeted_action_lock = threading.Lock()
+        self._targeted_actions: deque[list[tuple[str, dict[str, Any]]]] = deque()
         self._callback = None
         self._last_control_log = 0.0
         self._last_callback_log = 0.0
@@ -608,12 +613,75 @@ class LightController:
     # ------------------------------------------------------------------ #
     async def _pump(self) -> None:
         while self.running:
+            targeted_batch: list[tuple[str, dict[str, Any]]] = []
+            if self.proto:
+                with self._targeted_action_lock:
+                    if self._targeted_actions:
+                        targeted_batch = self._targeted_actions.popleft()
+            if targeted_batch and self.proto:
+                sent: set[str] = set()
+                for ip, params in targeted_batch:
+                    if ip not in (self._reachable_targets() | self._saved_targets()):
+                        continue
+                    self.proto.send_pilot(ip, params)
+                    sent.add(ip)
+                if sent:
+                    now = time.monotonic()
+                    self._last_control_at = now
+                    self._sync_boost_until = max(self._sync_boost_until, now + 1.4)
+                    self._schedule_post_action_verify(sent)
+                    self._fire_callback(throttle=True)
+                await asyncio.sleep(self.MIN_INTERVAL)
+                continue
+            pending_brightness: dict[str, int] = {}
+            if self.proto:
+                with self._individual_brightness_lock:
+                    pending_brightness = self._individual_brightness_pending
+                    self._individual_brightness_pending = {}
+            if pending_brightness and self.proto:
+                sent: set[str] = set()
+                for ip, value in pending_brightness.items():
+                    if ip not in self.bulb_ips or self._is_removed_bulb(
+                        ip, self._device_mac(ip)
+                    ):
+                        continue
+                    params = {"dimming": value}
+                    self.proto.send_pilot(ip, params)
+                    info = self.bulbs.get(ip)
+                    if info is not None:
+                        state = info.setdefault("state", {})
+                        if isinstance(state, dict):
+                            state.update(params)
+                    sent.add(ip)
+                if sent:
+                    now = time.monotonic()
+                    self._sync_boost_until = max(self._sync_boost_until, now + 1.4)
+                    self._schedule_post_action_verify(sent)
+                    self._fire_callback(throttle=True)
+                    await asyncio.sleep(self.MIN_INTERVAL)
+                    continue
             if self._dirty and self.proto:
                 self._dirty = False
                 self._broadcast(dict(self._target))
                 await asyncio.sleep(self.MIN_INTERVAL)
             else:
                 await asyncio.sleep(0.01)
+
+    def set_brightness_for(self, ip: str, pct: int) -> bool:
+        """Queue brightness for exactly one known bulb, independent of targeting."""
+        target = str(ip or "").strip()
+        try:
+            ipaddress.ip_address(target)
+            value = max(10, min(100, int(pct)))
+        except (TypeError, ValueError):
+            return False
+        if target not in self.bulb_ips or self._is_removed_bulb(
+            target, self._device_mac(target)
+        ):
+            return False
+        with self._individual_brightness_lock:
+            self._individual_brightness_pending[target] = value
+        return True
 
     def _broadcast(self, params: dict[str, Any]) -> None:
         if not params or not self.proto:
@@ -1252,6 +1320,144 @@ class LightController:
     # ------------------------------------------------------------------ #
     # API pública de control
     # ------------------------------------------------------------------ #
+
+    def _routine_targets(self, target: str | list[str]) -> list[str]:
+        """Resolve a saved routine destination without changing UI selection."""
+        if isinstance(target, list):
+            resolved: set[str] = set()
+            for member in target:
+                if isinstance(member, str) and member.startswith(("mac:", "ip:")):
+                    resolved.update(self._routine_targets(member))
+            return sorted(resolved)
+        if not isinstance(target, str):
+            return []
+        if target.startswith("group:"):
+            from config.routines_manager import RoutinesManager
+
+            group = RoutinesManager().get_light_group(target[6:])
+            return self._routine_targets(group.get("members", [])) if group else []
+        reachable = self._reachable_targets()
+        known = reachable | self._saved_targets()
+        if target == "current":
+            return sorted(self._control_targets())
+        if target == "all":
+            return sorted(reachable or known)
+        if target.startswith("mac:"):
+            mac = self._normalise_mac(target[4:])
+            if not mac:
+                return []
+            matches = [ip for ip in known if self._normalise_mac(self._device_mac(ip)) == mac]
+            # A bulb may retain an old saved IP after DHCP changes. Send to
+            # only its reachable address, never to both copies.
+            return sorted(
+                matches,
+                key=lambda ip: (
+                    ip not in reachable,
+                    -float(self.bulbs.get(ip, {}).get("last_seen") or 0),
+                    ip,
+                ),
+            )[:1]
+        if target.startswith("ip:"):
+            ip = target[3:]
+            return [ip] if ip in known else []
+        return []
+
+    def _submit_targeted_batch(self, batch: list[tuple[str, dict[str, Any]]]) -> None:
+        with self._targeted_action_lock:
+            self._targeted_actions.append(batch)
+
+    def apply_targeted_action(self, action: dict[str, Any], target: str | list[str]) -> bool:
+        """Queue an immutable per-bulb routine step; never mutate global mode.
+
+        Commands in a routine can be adjacent. Resolving the destination and
+        payload now, rather than at the later UDP flush, keeps each step on
+        the intended bulb even if the user changes the active selection.
+        """
+        ips = self._routine_targets(target.strip() if isinstance(target, str) else target)
+        if not ips:
+            return False
+        if self._dirty:
+            # A normal UI command may still be waiting for the coalescing
+            # pump. Capture it ahead of this routine step so a later flush
+            # cannot undo a targeted command.
+            previous = [(ip, dict(self._target)) for ip in sorted(self._control_targets())]
+            self._dirty = False
+            if previous:
+                for ip, params in previous:
+                    info = self.bulbs.get(ip)
+                    if info is not None and isinstance(info.get("state"), dict):
+                        info["state"].update(params)
+                self._submit_targeted_batch(previous)
+        kind = str(action.get("type") or action.get("kind") or "").strip()
+        value = action.get("value")
+        batch: list[tuple[str, dict[str, Any]]] = []
+        for ip in ips:
+            info = self.bulbs.get(ip)
+            state = info.setdefault("state", {}) if info is not None else {}
+            if not isinstance(state, dict):
+                state = {}
+                if info is not None:
+                    info["state"] = state
+            if kind == "turn_on":
+                params = {"state": True}
+            elif kind == "turn_off":
+                params = {"state": False}
+            elif kind == "toggle":
+                params = {"state": not bool(state.get("state", False))}
+            elif kind in {"brightness", "brightness_delta"}:
+                amount = int(value if value is not None else (0 if kind == "brightness_delta" else 50))
+                current = int(state.get("dimming") or 50)
+                params = {"dimming": max(10, min(100, current + amount if kind == "brightness_delta" else amount))}
+            elif kind == "rgb":
+                params = {"state": True, **display_rgb_to_wiz_channels(normalize_rgb(self._parse_routine_rgb(value)))}
+                for key in ("temp", "sceneId", "speed", "c", "cw", "ww", "temperature"):
+                    state.pop(key, None)
+            elif kind in {"white_kelvin", "white_percent"}:
+                caps = info.get("caps") if info else None
+                lo, hi = (int(caps.kelvin_min), int(caps.kelvin_max)) if caps else self.get_kelvin_range()
+                if kind == "white_percent":
+                    percent = max(0, min(100, int(value if value is not None else 50)))
+                    kelvin = round(lo + (hi - lo) * percent / 100)
+                else:
+                    kelvin = max(lo, min(hi, int(value if value is not None else 4000)))
+                params = {"state": True, "temp": kelvin}
+                for key in ("r", "g", "b", "sceneId", "speed", "c", "w", "cw", "ww"):
+                    state.pop(key, None)
+            elif kind == "scene":
+                scene_id = int(value.get("sceneId", value.get("id", 18))) if isinstance(value, dict) else int(value if value is not None else 18)
+                speed = value.get("speed") if isinstance(value, dict) else action.get("speed")
+                params = {"state": True, "sceneId": scene_id}
+                if speed is not None:
+                    params["speed"] = max(20, min(200, int(speed)))
+                else:
+                    state.pop("speed", None)
+                for key in ("r", "g", "b", "temp", "c", "w", "cw", "ww", "temperature"):
+                    state.pop(key, None)
+            else:
+                raise ValueError(f"Acción dirigida no soportada: {kind}")
+            state.update(params)
+            if ip == self._active_ip:
+                control_keys = {"state", "dimming", "temp", "r", "g", "b", "w", "c", "sceneId", "speed"}
+                snapshot = {key: state[key] for key in control_keys if key in state}
+                self._mirror = dict(snapshot)
+                self._target = dict(snapshot)
+            batch.append((ip, params))
+        self._submit_targeted_batch(batch)
+        return True
+
+    @staticmethod
+    def _parse_routine_rgb(value: Any) -> tuple[int, int, int]:
+        if isinstance(value, str):
+            value = value.strip().lstrip("#")
+            if len(value) == 6:
+                return tuple(int(value[i:i + 2], 16) for i in (0, 2, 4))
+        if isinstance(value, (list, tuple)) and len(value) >= 3:
+            return int(value[0]), int(value[1]), int(value[2])
+        if isinstance(value, dict):
+            if "hex" in value:
+                return LightController._parse_routine_rgb(value["hex"])
+            return int(value.get("r", 255)), int(value.get("g", 255)), int(value.get("b", 255))
+        return 255, 0, 0
 
     def apply_favorite(self, fav: dict[str, Any]) -> None:
         ftype = fav.get("type")

@@ -101,6 +101,29 @@ class VirtualLightController(LightController):
     def refresh(self) -> None:
         self._fire_callback()
 
+    def set_brightness_for(self, ip: str, pct: int) -> bool:
+        """Update one simulated light without changing the selected targets."""
+        bulb = self.bulbs.get(str(ip or "").strip())
+        if not bulb:
+            return False
+        state = bulb.setdefault("state", {})
+        state["dimming"] = max(10, min(100, int(pct)))
+        self._fire_callback()
+        return True
+
+    def _submit_targeted_batch(self, batch: list[tuple[str, dict[str, Any]]]) -> None:
+        """The base method already updates each selected virtual bulb state."""
+        for ip, params in batch:
+            info = self.bulbs.get(ip)
+            if info:
+                info["last_seen"] = time.time()
+                if "sceneId" in params:
+                    info["state"]["_virtual_rgb"] = self._scene_rgb(int(params["sceneId"]), 0.0)
+                else:
+                    info["state"].pop("_virtual_rgb", None)
+                    self._animated_scene_targets.pop(ip, None)
+        self._fire_callback()
+
     def _fire_callback(self, *, throttle: bool = False) -> None:
         """Mark target-only changes so the preview need not redraw colors."""
         if not self._selection_change_pending:

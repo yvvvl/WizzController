@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
 import threading
 from typing import Any
 
@@ -11,6 +12,7 @@ from PySide6.QtCore import (
     QModelIndex,
     QObject,
     Property,
+    QPoint,
     QTimer,
     Qt,
     Signal,
@@ -31,6 +33,7 @@ from core.update_installer import (
     UpdateInstallError,
     can_self_update,
     launch_staged_update,
+    stage_linux_update,
     stage_windows_update,
 )
 from localization import (
@@ -124,6 +127,14 @@ class LightListModel(QAbstractListModel):
             index = self.index(row, 0)
             self.dataChanged.emit(index, index, [self.SelectedRole])
 
+    def update_brightness(self, ip: str, value: int) -> None:
+        for row, item in enumerate(self._items):
+            if str(item.get("ip") or "") != ip or int(item.get("brightness", 100)) == value:
+                continue
+            item["brightness"] = value
+            index = self.index(row, 0)
+            self.dataChanged.emit(index, index, [self.BrightnessRole])
+
 
 class EntryListModel(QAbstractListModel):
     TitleRole = Qt.ItemDataRole.UserRole + 1
@@ -188,6 +199,7 @@ class WizzBridge(QObject):
     navigateRequested = Signal(int)
     controllerStateReceived = Signal(dict)
     languageChanged = Signal()
+    routineGroupsChanged = Signal()
 
     def __init__(self, controller) -> None:
         super().__init__()
@@ -236,6 +248,7 @@ class WizzBridge(QObject):
         self._reduced_motion = bool(self._runtime.get("reduced_motion", False))
         self._live_brand_accent = bool(self._runtime.get("live_brand_accent", True))
         self._quick_panel_placement = str(self._runtime.get("quick_panel_placement", "bottom-right") or "bottom-right")
+        self._quick_panel_tray_geometry: dict[str, int] | None = None
         self._quick_action_catalog: list[dict[str, str]] = [
             {"key": "cinema", "title_es": "TV / Cine", "title_en": "TV / Cinema", "glyph": "\ue7f4", "color": "#9b6cff"},
             {"key": "reading", "title_es": "Lectura", "title_en": "Reading", "glyph": "\ue82d", "color": "#fbbf24"},
@@ -261,6 +274,7 @@ class WizzBridge(QObject):
         )
         self._update_url = ""
         self._update_in_progress = False
+        self._update_preparing = False
         stored_channel = str(self._runtime.get("update_channel", "stable") or "stable").lower()
         # Public builds must never silently follow a private beta channel left
         # behind by an earlier test install.  Beta builds retain that option.
@@ -275,6 +289,7 @@ class WizzBridge(QObject):
         )
         self._available_release: ReleaseInfo | None = None
         self._pending_brightness = 100
+        self._pending_light_brightness: dict[str, int] = {}
         self._pending_rgb: tuple[int, int, int] | None = None
         self._pending_white: int | None = None
         self._pending_scene: tuple[int, int] | None = None
@@ -283,6 +298,10 @@ class WizzBridge(QObject):
         self._brightness_timer.setSingleShot(True)
         self._brightness_timer.setInterval(55)
         self._brightness_timer.timeout.connect(self._flush_brightness)
+        self._light_brightness_timer = QTimer(self)
+        self._light_brightness_timer.setSingleShot(True)
+        self._light_brightness_timer.setInterval(55)
+        self._light_brightness_timer.timeout.connect(self._flush_light_brightness)
         self._rgb_timer = QTimer(self)
         self._rgb_timer.setSingleShot(True)
         self._rgb_timer.setInterval(33)
@@ -325,9 +344,22 @@ class WizzBridge(QObject):
     def setTrayAvailable(self, available: bool) -> None:
         self._tray_available = bool(available)
 
+    @Slot(int, int, int, int)
+    def setQuickPanelTrayGeometry(self, x: int, y: int, width: int, height: int) -> None:
+        """Remember the native tray icon bounds as the panel's anchor."""
+        if width > 0 and height > 0:
+            self._quick_panel_tray_geometry = {
+                "x": x, "y": y, "width": width, "height": height,
+            }
+
     @Slot(result=bool)
     def shouldCloseToTray(self) -> bool:
         return bool(self._tray_available and self._runtime.get("minimize_to_tray", True))
+
+    @Slot()
+    def quitApplication(self) -> None:
+        """Request a clean app exit from UI surfaces such as the Quick Panel."""
+        self.quitRequested.emit()
 
     @Slot(result="QVariantMap")
     def quickPanelAvailableArea(self) -> dict[str, int]:
@@ -338,14 +370,35 @@ class WizzBridge(QObject):
         quick panel flush with a taskbar on any edge and any monitor.
         """
         window = self._main_window
-        screen = window.screen() if window is not None else QGuiApplication.primaryScreen()
+        tray = self._quick_panel_tray_geometry
+        screen = None
+        if tray is not None:
+            screen = QGuiApplication.screenAt(QPoint(
+                tray["x"] + tray["width"] // 2,
+                tray["y"] + tray["height"] // 2,
+            ))
+        if screen is None:
+            screen = window.screen() if window is not None else QGuiApplication.primaryScreen()
         geometry = screen.availableGeometry() if screen is not None else None
         if geometry is None:
             return {"x": 0, "y": 0, "width": 1280, "height": 720}
-        return {
+        result = {
             "x": geometry.x(), "y": geometry.y(),
             "width": geometry.width(), "height": geometry.height(),
         }
+        if tray is not None:
+            full = screen.geometry()
+            center_x = tray["x"] + tray["width"] // 2
+            center_y = tray["y"] + tray["height"] // 2
+            distances = {
+                "left": abs(center_x - full.left()),
+                "right": abs(full.right() - center_x),
+                "top": abs(center_y - full.top()),
+                "bottom": abs(full.bottom() - center_y),
+            }
+            result["edge"] = min(distances, key=distances.get)
+            result.update({f"tray_{key}": value for key, value in tray.items()})
+        return result
 
     @staticmethod
     def _state_for_bulb(bulb: dict[str, Any]) -> dict[str, Any]:
@@ -437,10 +490,12 @@ class WizzBridge(QObject):
         for bulb in bulbs:
             state = self._state_for_bulb(bulb)
             ip = str(bulb.get("ip") or "")
+            mac = self.controller._normalise_mac(bulb.get("mac"))
             items.append(
                 {
                     "name": str(bulb.get("name") or ip),
                     "ip": ip,
+                    "routineTarget": f"mac:{mac}" if mac else f"ip:{ip}",
                     "isOn": bool(state.get("state", False)),
                     "brightness": int(state.get("dimming", 100) or 100),
                     "lightColor": self._display_color(state),
@@ -589,6 +644,36 @@ class WizzBridge(QObject):
     @Property(int, notify=statusChanged)
     def totalCount(self) -> int:
         return self.lights.rowCount()
+
+    @Property("QVariantList", notify=stateChanged)
+    def routineBulbs(self) -> list[dict[str, Any]]:
+        """Stable destinations for per-step routines, shared by Linux/Windows."""
+        seen: set[str] = set()
+        options: list[dict[str, Any]] = []
+        for item in self.lights._items:
+            target = str(item.get("routineTarget") or "")
+            if not target or target in seen:
+                continue
+            seen.add(target)
+            options.append({
+                "label": str(item.get("name") or item.get("ip") or target),
+                "value": target,
+                "online": bool(item.get("online", False)),
+            })
+        return options
+
+    @Property("QVariantList", notify=routineGroupsChanged)
+    def routineGroups(self) -> list[dict[str, Any]]:
+        groups = getattr(self._routines_manager, "get_light_groups", lambda: [])()
+        return [
+            {
+                "label": str(group.get("name") or ""),
+                "value": f"group:{group.get('id')}",
+                "members": list(group.get("members") or []),
+            }
+            for group in groups
+            if group.get("id") and group.get("name")
+        ]
 
     @Property("QVariantList", notify=colorChanged)
     def brandColors(self) -> list[str]:
@@ -802,6 +887,26 @@ class WizzBridge(QObject):
         self._runtime.update(quick_panel_placement=value)
         self.themeChanged.emit()
 
+    @Property(bool)
+    def quickPanelCanRememberPosition(self) -> bool:
+        """Whether this QPA backend exposes stable global window coordinates."""
+        platform = QGuiApplication.platformName().lower()
+        return platform not in {"wayland", "wayland-egl", "offscreen", "minimal"}
+
+    @Slot(result="QVariantMap")
+    def quickPanelSavedPosition(self) -> dict[str, Any]:
+        x = self._runtime.get("quick_panel_x")
+        y = self._runtime.get("quick_panel_y")
+        if not self.quickPanelCanRememberPosition or not isinstance(x, int) or not isinstance(y, int):
+            return {"valid": False, "x": 0, "y": 0}
+        return {"valid": True, "x": x, "y": y}
+
+    @Slot(int, int)
+    def saveQuickPanelPosition(self, x: int, y: int) -> None:
+        if not self.quickPanelCanRememberPosition:
+            return
+        self._runtime.update(quick_panel_x=int(x), quick_panel_y=int(y))
+
     @Property("QVariantList", notify=quickActionsChanged)
     def quickActions(self) -> list[dict[str, str]]:
         by_key = {item["key"]: item for item in self._quick_action_catalog}
@@ -857,6 +962,11 @@ class WizzBridge(QObject):
     def updateInProgress(self) -> bool:
         return self._update_in_progress
 
+    @Property(bool, notify=updateChanged)
+    def updatePreparing(self) -> bool:
+        """Whether an available update is currently being staged locally."""
+        return self._update_preparing
+
     @Property(str, notify=updateChanged)
     def updateChannel(self) -> str:
         return self._update_channel
@@ -892,6 +1002,7 @@ class WizzBridge(QObject):
         if self._update_in_progress:
             return
         self._update_in_progress = True
+        self._update_preparing = False
         self._update_status = self._ui("Buscando actualizaciones…", "Checking for updates…")
         self._update_url = ""
         self._available_release = None
@@ -902,6 +1013,12 @@ class WizzBridge(QObject):
                 release = ReleaseClient().latest(channel=self._update_channel)
                 if release is None:
                     message = self._ui("No hay una versión publicada disponible para este canal.", "No published version is available for this channel.")
+                elif not release.download_url or not release.checksum_url:
+                    message = self._ui(
+                        "La última versión no incluye un paquete para este sistema.",
+                        "The latest release does not include a package for this platform.",
+                    )
+                    release = None
                 elif is_update_available(APP_VERSION, release):
                     message = self._ui(f"Nueva versión disponible: v{release.version}.", f"New version available: v{release.version}.")
                 else:
@@ -917,10 +1034,11 @@ class WizzBridge(QObject):
     @Slot(object, str)
     def _apply_update_result(self, release: object, message: str) -> None:
         self._update_in_progress = False
+        self._update_preparing = False
         self._update_status = str(message)
         self._available_release = release if isinstance(release, ReleaseInfo) else None
         self._update_url = str(
-            self._available_release.notes_url if self._available_release else ""
+            self._available_release.download_url if self._available_release else ""
         )
         self.updateChanged.emit()
 
@@ -940,18 +1058,23 @@ class WizzBridge(QObject):
             self.updateChanged.emit()
             return
         self._update_in_progress = True
+        self._update_preparing = True
         self._update_status = self._ui("Descargando y verificando la actualización…", "Downloading and verifying the update…")
         self.updateChanged.emit()
 
         def install() -> None:
             try:
-                script = stage_windows_update(release)
+                script = (
+                    stage_linux_update(release)
+                    if sys.platform.startswith("linux")
+                    else stage_windows_update(release)
+                )
                 launch_staged_update(script)
                 message, action = self._ui("Actualización lista. WizZ se reiniciará ahora.", "Update ready. WizZ will restart now."), "quit"
             except UpdateInstallError as exc:
                 message, action = str(exc), ""
             except Exception:
-                logging.exception("[Update] Could not launch the staged Windows update")
+                logging.exception("[Update] Could not launch the staged platform update")
                 message, action = self._ui("No se pudo preparar la actualización. Inténtalo más tarde.", "Could not prepare the update. Try again later."), ""
             self.updateInstallResultReceived.emit(message, action)
 
@@ -960,6 +1083,7 @@ class WizzBridge(QObject):
     @Slot(str, str)
     def _apply_update_install_result(self, message: str, action: str) -> None:
         self._update_in_progress = False
+        self._update_preparing = False
         self._update_status = str(message)
         self.updateChanged.emit()
         if action == "quit":
@@ -1194,6 +1318,27 @@ class WizzBridge(QObject):
     def _flush_brightness(self) -> None:
         self.controller.set_brightness(self._pending_brightness)
         self.brightnessChanged.emit()
+
+    @Slot(str, int)
+    def queueLightBrightness(self, ip: str, value: int) -> None:
+        target = str(ip or "").strip()
+        if not any(str(item.get("ip") or "") == target for item in self.lights._items):
+            return
+        brightness = max(10, min(100, int(value)))
+        self._pending_light_brightness[target] = brightness
+        self.lights.update_brightness(target, brightness)
+        if not self._light_brightness_timer.isActive():
+            self._light_brightness_timer.start()
+
+    @Slot()
+    def _flush_light_brightness(self) -> None:
+        pending = self._pending_light_brightness
+        self._pending_light_brightness = {}
+        set_brightness_for = getattr(self.controller, "set_brightness_for", None)
+        if not callable(set_brightness_for):
+            return
+        for ip, value in pending.items():
+            set_brightness_for(ip, value)
 
     @Slot(str)
     def applyQuick(self, action: str) -> None:
@@ -1628,6 +1773,27 @@ class WizzBridge(QObject):
             result = str(created.get("id") or "")
         self._refresh_library_models()
         return result
+
+    @Slot(str, str, str, result=str)
+    def upsertRoutineGroup(self, uid: str, name: str, members_json: str) -> str:
+        try:
+            members = json.loads(str(members_json or "[]"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return ""
+        save = getattr(self._routines_manager, "upsert_light_group", None)
+        group = save(str(uid or ""), name, members) if callable(save) else None
+        if not group:
+            return ""
+        self.routineGroupsChanged.emit()
+        return str(group.get("id") or "")
+
+    @Slot(str, result=bool)
+    def deleteRoutineGroup(self, uid: str) -> bool:
+        remove = getattr(self._routines_manager, "remove_light_group", None)
+        removed = bool(remove(str(uid))) if callable(remove) else False
+        if removed:
+            self.routineGroupsChanged.emit()
+        return removed
 
     @Slot(str, result=bool)
     def deleteRoutine(self, uid: str) -> bool:

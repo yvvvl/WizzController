@@ -1,5 +1,74 @@
 # Changelog
 
+## v1.4.0
+
+### Highlights
+
+- Rebuilt the desktop experience around a native Qt interface for Windows and
+  Linux (x64 and ARM64), with Spanish and English UI.
+- Redesigned Home, Color Studio, Favorites, Scenes, Routines, Hotkeys, Settings,
+  and the multi-light controls for a more consistent, polished workflow.
+- Added a movable Quick Panel that snaps to nearby screen edges, remembers its
+  position, opens from the tray, and dismisses when it loses focus. On Wayland,
+  XWayland is selected when its runtime libraries are available.
+- Expanded routines with ordered actions and targets for the current selection,
+  all lights, or individual lights/groups.
+- Added individual brightness controls, editable quick actions, and complete
+  RGB/CCT editors with previews and quick values.
+- Improved tray behavior, single-instance activation, close-to-tray handling,
+  hotkeys, scrolling, and updater feedback.
+- Added checksum-verified updates for installed Linux builds, with staged
+  replacement and rollback if the updated app fails to start.
+- Published portable Windows and Linux x64/ARM64 packages with SHA-256 checksums.
+
+### Not included
+
+- Screen Sync/Ambilight, audio sync, and RGBIC strip effects remain experimental
+  and are not part of this public release.
+
+### Support
+
+WizZ Desktop is an independent project I build as a student. If it is useful to
+you, you can support continued development through [GitHub Sponsors](https://github.com/sponsors/yvvvl). Thank you!
+
+### Destacados
+
+- Renovamos la experiencia de escritorio con una interfaz Qt nativa para
+  Windows y Linux (x64 y ARM64), disponible en español e inglés.
+- Rediseñamos Inicio, Color, Favoritos, Escenas, Rutinas, Atajos, Ajustes y los
+  controles para varias ampolletas, con una experiencia más coherente y pulida.
+- El panel rápido ahora se puede mover, se ajusta a los bordes cercanos, recuerda
+  su posición, se abre desde la bandeja y se oculta al perder el foco. En Wayland
+  usa XWayland cuando están disponibles sus bibliotecas.
+- Ampliamos las rutinas con acciones ordenadas y objetivos para la selección
+  actual, todas las luces o ampolletas/grupos específicos.
+- Añadimos controles de brillo individuales, accesos rápidos editables y
+  editores RGB/CCT completos con vista previa y valores rápidos.
+- Mejoramos la bandeja, la instancia única, cerrar al área de notificación,
+  hotkeys, desplazamiento y mensajes del actualizador.
+- Incorporamos actualizaciones verificadas por SHA-256 para Linux instalado,
+  con reemplazo aislado y restauración si la nueva versión no inicia.
+- Incluimos paquetes portables para Windows y Linux x64/ARM64 con sus checksums.
+
+### No incluido
+
+- Screen Sync/Ambilight, sincronización de audio y efectos RGBIC para tiras
+  siguen siendo experimentales y no forman parte de esta versión pública.
+
+### Apoyo
+
+WizZ Desktop es un proyecto independiente que desarrollo como estudiante. Si te
+resulta útil, puedes apoyar su desarrollo en [GitHub Sponsors](https://github.com/sponsors/yvvvl). ¡Muchas gracias!
+
+## v1.3.5
+
+### Previous release
+
+- Polished Qt transitions, updater feedback, hotkey status, and routine state
+  capture; added individual light brightness controls.
+- Added checksum-verified updates for installed Linux x64/ARM64 builds with
+  staged replacement and rollback.
+
 ## v1.3.4
 
 ### Fixed
@@ -16,29 +85,6 @@
 
 - Embed the WizZ light-bulb icon in the Windows executable so desktop
   shortcuts and Explorer no longer show a Python or generic icon.
-
-## v1.4.0
-
-### Added
-
-- Native Qt desktop shell as the official Windows experience, with tray,
-  single-instance activation and close-to-tray behavior.
-- Redesigned Quick Panel with editable quick actions, multi-light carousel,
-  page navigation and placement beside the taskbar.
-- Complete RGB/CCT editors for favorites, scenes and routines, including
-  previews and quick values.
-
-### Fixed
-
-- Close now sends WizZ Desktop to the system tray when enabled instead of
-  stopping light control and hotkeys.
-- Faster normal scrolling, resilient Quick Panel carousel selection and
-  clearer English/Spanish quick-action labels.
-
-### Not included
-
-- RGBIC, screen sync and audio sync remain experimental beta work and are not
-  part of this public release.
 
 ## v1.3.0
 

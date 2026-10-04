@@ -16,6 +16,73 @@ Item {
 
     function t(spanish, english) { return wizz.language === "en" ? english : spanish }
 
+    function supportsStepTarget(kind) {
+        return ["turn_on", "turn_off", "toggle", "brightness", "brightness_delta", "rgb", "white_kelvin", "white_percent", "scene"].indexOf(kind) >= 0
+    }
+
+    function draftTarget(value) {
+        return Array.isArray(value) ? "multi:" + JSON.stringify(value) : String(value || "")
+    }
+
+    function decodedTarget(value) {
+        if (String(value).startsWith("multi:")) {
+            try {
+                const members = JSON.parse(String(value).slice(6))
+                return Array.isArray(members) ? members : []
+            } catch (error) { return [] }
+        }
+        return String(value || "")
+    }
+
+    function groupForTarget(value) {
+        const groups = wizz.routineGroups
+        for (let i = 0; i < groups.length; ++i)
+            if (groups[i].value === value) return groups[i]
+        return null
+    }
+
+    function bulbForTarget(value) {
+        const bulbs = wizz.routineBulbs
+        for (let i = 0; i < bulbs.length; ++i)
+            if (bulbs[i].value === value) return bulbs[i]
+        return null
+    }
+
+    function targetMembers(value) {
+        const decoded = root.decodedTarget(value)
+        if (Array.isArray(decoded)) return decoded
+        if (decoded.startsWith("group:")) {
+            const group = root.groupForTarget(decoded)
+            return group ? group.members : []
+        }
+        return decoded.startsWith("mac:") || decoded.startsWith("ip:") ? [decoded] : []
+    }
+
+    function targetOptions(savedTarget) {
+        const options = [
+            {label: root.t("Selección actual", "Current selection"), value: ""},
+            {label: root.t("Todas las luces", "All lights"), value: "all"}
+        ]
+        const groups = wizz.routineGroups
+        for (let i = 0; i < groups.length; ++i)
+            options.push({label: root.t("Grupo: ", "Group: ") + groups[i].label, value: groups[i].value})
+        const bulbs = wizz.routineBulbs
+        let found = savedTarget === "" || savedTarget === "all"
+        for (let i = 0; i < bulbs.length; ++i) {
+            const bulb = bulbs[i]
+            options.push({label: bulb.label + (bulb.online ? "" : root.t(" (sin conexión)", " (offline)")), value: bulb.value})
+            if (bulb.value === savedTarget) found = true
+        }
+        if (String(savedTarget).startsWith("group:")) found = root.groupForTarget(savedTarget) !== null
+        if (String(savedTarget).startsWith("multi:")) {
+            const count = root.targetMembers(savedTarget).length
+            options.push({label: count + root.t(" ampolletas elegidas", " selected lights"), value: savedTarget})
+            found = true
+        }
+        if (!found) options.push({label: root.t("Destino no disponible", "Unavailable target"), value: savedTarget})
+        return options
+    }
+
     function routinePreviewColor(kind, value) {
         if (kind === "rgb" && /^#[0-9a-fA-F]{6}$/.test(value)) return value
         const point = Math.max(0, Math.min(1, (Number(value || 4000) - 2200) / 4300))
@@ -74,9 +141,9 @@ Item {
             let value = action.value
             if (action.type === "scene" && value && typeof value === "object")
                 value = value.sceneId
-            actionDraft.append({ kind: String(action.type || "wait"), value: value === undefined ? "" : String(value) })
+            actionDraft.append({ kind: String(action.type || "wait"), value: value === undefined ? "" : String(value), target: root.draftTarget(action.target) })
         }
-        if (actionDraft.count === 0) actionDraft.append({ kind: "turn_on", value: "" })
+        if (actionDraft.count === 0) actionDraft.append({ kind: "turn_on", value: "", target: "" })
         return data
     }
 
@@ -86,8 +153,8 @@ Item {
         routineDescription.text = ""
         routineColor.text = "#5F91FF"
         actionDraft.clear()
-        actionDraft.append({ kind: "turn_on", value: "" })
-        actionDraft.append({ kind: "wait", value: "500" })
+        actionDraft.append({ kind: "turn_on", value: "", target: "" })
+        actionDraft.append({ kind: "wait", value: "500", target: "" })
         editor.open()
     }
 
@@ -111,6 +178,7 @@ Item {
                 value = { sceneId: Number(step.value || 18), speed: 100 }
             const item = { type: step.kind }
             if (["turn_on", "turn_off", "toggle"].indexOf(step.kind) < 0) item.value = value
+            if (root.supportsStepTarget(step.kind) && step.target) item.target = root.decodedTarget(step.target)
             actions.push(item)
         }
         return JSON.stringify(actions)
@@ -131,10 +199,10 @@ Item {
             Row {
                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing: 10
             PressSurface {
-                width: 142; height: 38; radius: 19
+                width: 150; height: 38; radius: 19
                 color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.primary
-                onClicked: { if (wizz.captureCurrentRoutine()) root.feedback = "Estado actual guardado como rutina." }
-                Text { anchors.centerIn: parent; text: root.t("Capture state", "Capture state"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.DemiBold }
+                onClicked: { if (wizz.captureCurrentRoutine()) root.feedback = root.t("Estado actual guardado como rutina.", "Current state saved as a routine.") }
+                Text { anchors.centerIn: parent; text: root.t("Capturar estado", "Capture state"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.DemiBold }
             }
             PressSurface {
                 width: 154; height: 38; radius: 19
@@ -157,7 +225,7 @@ Item {
             border.width: 1; border.color: Theme.stroke
             RowLayout {
                 anchors.fill: parent; anchors.margins: 16; spacing: 12
-                Text { text: "ⓘ"; color: Theme.primary; font.pixelSize: 17 }
+                AppIcon { Layout.preferredWidth: 16; Layout.preferredHeight: 16; name: "info"; color: Theme.primary }
                 Text {
                     Layout.fillWidth: true
                     text: root.feedback || root.t("Combina color, blanco, brillo, escenas, esperas y condiciones sin editar JSON.", "Combine color, white, brightness, scenes, waits, and conditions without editing JSON.")
@@ -187,7 +255,7 @@ Item {
                         Rectangle {
                             Layout.preferredWidth: 50; Layout.preferredHeight: 50; radius: 15
                             color: Qt.rgba(routineCard.entryColor.r, routineCard.entryColor.g, routineCard.entryColor.b, 0.22)
-                            Text { anchors.centerIn: parent; text: "↯"; color: routineCard.entryColor; font.pixelSize: 23; font.weight: Font.Bold }
+                            AppIcon { anchors.centerIn: parent; width: 22; height: 22; name: "routines"; color: routineCard.entryColor }
                         }
                         ColumnLayout {
                             Layout.fillWidth: true; spacing: 3
@@ -202,17 +270,17 @@ Item {
                         PressSurface {
                             Layout.preferredWidth: 36; Layout.preferredHeight: 36; radius: 18; color: "transparent"; accentColor: Theme.primary
                             onClicked: root.openEdit(routineCard.uid, routineCard.title, routineCard.entryColor, routineCard.rawValue)
-                            Text { anchors.centerIn: parent; text: "\uE70F"; color: Theme.primary; font.family: Theme.iconFont; font.pixelSize: 16 }
+                            AppIcon { anchors.centerIn: parent; width: 15; height: 15; name: "edit"; color: Theme.primary }
                         }
                         PressSurface {
                             Layout.preferredWidth: 36; Layout.preferredHeight: 36; radius: 18; color: "transparent"; accentColor: Theme.accent
                             onClicked: wizz.duplicateRoutine(routineCard.uid)
-                            Text { anchors.centerIn: parent; text: "\uE8C8"; color: Theme.accent; font.family: Theme.iconFont; font.pixelSize: 16 }
+                            AppIcon { anchors.centerIn: parent; width: 15; height: 15; name: "duplicate"; color: Theme.accent }
                         }
                         PressSurface {
                             Layout.preferredWidth: 36; Layout.preferredHeight: 36; radius: 18; color: "transparent"; accentColor: Theme.error
                             onClicked: { root.deletingUid = routineCard.uid; root.deletingName = routineCard.title; confirmDelete.open() }
-                            Text { anchors.centerIn: parent; text: "\uE74D"; color: Theme.error; font.family: Theme.iconFont; font.pixelSize: 16 }
+                            AppIcon { anchors.centerIn: parent; width: 15; height: 15; name: "trash"; color: Theme.error }
                         }
                     }
                 }
@@ -243,7 +311,7 @@ Item {
                     Text { text: root.editingUid ? root.t("Editar rutina", "Edit routine") : root.t("Nueva rutina", "New routine"); color: Theme.text; font.pixelSize: 22; font.weight: Font.Bold }
                     Text { text: root.t("Construye la secuencia y ordena cada paso visualmente.", "Build the sequence and arrange each step visually."); color: Theme.muted; font.pixelSize: 12 }
                 }
-                PressSurface { id: closeRoutine; width: 34; height: 34; anchors.right: parent.right; anchors.top: parent.top; radius: 17; color: "transparent"; onClicked: editor.close(); Text { anchors.centerIn: parent; text: "×"; color: Theme.muted; font.pixelSize: 24 } }
+                PressSurface { id: closeRoutine; width: 34; height: 34; anchors.right: parent.right; anchors.top: parent.top; radius: 17; color: "transparent"; onClicked: editor.close(); AppIcon { anchors.centerIn: parent; width: 14; height: 14; name: "close"; color: Theme.muted } }
             }
 
             RowLayout {
@@ -277,7 +345,7 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(330, Math.max(132, actionDraft.count * 65 + 16))
+                Layout.preferredHeight: Math.min(380, Math.max(132, actionDraft.count * (wizz.totalCount > 1 ? 107 : 65) + 16))
                 radius: 14
                 color: Theme.bg; border.width: 1; border.color: Theme.stroke
                 ListView {
@@ -291,10 +359,14 @@ Item {
                         required property int index
                         required property string kind
                         required property string value
-                        width: stepList.width; height: 58; radius: 11
+                        required property string target
+                        readonly property bool showTarget: root.supportsStepTarget(kind) && (wizz.totalCount > 1 || target.length > 0)
+                        width: stepList.width; height: showTarget ? 102 : 58; radius: 11
                         color: Theme.cardHi; border.width: 1; border.color: Theme.stroke
-                        RowLayout {
+                        ColumnLayout {
                             anchors.fill: parent; anchors.margins: 7; spacing: 8
+                            RowLayout {
+                            Layout.fillWidth: true; Layout.preferredHeight: 42; spacing: 8
                             Rectangle { Layout.preferredWidth: 28; Layout.preferredHeight: 28; radius: 9; color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.16); Text { anchors.centerIn: parent; text: String(stepRow.index + 1); color: Theme.primary; font.pixelSize: 11; font.weight: Font.Bold } }
                             WizComboBox {
                                 id: actionType
@@ -320,6 +392,7 @@ Item {
                                     const nextKind = String(currentValue || "turn_on")
                                     actionDraft.setProperty(stepRow.index, "kind", nextKind)
                                     actionDraft.setProperty(stepRow.index, "value", root.defaultValue(nextKind))
+                                    if (!root.supportsStepTarget(nextKind)) actionDraft.setProperty(stepRow.index, "target", "")
                                 }
                                 contentItem: Text { leftPadding: 11; text: actionType.displayText; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: 12; elide: Text.ElideRight }
                                 background: Rectangle { color: Theme.card; radius: 10; border.width: 1; border.color: actionType.activeFocus ? Theme.primary : Theme.stroke }
@@ -387,7 +460,7 @@ Item {
                                 Layout.preferredWidth: visible ? 34 : 0; Layout.preferredHeight: 34; radius: 17
                                 color: root.routinePreviewColor(stepRow.kind, stepRow.value); accentColor: Theme.primary
                                 onClicked: routineValuePicker.openFor(stepRow.index, stepRow.kind, stepRow.value)
-                                Text { anchors.centerIn: parent; text: "◉"; color: Qt.rgba(1, 1, 1, 0.9); font.pixelSize: 13 }
+                                AppIcon { anchors.centerIn: parent; width: 14; height: 14; name: "target"; color: Qt.rgba(1, 1, 1, 0.9) }
                             }
                             RowLayout {
                                 visible: stepRow.kind === "wait"
@@ -406,9 +479,31 @@ Item {
                                 }
                             }
                             Item { visible: ["turn_on", "turn_off", "toggle"].indexOf(stepRow.kind) >= 0; Layout.fillWidth: true }
-                            PressSurface { Layout.preferredWidth: 30; Layout.preferredHeight: 30; radius: 15; color: "transparent"; enabled: stepRow.index > 0; opacity: enabled ? 1 : 0.3; onClicked: actionDraft.move(stepRow.index, stepRow.index - 1, 1); Text { anchors.centerIn: parent; text: "↑"; color: Theme.muted; font.pixelSize: 16 } }
-                            PressSurface { Layout.preferredWidth: 30; Layout.preferredHeight: 30; radius: 15; color: "transparent"; enabled: stepRow.index < actionDraft.count - 1; opacity: enabled ? 1 : 0.3; onClicked: actionDraft.move(stepRow.index, stepRow.index + 1, 1); Text { anchors.centerIn: parent; text: "↓"; color: Theme.muted; font.pixelSize: 16 } }
-                            PressSurface { Layout.preferredWidth: 30; Layout.preferredHeight: 30; radius: 15; color: "transparent"; accentColor: Theme.error; enabled: actionDraft.count > 1; opacity: enabled ? 1 : 0.3; onClicked: actionDraft.remove(stepRow.index); Text { anchors.centerIn: parent; text: "×"; color: Theme.error; font.pixelSize: 18 } }
+                            PressSurface { Layout.preferredWidth: 30; Layout.preferredHeight: 30; radius: 15; color: "transparent"; enabled: stepRow.index > 0; opacity: enabled ? 1 : 0.3; onClicked: actionDraft.move(stepRow.index, stepRow.index - 1, 1); AppIcon { anchors.centerIn: parent; width: 12; height: 12; name: "arrowUp"; color: Theme.muted } }
+                            PressSurface { Layout.preferredWidth: 30; Layout.preferredHeight: 30; radius: 15; color: "transparent"; enabled: stepRow.index < actionDraft.count - 1; opacity: enabled ? 1 : 0.3; onClicked: actionDraft.move(stepRow.index, stepRow.index + 1, 1); AppIcon { anchors.centerIn: parent; width: 12; height: 12; name: "arrowDown"; color: Theme.muted } }
+                            PressSurface { Layout.preferredWidth: 30; Layout.preferredHeight: 30; radius: 15; color: "transparent"; accentColor: Theme.error; enabled: actionDraft.count > 1; opacity: enabled ? 1 : 0.3; onClicked: actionDraft.remove(stepRow.index); AppIcon { anchors.centerIn: parent; width: 13; height: 13; name: "close"; color: Theme.error } }
+                            }
+                            RowLayout {
+                                visible: stepRow.showTarget
+                                Layout.fillWidth: true; Layout.preferredHeight: visible ? 36 : 0; spacing: 8
+                                Text { text: root.t("DESTINO", "TARGET"); color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold; Layout.preferredWidth: 56 }
+                                WizComboBox {
+                                    id: stepTarget
+                                    Layout.fillWidth: true; Layout.preferredHeight: 34
+                                    model: root.targetOptions(stepRow.target)
+                                    textRole: "label"; valueRole: "value"
+                                    currentIndex: Math.max(0, stepTarget.indexOfValue(stepRow.target))
+                                    onActivated: actionDraft.setProperty(stepRow.index, "target", String(currentValue))
+                                    contentItem: Text { leftPadding: 11; text: stepTarget.displayText; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: 11; elide: Text.ElideRight }
+                                    background: Rectangle { color: Theme.card; radius: 9; border.width: 1; border.color: stepTarget.activeFocus ? Theme.primary : Theme.stroke }
+                                }
+                                PressSurface {
+                                    Layout.preferredWidth: 82; Layout.preferredHeight: 34; radius: 9
+                                    color: Theme.card; accentColor: Theme.primary
+                                    onClicked: multiTargetPicker.openFor(stepRow.index, stepRow.target)
+                                    Text { anchors.centerIn: parent; text: stepRow.target.startsWith("group:") || stepRow.target.startsWith("multi:") ? root.t("Editar", "Edit") : root.t("Varias…", "Multiple…"); color: Theme.primary; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+                                }
+                            }
                         }
                     }
                 }
@@ -418,7 +513,7 @@ Item {
                 Layout.fillWidth: true; spacing: 10
                 PressSurface {
                     Layout.preferredWidth: 124; Layout.preferredHeight: 40; radius: 20; color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.primary
-                    onClicked: actionDraft.append({ kind: "wait", value: "500" })
+                    onClicked: actionDraft.append({ kind: "wait", value: "500", target: "" })
                     Text { anchors.centerIn: parent; text: "+  " + root.t("Agregar paso", "Add step"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 11; font.weight: Font.Bold }
                 }
                 Item { Layout.fillWidth: true }
@@ -431,6 +526,156 @@ Item {
                     }
                     Text { anchors.centerIn: parent; text: root.t("Guardar", "Save"); color: "white"; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
                 }
+            }
+        }
+    }
+
+    Popup {
+        id: multiTargetPicker
+        objectName: "multiTargetPicker"
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(510, Overlay.overlay.width - 40)
+        height: Math.min(Overlay.overlay.height - 40, Math.min(570, Math.max(450, 325 + Math.min(250, multiTargetPicker.bulbChoices().length * 46 + 12))))
+        modal: true; focus: true; dim: true; padding: 0
+        closePolicy: Popup.CloseOnEscape
+        property int stepIndex: -1
+        property var selectedMembers: []
+        property string editingGroupUid: ""
+        property string feedback: ""
+        property bool groupDeletePending: false
+
+        function openFor(index, target) {
+            stepIndex = index
+            const group = root.groupForTarget(target)
+            const members = root.targetMembers(target)
+            selectedMembers = Array.from(members)
+            editingGroupUid = group ? String(target).slice(6) : ""
+            groupName.text = group ? group.label : ""
+            feedback = ""
+            groupDeletePending = false
+            open()
+        }
+
+        function bulbChoices() {
+            const choices = Array.from(wizz.routineBulbs)
+            for (let i = 0; i < selectedMembers.length; ++i) {
+                if (!root.bulbForTarget(selectedMembers[i]))
+                    choices.push({label: root.t("No disponible: ", "Unavailable: ") + selectedMembers[i], value: selectedMembers[i], online: false})
+            }
+            return choices
+        }
+
+        function toggleMember(value) {
+            const next = Array.from(selectedMembers)
+            const index = next.indexOf(value)
+            if (index >= 0) next.splice(index, 1)
+            else next.push(value)
+            selectedMembers = next
+            feedback = ""
+            groupDeletePending = false
+        }
+
+        function applySelection() {
+            if (!selectedMembers.length) {
+                feedback = root.t("Elige al menos una ampolleta.", "Choose at least one light.")
+                return
+            }
+            const target = selectedMembers.length === 1 ? selectedMembers[0] : "multi:" + JSON.stringify(selectedMembers)
+            actionDraft.setProperty(stepIndex, "target", target)
+            close()
+        }
+
+        function saveGroup() {
+            if (!selectedMembers.length || !groupName.text.trim()) {
+                feedback = root.t("Pon un nombre y elige al menos una ampolleta.", "Name the group and choose at least one light.")
+                return
+            }
+            const uid = wizz.upsertRoutineGroup(editingGroupUid, groupName.text, JSON.stringify(selectedMembers))
+            if (!uid) {
+                feedback = root.t("No se pudo guardar. Revisa si ya existe ese nombre.", "Could not save. Check whether that name already exists.")
+                return
+            }
+            actionDraft.setProperty(stepIndex, "target", "group:" + uid)
+            close()
+        }
+
+        background: Rectangle { color: Theme.card; radius: 18; border.width: 1; border.color: Theme.stroke }
+        contentItem: ColumnLayout {
+            anchors.fill: parent; anchors.margins: 20; spacing: 12
+            RowLayout {
+                Layout.fillWidth: true
+                Column {
+                    Layout.fillWidth: true; spacing: 3
+                    Text { text: root.t("Elegir ampolletas", "Choose lights"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 20; font.weight: Font.Bold }
+                    Text { text: root.t("Esta selección afecta solo a este paso.", "This selection applies only to this step."); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11 }
+                }
+                PressSurface { Layout.preferredWidth: 32; Layout.preferredHeight: 32; radius: 16; color: "transparent"; onClicked: multiTargetPicker.close(); AppIcon { anchors.centerIn: parent; width: 14; height: 14; name: "close"; color: Theme.muted } }
+            }
+            Text { text: multiTargetPicker.selectedMembers.length + root.t(" seleccionadas", " selected"); color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 11 }
+            Rectangle {
+                Layout.fillWidth: true; Layout.preferredHeight: Math.min(250, Math.max(60, multiTargetPicker.bulbChoices().length * 46 + 12))
+                radius: 12; color: Theme.bg; border.width: 1; border.color: Theme.stroke
+                ListView {
+                    anchors.fill: parent; anchors.margins: 6; clip: true; spacing: 4
+                    model: multiTargetPicker.bulbChoices()
+                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                    delegate: PressSurface {
+                        required property var modelData
+                        width: ListView.view.width; height: 42; radius: 9
+                        color: multiTargetPicker.selectedMembers.indexOf(modelData.value) >= 0 ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.13) : Theme.cardHi
+                        accentColor: Theme.primary
+                        onClicked: multiTargetPicker.toggleMember(modelData.value)
+                        Rectangle {
+                            x: 10; anchors.verticalCenter: parent.verticalCenter
+                            width: 19; height: 19; radius: 5
+                            color: multiTargetPicker.selectedMembers.indexOf(modelData.value) >= 0 ? Theme.primary : "transparent"
+                            border.width: 1; border.color: Theme.primary
+                            AppIcon { visible: multiTargetPicker.selectedMembers.indexOf(modelData.value) >= 0; anchors.centerIn: parent; width: 12; height: 12; name: "check"; color: "white" }
+                        }
+                        Text { x: 39; width: parent.width - 49; anchors.verticalCenter: parent.verticalCenter; text: modelData.label; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; elide: Text.ElideRight }
+                    }
+                }
+            }
+            Text { text: root.t("GUARDAR COMO GRUPO REUTILIZABLE", "SAVE AS A REUSABLE GROUP"); color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+            RowLayout {
+                Layout.fillWidth: true; spacing: 8
+                TextField {
+                    id: groupName
+                    objectName: "routineGroupName"
+                    Layout.fillWidth: true; Layout.preferredHeight: 40
+                    maximumLength: 80
+                    placeholderText: root.t("Ej.: Sala de estar", "E.g. Living room")
+                    placeholderTextColor: Theme.faint; color: Theme.text; leftPadding: 11; rightPadding: 11
+                    background: Rectangle { color: Theme.bg; radius: 9; border.width: 1; border.color: groupName.activeFocus ? Theme.primary : Theme.stroke }
+                }
+                PressSurface {
+                    Layout.preferredWidth: 104; Layout.preferredHeight: 40; radius: 10
+                    color: Theme.cardHi; accentColor: Theme.primary
+                    onClicked: multiTargetPicker.saveGroup()
+                    Text { anchors.centerIn: parent; text: multiTargetPicker.editingGroupUid ? root.t("Actualizar", "Update") : root.t("Crear grupo", "Create group"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 11; font.weight: Font.Bold }
+                }
+            }
+            Text { visible: multiTargetPicker.feedback.length > 0; Layout.fillWidth: true; text: multiTargetPicker.feedback; color: Theme.error; font.family: Theme.uiFont; font.pixelSize: 11; wrapMode: Text.Wrap }
+            RowLayout {
+                Layout.fillWidth: true; spacing: 8
+                PressSurface {
+                    visible: multiTargetPicker.editingGroupUid.length > 0
+                    Layout.preferredWidth: visible ? (multiTargetPicker.groupDeletePending ? 160 : 112) : 0
+                    Layout.preferredHeight: 38; radius: 10; color: "transparent"; accentColor: Theme.error
+                    onClicked: {
+                        if (!multiTargetPicker.groupDeletePending) {
+                            multiTargetPicker.groupDeletePending = true
+                            multiTargetPicker.feedback = root.t("Las rutinas que lo usen quedarán sin destino hasta editarlas.", "Routines using this group will have no target until edited.")
+                        } else if (wizz.deleteRoutineGroup(multiTargetPicker.editingGroupUid)) {
+                            multiTargetPicker.applySelection()
+                        }
+                    }
+                    Text { anchors.centerIn: parent; text: multiTargetPicker.groupDeletePending ? root.t("Confirmar borrado", "Confirm delete") : root.t("Borrar grupo", "Delete group"); color: Theme.error; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+                }
+                Item { Layout.fillWidth: true }
+                PressSurface { Layout.preferredWidth: 86; Layout.preferredHeight: 38; radius: 10; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: multiTargetPicker.close(); Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 11 } }
+                PressSurface { Layout.preferredWidth: 142; Layout.preferredHeight: 38; radius: 10; color: Theme.primary; accentColor: Theme.primary; onClicked: multiTargetPicker.applySelection(); Text { anchors.centerIn: parent; text: root.t("Usar selección", "Use selection"); color: "white"; font.family: Theme.controlFont; font.pixelSize: 11; font.weight: Font.Bold } }
             }
         }
     }
@@ -455,7 +700,7 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 Text { Layout.fillWidth: true; text: routineValuePicker.stepKind === "rgb" ? root.t("Color de este paso", "Color for this step") : root.t("Blanco de este paso", "White for this step"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 18; font.weight: Font.Bold }
-                PressSurface { Layout.preferredWidth: 30; Layout.preferredHeight: 30; radius: 15; color: "transparent"; onClicked: routineValuePicker.close(); Text { anchors.centerIn: parent; text: "×"; color: Theme.muted; font.pixelSize: 20 } }
+                PressSurface { Layout.preferredWidth: 30; Layout.preferredHeight: 30; radius: 15; color: "transparent"; onClicked: routineValuePicker.close(); AppIcon { anchors.centerIn: parent; width: 13; height: 13; name: "close"; color: Theme.muted } }
             }
             WizPresetPicker {
                 Layout.fillWidth: true

@@ -173,11 +173,11 @@ Item {
                     Rectangle {
                         x: 14; y: 14; width: 42; height: 42; radius: 13
                         color: favoriteCard.entryColor
-                        Text {
+                        AppIcon {
                             anchors.centerIn: parent
-                            text: favoriteCard.kind === "white" || favoriteCard.kind === "brightness" ? "\uE706" : favoriteCard.kind === "scene" ? "\uE8B2" : "\uE790"
+                            width: 18; height: 18
+                            glyph: favoriteCard.kind === "white" || favoriteCard.kind === "brightness" ? "\uE706" : favoriteCard.kind === "scene" ? "\uE8B2" : "\uE790"
                             color: favoriteCard.kind === "rgb" ? "white" : Theme.bg
-                            font.family: Theme.iconFont; font.pixelSize: 18
                         }
                     }
 
@@ -186,12 +186,12 @@ Item {
                         PressSurface {
                             width: 34; height: 34; radius: 17; color: "transparent"; accentColor: Theme.primary
                             onClicked: root.openEdit(favoriteCard.uid, favoriteCard.title, favoriteCard.kind, favoriteCard.rawValue)
-                            Text { anchors.centerIn: parent; text: "\uE70F"; color: Theme.primary; font.family: Theme.iconFont; font.pixelSize: 16 }
+                            AppIcon { anchors.centerIn: parent; width: 16; height: 16; glyph: "\uE70F"; color: Theme.primary }
                         }
                         PressSurface {
                             width: 34; height: 34; radius: 17; color: "transparent"; accentColor: Theme.error
                             onClicked: { root.deletingUid = favoriteCard.uid; root.deletingName = favoriteCard.title; confirmDelete.open() }
-                            Text { anchors.centerIn: parent; text: "\uE74D"; color: Theme.error; font.family: Theme.iconFont; font.pixelSize: 15 }
+                            AppIcon { anchors.centerIn: parent; width: 14; height: 14; name: "close"; color: Theme.error }
                         }
                     }
 
@@ -231,7 +231,7 @@ Item {
                     Text { text: root.editingUid ? root.t("Editar favorito", "Edit favorite") : root.t("Nuevo favorito", "New favorite"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 22; font.weight: Font.Bold }
                     Text { text: root.t("Guarda un estado fácil de reconocer y aplicar.", "Save a state that is easy to recognize and apply."); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 12 }
                 }
-                PressSurface { id: closeFavorite; width: 34; height: 34; anchors.right: parent.right; anchors.top: parent.top; radius: 17; color: "transparent"; onClicked: editor.close(); Text { anchors.centerIn: parent; text: "×"; color: Theme.muted; font.pixelSize: 24 } }
+                PressSurface { id: closeFavorite; width: 34; height: 34; anchors.right: parent.right; anchors.top: parent.top; radius: 17; color: "transparent"; onClicked: editor.close(); AppIcon { anchors.centerIn: parent; width: 14; height: 14; name: "close"; color: Theme.muted } }
             }
 
             RowLayout {
@@ -373,7 +373,7 @@ Item {
                 border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.18)
                 RowLayout {
                     anchors.fill: parent; anchors.margins: 14; spacing: 12
-                    Rectangle { Layout.preferredWidth: 42; Layout.preferredHeight: 42; radius: 13; color: Qt.rgba(0, 0, 0, 0.16); Text { anchors.centerIn: parent; text: typeBox.currentIndex === 3 ? "✦" : "●"; color: "white"; font.pixelSize: 18 } }
+                    Rectangle { Layout.preferredWidth: 42; Layout.preferredHeight: 42; radius: 13; color: Qt.rgba(0, 0, 0, 0.16); AppIcon { anchors.centerIn: parent; width: 18; height: 18; name: typeBox.currentIndex === 3 ? "sparkles" : "bulb"; color: "white" } }
                     ColumnLayout { Layout.fillWidth: true; spacing: 2; Text { text: nameField.text || root.t("Nuevo favorito", "New favorite"); color: root.previewTextColor(); font.pixelSize: 14; font.weight: Font.DemiBold } Text { text: typeBox.currentIndex === 3 ? root.selectedSceneLabel() + " · " + root.t("Velocidad ", "Speed ") + Math.round(sceneSpeed.value) : valueField.text; color: Qt.rgba(Qt.color(root.previewTextColor()).r, Qt.color(root.previewTextColor()).g, Qt.color(root.previewTextColor()).b, 0.78); font.pixelSize: 11 } }
                 }
             }

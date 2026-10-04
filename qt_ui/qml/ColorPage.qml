@@ -74,7 +74,7 @@ Item {
                         background: Rectangle {
                             x: level.leftPadding; y: level.topPadding + level.availableHeight / 2 - height / 2
                             width: level.availableWidth; height: 6; radius: 3; color: Theme.stroke
-                            Rectangle { width: level.visualPosition * parent.width; height: parent.height; radius: parent.radius; gradient: Gradient { GradientStop { position: 0; color: Theme.primary } GradientStop { position: 1; color: Theme.accent } } }
+                            Rectangle { width: level.visualPosition * parent.width; height: parent.height; radius: parent.radius; color: Theme.primary }
                         }
                         handle: Rectangle { x: level.leftPadding + level.visualPosition * (level.availableWidth - width); y: level.topPadding + level.availableHeight / 2 - height / 2; width: 21; height: 21; radius: 11; color: Theme.text; border.width: 2; border.color: Theme.card }
                     }

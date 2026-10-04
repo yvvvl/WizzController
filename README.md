@@ -27,10 +27,10 @@ over your local network. Normal commands use the native WiZ UDP LAN protocol,
 so light control does not depend on the WiZ cloud and remains responsive when
 Internet access is unavailable.
 
-Windows is the stable platform. Linux is available as a beta for Ubuntu Desktop
-and compatible environments.
+Windows and Linux (x64 and ARM64) are supported desktop platforms. Linux
+packages target Ubuntu-compatible desktops and install per user without `sudo`.
 
-> Current public release candidate: **v1.4.0 · build 7**
+> Prepared public release: **v1.4.0 · build 1**
 
 ## v1.4.0 release validation guide
 
@@ -59,8 +59,7 @@ Set-Location $target
 
 The hash printed by `Get-FileHash` must match the hash in the `.sha256` file.
 Before testing, close every other WizZ Desktop copy and back up
-`%LOCALAPPDATA%\WizZDesktop` if it contains settings you want to keep. The beta
-uses that same local data folder.
+`%LOCALAPPDATA%\WizZDesktop` if it contains settings you want to keep.
 
 ### What to test
 
@@ -84,7 +83,9 @@ Use real WiZ lights on the same LAN where possible. For every test, note
 6. **Quick Panel:** open it through its configured shortcut, use the bulb
    carousel, select bulbs on later pages, and verify that selection does not
    reset the current page. Test arrows/page buttons, placement beside the
-   taskbar on each monitor, click-outside dismissal, and edited quick actions.
+   taskbar on each monitor, dragging and snapping to each screen edge,
+   remembered placement after reopening, click-outside dismissal, and edited
+   quick actions.
 7. **Hotkeys and tray:** assign a non-conflicting shortcut, restart, and check
    one action occurs per press with no long freeze. Test restoring from tray and
    closing/minimizing behavior.
@@ -109,7 +110,7 @@ who was explicitly given access to the source repository:
 ```powershell
 git clone https://github.com/yvvvl/WizzController-Beta.git
 Set-Location .\WizzController-Beta
-git switch beta/v1.4.0
+git switch release/v1.4.0-public
 py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt -r requirements-dev.txt
@@ -119,7 +120,7 @@ python -m pytest -q
 
 ### Send a useful report
 
-Include app version (`1.4.0`), Windows version and display scale, light model
+Include app version (`1.4.0`), operating system and display scale, light model
 and firmware, the exact steps, expected versus actual behavior, repeatability,
 and a short screenshot/video when useful. To inspect the local log without
 sharing private configuration files:
@@ -131,19 +132,24 @@ Get-Content "$env:LOCALAPPDATA\WizZDesktop\logs\wizz.log" -Tail 200
 Redact IP addresses, MAC addresses, access tokens, and private files before
 sharing a report.
 
-## What is new in v1.2.0
+## Included in v1.4.0
 
-- Quickly select one, several, or all discovered lights.
-- Stable/Beta channels and checksum-verified automatic updates for portable
-  Windows builds from version 1.3.0.
-- Preserve settings, favorites, lights, and logs between application updates.
-- Predictably restore the main window from the system tray.
-- Enforce a single running instance of the application.
-- Provide a native Linux beta with XDG storage, AppIndicator tray support,
-  per-user autostart, and an installer that does not require `sudo`.
+- Native Qt desktop app for Windows and Linux (x64 and ARM64), with English and
+  Spanish UI.
+- Control one, several, or all lights with power, per-light brightness, RGB,
+  tunable white, WiZ scenes, favorites, and routines.
+- Movable Quick Panel with edge snapping, remembered placement, tray access,
+  editable quick actions, and click-outside dismissal.
+- Tray controls, single-instance activation, close-to-tray behavior, and
+  configurable hotkeys.
+- Checksum-verified updates for portable Windows and installed Linux builds.
+- Persistent settings, favorites, device names, and logs; native Linux XDG
+  storage, AppIndicator tray support, and per-user installation.
 
-> Screen Sync, streaming, and automatic installation of updates are not
-> included in this public release.
+> Screen Sync and audio sync are not included in this public release.
+
+WizZ Desktop is an independent project I build as a student. If it is useful to
+you, you can support development through [GitHub Sponsors](https://github.com/sponsors/yvvvl); no pressure—feedback and issue reports help too.
 
 ---
 
@@ -182,7 +188,7 @@ sharing a report.
 - System tray, close-to-tray, minimized startup, and Windows startup.
 - Single-instance activation and restoration.
 
-**Linux beta**
+**Linux desktop**
 
 - AppIndicator tray integration on supported desktops.
 - XDG-compliant persistent storage.
@@ -198,7 +204,7 @@ sharing a report.
 ### Windows 10/11 x64
 
 1. Open the [latest release](https://github.com/yvvvl/WizzController/releases/latest).
-2. Download `WizZDesktop-v1.2.0-windows-x64.zip`.
+2. Download `WizZDesktop-v1.4.0-windows-x64.zip`.
 3. Extract the complete ZIP archive.
 4. Run `WizZDesktop.exe`.
 
@@ -206,9 +212,9 @@ Windows may display a SmartScreen warning because the executable is not yet
 digitally signed. Select **More info → Run anyway** only if you downloaded the
 file from this repository and verified its checksum.
 
-### Linux beta (x64 and ARM64)
+### Linux (x64 and ARM64)
 
-The beta was validated on Ubuntu 22.04 with GNOME/Wayland.
+Native x64 and ARM64 bundles are provided for Ubuntu-compatible desktop systems.
 
 1. Download the archive that matches your CPU from the latest release: `linux-x64` for Intel/AMD, or `linux-arm64` for 64-bit ARM.
 2. Extract the archive.
@@ -219,7 +225,14 @@ The beta was validated on Ubuntu 22.04 with GNOME/Wayland.
 ```
 
 4. Open **WizZ Desktop** from your applications menu. You may pin it to your
-   dock like any other desktop application.
+   dock like any other desktop application. Once installed, use **Settings →
+   Check for updates → Install and restart** for future updates.
+
+On Wayland, WizZ Desktop prefers XWayland when its XCB runtime libraries are
+available so the Quick Panel can be positioned and snapped to screen edges.
+If startup reports missing XCB libraries, install `libxcb-cursor0`,
+`libxcb-icccm4`, and `libxcb-keysyms1`. An explicitly selected Wayland backend
+leaves window placement to the desktop compositor.
 
 To uninstall the per-user installation:
 
@@ -232,13 +245,13 @@ To uninstall the per-user installation:
 Windows PowerShell:
 
 ```powershell
-Get-FileHash .\WizZDesktop-v1.2.0-windows-x64.zip -Algorithm SHA256
+Get-FileHash .\WizZDesktop-v1.4.0-windows-x64.zip -Algorithm SHA256
 ```
 
 Linux:
 
 ```bash
-sha256sum -c WizZDesktop-v1.2.0-linux-<architecture>.tar.gz.sha256
+sha256sum -c WizZDesktop-v1.4.0-linux-<architecture>.tar.gz.sha256
 ```
 
 Compare the result with the checksum published alongside the release assets.
@@ -303,7 +316,14 @@ git diff --check
 
 Developer mode can launch virtual WiZ lights to exercise targeting, power,
 brightness, RGB, white temperature, and scenes without owning multiple physical
-bulbs. See the developer documentation under `docs/` for the current workflow.
+bulbs. The Qt source run also accepts `WIZZ_DEV_VIRTUAL_BULBS=3`: launch with
+`$env:WIZZ_DEV_VIRTUAL_BULBS = "3"; python -m qt_ui.run` in PowerShell or
+`WIZZ_DEV_VIRTUAL_BULBS=3 python -m qt_ui.run` on Linux. This uses an isolated
+test profile, sends no WiZ LAN traffic, and is unavailable in packaged builds.
+Create a routine with a targeted “Turn off” step to verify that only one virtual
+bulb changes. For two or more lights, click “Multiple…” beside the step target;
+save the selection as a named group to reuse it
+across routines. See the developer documentation under `docs/` for more detail.
 
 ### Native builds
 

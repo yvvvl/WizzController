@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls.Basic
 
 PressSurface {
     id: root
@@ -18,20 +19,18 @@ PressSurface {
         width: 5; height: 24; radius: 3
         color: Theme.primary
     }
-    Text {
+    AppIcon {
         x: 31; y: 16
-        text: root.selected ? "\uE73E" : "\uE739"
-        font.family: Theme.iconFont
-        font.pixelSize: 19
+        width: 19; height: 19
+        name: root.selected ? "check" : "circle"
         color: root.selected ? Theme.primary : Theme.muted
     }
-    Text {
+    AppIcon {
         anchors.right: parent.right
         anchors.rightMargin: 18
         y: 16
-        text: root.isOn ? "\uE7E8" : "\uE7E8"
-        font.family: Theme.iconFont
-        font.pixelSize: 18
+        width: 18; height: 18
+        name: "power"
         color: root.isOn ? root.lightColor : Theme.muted
     }
 
@@ -52,21 +51,35 @@ PressSurface {
         Text { text: root.displayName; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 15; font.weight: Font.DemiBold }
         Text { text: root.address; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11 }
     }
-    Text {
+    AppIcon {
         id: brightnessGlyph
         x: 31; y: 143
-        text: "\uE706"
-        font.family: Theme.iconFont
-        font.pixelSize: 15
+        width: 15; height: 15
+        name: "sun"
         color: Theme.muted
     }
-    Rectangle {
+    Slider {
+        id: individualBrightness
         anchors.left: parent.left; anchors.leftMargin: 55
         anchors.right: brightnessValue.left; anchors.rightMargin: 12
         anchors.verticalCenter: brightnessGlyph.verticalCenter
-        height: 5; radius: 3
-        color: Theme.stroke
-        Rectangle { width: parent.width * root.brightness / 100; height: parent.height; radius: parent.radius; color: root.isOn ? root.lightColor : Theme.faint }
+        height: 24
+        from: 10; to: 100; value: root.brightness
+        onMoved: wizz.queueLightBrightness(root.address, Math.round(value))
+        background: Rectangle {
+            x: individualBrightness.leftPadding
+            y: individualBrightness.topPadding + individualBrightness.availableHeight / 2 - height / 2
+            width: individualBrightness.availableWidth; height: 5; radius: 3; color: Theme.stroke
+            Rectangle { width: individualBrightness.visualPosition * parent.width; height: parent.height; radius: parent.radius; color: Theme.primary }
+        }
+        handle: Rectangle {
+            x: individualBrightness.leftPadding + individualBrightness.visualPosition * (individualBrightness.availableWidth - width)
+            y: individualBrightness.topPadding + individualBrightness.availableHeight / 2 - height / 2
+            width: 16; height: 16; radius: 8; color: Theme.text
+            border.width: individualBrightness.pressed ? 2 : 0; border.color: Theme.primary
+            Behavior on scale { NumberAnimation { duration: Theme.motionPress; easing.type: Easing.OutCubic } }
+            scale: individualBrightness.pressed ? 1.12 : 1
+        }
     }
     Text {
         id: brightnessValue

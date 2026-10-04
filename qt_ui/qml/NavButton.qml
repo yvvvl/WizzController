@@ -3,6 +3,7 @@ import QtQuick
 PressSurface {
     id: root
     property string glyph: ""
+    property string iconName: ""
     property string title: ""
     property bool compact: false
 
@@ -29,14 +30,14 @@ PressSurface {
             : root.mouseArea.containsMouse
                 ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08)
                 : "transparent"
-        Behavior on color { ColorAnimation { duration: 220; easing.type: Easing.OutCubic } }
-        Text {
+        Behavior on color { ColorAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
+        AppIcon {
             anchors.centerIn: parent
-            text: root.glyph
+            width: root.compact ? 18 : 20
+            height: width
+            glyph: root.glyph
+            name: root.iconName
             color: root.selected ? Theme.text : Theme.muted
-            font.family: Theme.iconFont
-            font.pixelSize: root.compact ? 18 : 20
-            Behavior on color { ColorAnimation { duration: 220 } }
         }
     }
     Text {
@@ -48,6 +49,6 @@ PressSurface {
         font.family: Theme.controlFont
         font.pixelSize: root.compact ? 10 : 11
         font.weight: root.selected ? Font.Bold : Font.DemiBold
-        Behavior on color { ColorAnimation { duration: 220 } }
+        Behavior on color { ColorAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
     }
 }

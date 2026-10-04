@@ -102,13 +102,13 @@ Item {
                 width: 146; height: 38; radius: 19
                 color: "transparent"; outlined: true; border.color: Theme.primary; accentColor: Theme.primary
                 onClicked: captureDialog.open()
-                Text { anchors.centerIn: parent; text: root.t("☆  Guardar actual", "☆  Save current"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.DemiBold }
+                Row { anchors.centerIn: parent; spacing: 7; AppIcon { anchors.verticalCenter: parent.verticalCenter; width: 14; height: 14; name: "star"; color: Theme.primary } Text { text: root.t("Guardar actual", "Save current"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.DemiBold } }
             }
             PressSurface {
                 width: 126; height: 38; radius: 19
                 color: Theme.primary; accentColor: Theme.primary
                 onClicked: root.openCustom("", root.t("Mi escena", "My scene"), "rgb", "{}")
-                Text { anchors.centerIn: parent; text: root.t("+  Nueva escena", "+  New scene"); color: "white"; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.Bold }
+                Row { anchors.centerIn: parent; spacing: 7; AppIcon { anchors.verticalCenter: parent.verticalCenter; width: 14; height: 14; name: "plus"; color: "white" } Text { text: root.t("Nueva escena", "New scene"); color: "white"; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.Bold } }
             }
             }
         }
@@ -121,7 +121,7 @@ Item {
                 Rectangle {
                     Layout.preferredWidth: 48; Layout.preferredHeight: 48; radius: 15
                     color: Qt.rgba(Theme.warning.r, Theme.warning.g, Theme.warning.b, 0.16)
-                    Text { anchors.centerIn: parent; text: "\uE7F8"; color: Theme.warning; font.family: Theme.iconFont; font.pixelSize: 20 }
+                    AppIcon { anchors.centerIn: parent; width: 20; height: 20; name: "star"; color: Theme.warning }
                 }
                 ColumnLayout {
                     Layout.preferredWidth: 158; spacing: 2
@@ -167,7 +167,7 @@ Item {
                         speedSlider.value = 100
                         wizz.applyScene("wiz:" + root.selectedSceneId)
                     }
-                    Text { anchors.centerIn: parent; text: "\uE777"; color: Theme.muted; font.family: Theme.iconFont; font.pixelSize: 16 }
+                    AppIcon { anchors.centerIn: parent; width: 15; height: 15; name: "reset"; color: Theme.muted }
                 }
             }
         }
@@ -185,11 +185,11 @@ Item {
                 width: parent.width; height: 54; radius: 12
                 color: Theme.card; border.width: 1; border.color: Theme.stroke
                 visible: customRepeater.count === 0
-                Text {
+                Row {
                     anchors.verticalCenter: parent.verticalCenter
-                    anchors.left: parent.left; anchors.leftMargin: 15
-                    text: root.t("ⓘ  Aún no tienes escenas personalizadas.", "ⓘ  You do not have any custom scenes yet.")
-                    color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11
+                    anchors.left: parent.left; anchors.leftMargin: 15; spacing: 9
+                    AppIcon { anchors.verticalCenter: parent.verticalCenter; width: 14; height: 14; name: "info"; color: Theme.muted }
+                    Text { text: root.t("Aún no tienes escenas personalizadas.", "You do not have any custom scenes yet."); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11 }
                 }
             }
             GridLayout {
@@ -216,7 +216,7 @@ Item {
                             anchors.horizontalCenter: parent.horizontalCenter
                             y: 13; width: 40; height: 40; radius: 13
                             color: Qt.rgba(customCard.entryColor.r, customCard.entryColor.g, customCard.entryColor.b, 0.18)
-                            Text { anchors.centerIn: parent; text: customCard.kind === "scene" ? "\uE734" : customCard.kind === "white" ? "\uE706" : "\uE790"; color: customCard.entryColor; font.family: Theme.iconFont; font.pixelSize: 18 }
+                            AppIcon { anchors.centerIn: parent; width: 18; height: 18; glyph: customCard.kind === "scene" ? "\uE734" : customCard.kind === "white" ? "\uE706" : "\uE790"; color: customCard.entryColor }
                         }
                         Text { anchors.horizontalCenter: parent.horizontalCenter; y: 60; width: parent.width - 18; text: customCard.title; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.DemiBold; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight }
                         Text { anchors.horizontalCenter: parent.horizontalCenter; y: 80; width: parent.width - 18; text: customCard.subtitle; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 9; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight }
@@ -225,7 +225,7 @@ Item {
                             PressSurface {
                                 width: 28; height: 28; radius: 14; color: "transparent"; accentColor: Theme.primary
                                 onClicked: root.openCustom(customCard.uid, customCard.title, customCard.kind, customCard.rawValue)
-                                Text { anchors.centerIn: parent; text: "\uE70F"; color: Theme.primary; font.family: Theme.iconFont; font.pixelSize: 12 }
+                                AppIcon { anchors.centerIn: parent; width: 12; height: 12; name: "edit"; color: Theme.primary }
                             }
                             PressSurface {
                                 width: 28; height: 28; radius: 14; color: "transparent"; accentColor: Theme.error
@@ -234,7 +234,7 @@ Item {
                                     root.deletingCustomName = customCard.title
                                     confirmDelete.open()
                                 }
-                                Text { anchors.centerIn: parent; text: "\uE74D"; color: Theme.error; font.family: Theme.iconFont; font.pixelSize: 12 }
+                                AppIcon { anchors.centerIn: parent; width: 12; height: 12; name: "trash"; color: Theme.error }
                             }
                         }
                     }
@@ -272,10 +272,8 @@ Item {
                             Rectangle {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 y: 12; width: 38; height: 38; radius: 12
-                                // Scene artwork uses the app's icon font so
-                                // it stays coherent with the rest of the UI.
                                 color: "transparent"
-                                Text { anchors.centerIn: parent; text: sceneCard.modelData.glyph; color: sceneCard.cardColor; font.family: Theme.iconFont; font.pixelSize: 22 }
+                                AppIcon { anchors.centerIn: parent; width: 23; height: 23; sceneId: sceneCard.modelData.sceneId; glyph: sceneCard.modelData.glyph; color: sceneCard.cardColor }
                             }
                             Text { anchors.horizontalCenter: parent.horizontalCenter; y: 57; width: parent.width - 14; text: sceneCard.modelData.title; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.DemiBold; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight }
                             Text { anchors.horizontalCenter: parent.horizontalCenter; y: 77; text: sceneCard.modelData.dynamic ? "dinámica" : "estática"; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 9 }
@@ -340,7 +338,7 @@ Item {
                     Text { text: root.editingCustomUid ? root.t("Editar escena", "Edit scene") : root.t("Nueva escena", "New scene"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 22; font.weight: Font.Bold }
                     Text { text: root.t("Guarda un preset local sin escribir JSON.", "Save a local preset without writing JSON."); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 12 }
                 }
-                PressSurface { id: closeScene; width: 34; height: 34; anchors.right: parent.right; anchors.top: parent.top; radius: 17; color: "transparent"; onClicked: customEditor.close(); Text { anchors.centerIn: parent; text: "×"; color: Theme.muted; font.pixelSize: 24 } }
+                PressSurface { id: closeScene; width: 34; height: 34; anchors.right: parent.right; anchors.top: parent.top; radius: 17; color: "transparent"; onClicked: customEditor.close(); AppIcon { anchors.centerIn: parent; width: 14; height: 14; name: "close"; color: Theme.muted } }
             }
 
             Rectangle {
@@ -354,7 +352,7 @@ Item {
                     Rectangle {
                         Layout.preferredWidth: 50; Layout.preferredHeight: 50; radius: 16
                         color: Qt.rgba(0, 0, 0, 0.16)
-                        Text { anchors.centerIn: parent; text: root.customType(customTypeBox.currentIndex) === "scene" ? "\uE734" : root.customType(customTypeBox.currentIndex) === "white" ? "\uE706" : "\uE790"; color: "white"; font.family: Theme.iconFont; font.pixelSize: 20 }
+                        AppIcon { anchors.centerIn: parent; width: 20; height: 20; glyph: root.customType(customTypeBox.currentIndex) === "scene" ? "\uE734" : root.customType(customTypeBox.currentIndex) === "white" ? "\uE706" : "\uE790"; color: "white" }
                     }
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 2

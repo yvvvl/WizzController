@@ -1,4 +1,4 @@
-from core.update_checker import is_update_available, select_latest_release
+from core.update_checker import is_update_available, parse_release, select_latest_release
 
 
 PAYLOADS = [
@@ -32,3 +32,21 @@ def test_final_release_replaces_its_release_candidate():
     assert final is not None
     assert is_update_available("1.4.2-rc.1", final)
     assert not is_update_available("1.4.2", final)
+
+
+def test_linux_release_selects_matching_architecture_archive_and_checksum():
+    payload = {
+        "tag_name": "v1.3.5",
+        "assets": [
+            {"name": "WizZDesktop-v1.3.5-linux-x64.tar.gz", "browser_download_url": "https://example.test/x64.tar.gz"},
+            {"name": "WizZDesktop-v1.3.5-linux-x64.tar.gz.sha256", "browser_download_url": "https://example.test/x64.sha256"},
+            {"name": "WizZDesktop-v1.3.5-linux-arm64.tar.gz", "browser_download_url": "https://example.test/arm64.tar.gz"},
+            {"name": "WizZDesktop-v1.3.5-linux-arm64.tar.gz.sha256", "browser_download_url": "https://example.test/arm64.sha256"},
+        ],
+    }
+
+    release = parse_release(payload, platform="linux-arm64")
+
+    assert release is not None
+    assert release.download_url == "https://example.test/arm64.tar.gz"
+    assert release.checksum_url == "https://example.test/arm64.sha256"

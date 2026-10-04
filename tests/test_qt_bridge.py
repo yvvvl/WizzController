@@ -37,12 +37,69 @@ def test_qt_bridge_exposes_virtual_lights(bridge):
     assert bridge.lights.rowCount() == 3
     assert bridge.scenes.rowCount() >= 33
     assert bridge.statusLine.endswith("RGB + Blancos")
+    assert len(bridge.routineBulbs) == 3
+    assert bridge.routineBulbs[0]["value"].startswith("mac:")
+
+
+def test_qt_bridge_saves_named_light_group_for_routines(qt_application, tmp_path, monkeypatch):
+    monkeypatch.setenv("WIZZ_CONFIG_DIR", str(tmp_path))
+    controller = VirtualLightController(3)
+    view_model = WizzBridge(controller)
+    try:
+        bulbs = view_model.routineBulbs
+        members = [bulbs[0]["value"], bulbs[2]["value"]]
+        uid = view_model.upsertRoutineGroup("", "Desk pair", json.dumps(members))
+
+        assert uid
+        assert view_model.routineGroups[0]["members"] == members
+        routine_uid = view_model.upsertRoutine(
+            "", "Desk off", "", "#5F91FF",
+            json.dumps([{"type": "turn_off", "target": f"group:{uid}"}]),
+        )
+        assert routine_uid
+        assert view_model._routines_manager.get_routine(routine_uid)["actions"][0]["target"] == f"group:{uid}"
+
+        view_model._executor.execute_routine(routine_uid, threaded=False)
+        assert [bulb["state"]["state"] for _, bulb in sorted(controller.bulbs.items())] == [False, True, False]
+        assert view_model.deleteRoutineGroup(uid)
+        assert view_model.routineGroups == []
+    finally:
+        view_model.shutdown()
+        controller.stop()
 
 
 def test_qt_settings_bridge_keeps_control_preferences_available(bridge):
     bridge.setSliderInterval(90)
 
     assert bridge.sliderInterval == 90
+
+
+def test_quick_panel_position_is_persisted_only_on_positionable_backends(bridge, monkeypatch):
+    from qt_ui import bridge as bridge_module
+
+    class RuntimePreferences:
+        def __init__(self):
+            self.values = {"quick_panel_x": None, "quick_panel_y": None}
+
+        def get(self, key):
+            return self.values.get(key)
+
+        def update(self, **values):
+            self.values.update(values)
+
+    preferences = RuntimePreferences()
+    bridge._runtime = preferences
+    monkeypatch.setattr(bridge_module.QGuiApplication, "platformName", lambda: "xcb")
+
+    assert bridge.quickPanelCanRememberPosition is True
+    bridge.saveQuickPanelPosition(321, 654)
+    assert bridge.quickPanelSavedPosition() == {"valid": True, "x": 321, "y": 654}
+
+    monkeypatch.setattr(bridge_module.QGuiApplication, "platformName", lambda: "wayland")
+    assert bridge.quickPanelCanRememberPosition is False
+    bridge.saveQuickPanelPosition(10, 20)
+    assert bridge.quickPanelSavedPosition() == {"valid": False, "x": 0, "y": 0}
+    assert preferences.values == {"quick_panel_x": 321, "quick_panel_y": 654}
 
 
 def test_qt_appearance_preferences_update_the_bridge_state(bridge):
@@ -77,9 +134,21 @@ def test_qt_release_candidate_can_opt_into_preview_channel(bridge):
 def test_qt_update_requests_a_real_runtime_exit(bridge):
     signal = QSignalSpy(bridge.quitRequested)
 
+    bridge._update_preparing = True
     bridge._apply_update_install_result("Ready", "quit")
 
     assert signal.count() == 1
+    assert bridge.updatePreparing is False
+
+
+def test_qt_update_preparing_state_is_separate_from_checking(bridge):
+    assert bridge.updateInProgress is False
+    assert bridge.updatePreparing is False
+
+    bridge._update_in_progress = True
+    bridge.updateChanged.emit()
+    assert bridge.updateInProgress is True
+    assert bridge.updatePreparing is False
 
 
 def test_qt_bridge_selection_updates_immediately(bridge):
@@ -89,6 +158,18 @@ def test_qt_bridge_selection_updates_immediately(bridge):
 
     assert bridge.selectedCount == 2
     assert not bridge.lights._items[0]["selected"]
+
+
+def test_qt_per_light_brightness_preserves_multi_light_selection(bridge):
+    second_ip = bridge.lights._items[1]["ip"]
+    selected_before = set(bridge.controller.get_target_config()["selected_ips"])
+
+    bridge.queueLightBrightness(second_ip, 43)
+    bridge._flush_light_brightness()
+
+    assert bridge.lights._items[1]["brightness"] == 43
+    assert bridge.controller.bulbs[second_ip]["state"]["dimming"] == 43
+    assert set(bridge.controller.get_target_config()["selected_ips"]) == selected_before
 
 
 def test_qt_bridge_uses_the_live_rgb_channels_for_light_tint():

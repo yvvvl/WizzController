@@ -28,7 +28,7 @@ Rectangle {
     // press is enough feedback; enlarging on hover made neighbouring buttons
     // look misaligned and exposed square edges on dense toolbars.
     clip: true
-    scale: pointer.pressed ? 0.99 : 1
+    scale: pointer.pressed ? 0.975 : 1
     transformOrigin: Item.Center
 
     // Optional only for a deliberate glossy surface; ordinary actions keep a
@@ -60,7 +60,7 @@ Rectangle {
         enabled: root.enabled
         cursorShape: Qt.PointingHandCursor
         onPressed: {
-            pressOverlay.opacity = 0.18
+            pressIn.restart()
         }
         onReleased: releaseFade.restart()
         onCanceled: releaseFade.restart()
@@ -68,6 +68,7 @@ Rectangle {
     }
 
     Timer { id: releaseFade; interval: 120; onTriggered: fade.restart() }
+    NumberAnimation { id: pressIn; target: pressOverlay; property: "opacity"; to: 0.16; duration: Theme.motionPress; easing.type: Easing.OutCubic }
     NumberAnimation { id: fade; target: pressOverlay; property: "opacity"; to: 0; duration: Theme.motionFast; easing.type: Easing.OutCubic }
 
     Behavior on color { ColorAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }

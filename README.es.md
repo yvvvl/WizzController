@@ -27,25 +27,29 @@
 Las acciones normales se envían por **UDP LAN nativo**, por lo que el control no depende de la nube de WiZ y mantiene una respuesta rápida incluso cuando la conexión a Internet no está disponible.
 
 La aplicación combina control de iluminación, automatizaciones y una interfaz
-moderna en un único programa portable. Windows es la plataforma estable;
-Linux se entrega como beta para Ubuntu Desktop y otros escritorios compatibles.
+moderna en un único programa. Windows y Linux (x64 y ARM64) son plataformas
+compatibles. Linux apunta a escritorios compatibles con Ubuntu y se instala
+para el usuario actual, sin `sudo`.
 
-> Candidata de release pública actual: **v1.4.0 · build 7**
+> Release pública preparada: **v1.4.0 · build 1**
 
-## Novedades v1.2.0
+## Incluido en v1.4.0
 
-- Selección temporal de una, varias o todas las ampolletas.
-- Canales Estable/Beta y actualización automática verificada en Windows
-  portable, desde la versión 1.3.0.
-- Configuración y logs persistentes en AppData Local para builds Windows.
-- Restauración más predecible de la ventana desde la bandeja.
-- Validación real de control WiZ, tray, hotkeys, instancia única y ejecutable
-  aislado en Windows.
-- Beta Linux: persistencia XDG, bandeja AppIndicator en GNOME/Wayland,
-  apertura de Datos/Logs y arranque automático por usuario.
+- App nativa Qt para Windows y Linux (x64 y ARM64), con interfaz en español e
+  inglés.
+- Control de una, varias o todas las ampolletas: encendido, brillo individual,
+  RGB, blanco regulable, escenas WiZ, favoritos y rutinas.
+- Panel rápido movible, con ajuste magnético a los bordes, posición recordada,
+  acceso desde la bandeja, acciones editables y cierre al hacer clic fuera.
+- Bandeja, instancia única, cierre al área de notificación y hotkeys configurables.
+- Actualizaciones verificadas por SHA-256 para Windows portable y Linux instalado.
+- Configuración, favoritos, nombres de dispositivos y logs persistentes; Linux
+  nativo con rutas XDG, AppIndicator e instalación por usuario.
 
-> Screen Sync, streaming y actualización automática no están incluidos
-> en esta versión estable.
+> Screen Sync y sincronización de audio no están incluidos en esta release.
+
+WizZ Desktop es un proyecto independiente que desarrollo como estudiante. Si te
+resulta útil, puedes apoyar su desarrollo en [GitHub Sponsors](https://github.com/sponsors/yvvvl); sin presión: tus comentarios y reportes también ayudan mucho.
 
 ## Guía de validación para v1.4.0
 
@@ -74,8 +78,7 @@ Set-Location $target
 
 El hash que muestra `Get-FileHash` debe coincidir con el hash del archivo
 `.sha256`. Antes de probar, cierra todas las demás copias de WizZ Desktop y
-respalda `%LOCALAPPDATA%\WizZDesktop` si quieres conservar su configuración:
-esta beta usa la misma carpeta de datos local.
+respalda `%LOCALAPPDATA%\WizZDesktop` si quieres conservar su configuración.
 
 ### Qué debe probar
 
@@ -100,8 +103,9 @@ resultado real.
 6. **Panel rápido:** ábrelo con su atajo configurado, usa el carrusel de
    ampolletas, selecciona ampolletas de páginas posteriores y confirma que no
    vuelve a la primera página. Prueba flechas/botones de página, posición junto
-   a la barra de tareas en cada monitor, cierre al hacer clic fuera y accesos
-   rápidos editados.
+   a la barra de tareas en cada monitor, arrastrarlo y ajustarlo a los bordes,
+   que recuerde la posición, cierre al hacer clic fuera y accesos rápidos
+   editados.
 7. **Hotkeys y bandeja:** asigna un atajo que no choque con otro programa,
    reinicia y confirma una sola acción por pulsación y sin congelamientos. Prueba
    restaurar desde la bandeja y el comportamiento de cerrar/minimizar.
@@ -126,7 +130,7 @@ tester al que se le dio acceso explícito al repositorio fuente:
 ```powershell
 git clone https://github.com/yvvvl/WizzController-Beta.git
 Set-Location .\WizzController-Beta
-git switch beta/v1.4.0
+git switch release/v1.4.0-public
 py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt -r requirements-dev.txt
@@ -136,7 +140,7 @@ python -m pytest -q
 
 ### Cómo enviar un reporte útil
 
-Incluye versión (`1.4.0`), versión de Windows y escala de pantalla, modelo y
+Incluye versión (`1.4.0`), sistema operativo y escala de pantalla, modelo y
 firmware de la ampolleta, pasos exactos, esperado versus real, repetibilidad y
 una captura/video corto cuando ayude. Para ver el log local sin compartir los
 archivos de configuración privada:
@@ -230,20 +234,21 @@ Oculta IPs, MACs, tokens y archivos privados antes de enviar información.
 
 La descarga incluye un archivo `.sha256` para comprobar la integridad del paquete.
 
-Después de instalar v1.3.0 o posterior puedes elegir **Estable** o **Beta** en
-**Ajustes → Actualizaciones**. La app descarga, verifica e instala el siguiente
-ZIP oficial al reiniciar. El canal Beta queda preparado para recibir
-pre-releases de una distribución privada antes que Estable.
+En Windows, v1.3.0 o posterior permite descargar y verificar la siguiente
+actualización estable desde **Ajustes → Actualizaciones**. En Linux, v1.4.0 o
+posterior hace lo mismo con el paquete x64 o ARM64 correspondiente. La app
+instalada conserva tus datos mientras reemplaza los archivos del programa.
 
 > Una beta cerrada no se publica como release de este repositorio público. Para
 > compartirla con personas seleccionadas se usa una distribución privada con
 > cuentas o accesos individuales; un código dentro de la app no vuelve privada
 > una descarga pública.
 
-### Linux beta — Ubuntu Desktop
+### Linux — Ubuntu Desktop compatible
 
-La beta Linux se distribuye como `WizZDesktop-v1.2.0-linux-x64.tar.gz` con su
-archivo `.sha256`. Extrae el archivo, abre una terminal dentro de la carpeta
+Linux se distribuye como `WizZDesktop-v1.4.0-linux-x64.tar.gz` o
+`WizZDesktop-v1.4.0-linux-arm64.tar.gz`, cada uno con su archivo `.sha256`.
+Extrae el archivo, abre una terminal dentro de la carpeta
 extraída y ejecuta `./install.sh`. No requiere `sudo`: instala la app para tu
 usuario, crea el acceso **WizZ Desktop** en Aplicaciones y conserva tus datos
 al actualizar. Luego puedes abrirla desde Actividades y anclarla al dock.
@@ -254,23 +259,27 @@ pero conserva tus configuraciones, ampolletas, favoritos y logs.
 
 También puedes ejecutar `./WizZDesktop` directamente desde la carpeta
 extraída si prefieres usarla en modo portable. La plataforma validada es Ubuntu
-Desktop con GNOME; en Wayland, la posición de ventana la decide el compositor.
+Desktop con GNOME. En sesiones Wayland, WizZ prefiere XWayland cuando están
+disponibles sus bibliotecas XCB para poder ajustar el panel a los bordes. Si el
+inicio informa que faltan, instala `libxcb-cursor0`, `libxcb-icccm4` y
+`libxcb-keysyms1`. Si se fuerza manualmente Wayland, la posición queda a cargo
+del compositor.
 
 La bandeja requiere un escritorio compatible con AppIndicator. Si no está
 disponible, la aplicación sigue siendo usable como ventana normal. Los hotkeys
-globales están deshabilitados intencionalmente en Linux beta hasta contar con
+globales están deshabilitados intencionalmente en Linux hasta contar con
 un backend seguro basado en el portal XDG.
 
 ### Verificar SHA-256 en PowerShell
 
 ```powershell
-Get-FileHash .\WizZDesktop-v1.2.0-windows-x64.zip -Algorithm SHA256
+Get-FileHash .\WizZDesktop-v1.4.0-windows-x64.zip -Algorithm SHA256
 ```
 
 Compara el resultado con el contenido de:
 
 ```text
-WizZDesktop-v1.2.0-windows-x64.zip.sha256
+WizZDesktop-v1.4.0-windows-x64.zip.sha256
 ```
 
 ---
@@ -312,6 +321,36 @@ python -m qt_ui.run
 ```
 
 > `python main.py` también abre Qt para compatibilidad. Flet ya no es una ruta de ejecución ni de distribución pública.
+
+### Probar rutinas con ampolletas virtuales
+
+Al ejecutar desde el código fuente, `WIZZ_DEV_VIRTUAL_BULBS=3` abre la misma
+interfaz Qt con tres luces simuladas. No envía comandos WiZ por LAN y guarda las
+rutinas de prueba en un perfil separado del real. Las builds empaquetadas
+ignoran este modo.
+
+Windows (PowerShell):
+
+```powershell
+$env:WIZZ_DEV_VIRTUAL_BULBS = "3"
+try { python -m qt_ui.run }
+finally { Remove-Item Env:WIZZ_DEV_VIRTUAL_BULBS }
+```
+
+Linux:
+
+```bash
+WIZZ_DEV_VIRTUAL_BULBS=3 python -m qt_ui.run
+```
+
+En Rutinas, crea un paso «Apagar» y elige «Virtual bulb 2» como destino.
+Al ejecutarlo, solo la segunda luz debe apagarse. «Selección actual» conserva
+el comportamiento anterior y «Todas las luces» ignora la selección actual
+solo para ese paso.
+Para actuar sobre dos o más, pulsa «Varias…» junto al destino, marca las
+ampolletas y pulsa «Usar selección». Si les pones nombre y pulsas «Crear grupo»,
+podrás reutilizar ese grupo en otras rutinas; editarlo actualizará sus miembros
+en todas ellas.
 
 ### Validar el repositorio
 
@@ -365,7 +404,7 @@ La guía completa está en
 
 ---
 
-## Build nativa para Linux beta
+## Build nativa para Linux
 
 En Ubuntu 22.04 instala las dependencias de compilación y AppIndicator:
 

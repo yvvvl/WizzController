@@ -35,7 +35,7 @@ ApplicationWindow {
         // opacity animates, which makes the navigation feel responsive.
         pendingPage = index
         pageVisible = false
-        pageLoader.y = window.pageGutter + 14
+        pageLoader.y = window.pageGutter + 12
         currentPage = pendingPage
         pendingPage = -1
         scroll.contentY = 0
@@ -48,6 +48,17 @@ ApplicationWindow {
 
     function showQuickPanel() {
         quickPanel.reveal()
+    }
+
+    function toggleQuickPanel() {
+        if (quickPanel.visible)
+            quickPanel.hide()
+        else
+            quickPanel.reveal()
+    }
+
+    function hideQuickPanel() {
+        quickPanel.hide()
     }
 
     onClosing: function(close) {
@@ -105,12 +116,12 @@ ApplicationWindow {
                 Item { Layout.fillWidth: true }
                 Rectangle {
                     Layout.preferredWidth: 42; Layout.preferredHeight: 30; radius: 8; color: minMouse.containsMouse ? Theme.cardHi : "transparent"
-                    Text { anchors.centerIn: parent; text: "\uE921"; color: Theme.muted; font.family: Theme.iconFont; font.pixelSize: 12 }
+                    AppIcon { anchors.centerIn: parent; width: 12; height: 12; name: "minimize"; color: Theme.muted }
                     MouseArea { id: minMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: window.showMinimized() }
                 }
                 Rectangle {
                     Layout.preferredWidth: 42; Layout.preferredHeight: 30; radius: 8; color: closeMouse.containsMouse ? "#8f2637" : "transparent"
-                    Text { anchors.centerIn: parent; text: "\uE8BB"; color: closeMouse.containsMouse ? "white" : Theme.muted; font.family: Theme.iconFont; font.pixelSize: 12 }
+                    AppIcon { anchors.centerIn: parent; width: 14; height: 14; name: "close"; color: closeMouse.containsMouse ? "white" : Theme.muted }
                     MouseArea { id: closeMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: window.close() }
                 }
             }
@@ -152,20 +163,20 @@ ApplicationWindow {
                 Text { anchors.horizontalCenter: parent.horizontalCenter; text: "WizZ"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.Bold }
                 Repeater {
                     model: wizz.language === "en" ? [
-                        {title: "Home", glyph: "\uE80F"}, {title: "Color", glyph: "\uE790"},
-                        {title: "Scenes", glyph: "\uE734"}, {title: "Favorites", glyph: "\uE734"},
-                        {title: "Routines", glyph: "\uE945"}, {title: "Settings", glyph: "\uE713"},
-                        {title: "Hotkeys", glyph: "\uE765"}
+                        {title: "Home", icon: "home"}, {title: "Color", icon: "palette"},
+                        {title: "Scenes", icon: "scenes"}, {title: "Favorites", icon: "heart"},
+                        {title: "Routines", icon: "routines"}, {title: "Settings", icon: "settings"},
+                        {title: "Hotkeys", icon: "keyboard"}
                     ] : [
-                        {title: "Inicio", glyph: "\uE80F"}, {title: "Color", glyph: "\uE790"},
-                        {title: "Escenas", glyph: "\uE734"}, {title: "Favoritos", glyph: "\uE734"},
-                        {title: "Rutinas", glyph: "\uE945"}, {title: "Ajustes", glyph: "\uE713"},
-                        {title: "Hotkeys", glyph: "\uE765"}
+                        {title: "Inicio", icon: "home"}, {title: "Color", icon: "palette"},
+                        {title: "Escenas", icon: "scenes"}, {title: "Favoritos", icon: "heart"},
+                        {title: "Rutinas", icon: "routines"}, {title: "Ajustes", icon: "settings"},
+                        {title: "Hotkeys", icon: "keyboard"}
                     ]
                     delegate: NavButton {
                         required property int index
                         required property var modelData
-                        title: modelData.title; glyph: modelData.glyph; selected: index === window.currentPage
+                        title: modelData.title; iconName: modelData.icon; selected: index === window.currentPage
                         compact: window.compactHeight
                         opacity: selected || index === 0 ? 1 : 0.72
                         Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
@@ -234,7 +245,7 @@ ApplicationWindow {
                                     Text { text: wizz.targetLine; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 10 }
                                 }
                                 Item { Layout.fillWidth: true }
-                                Text { text: "\uE72A"; color: Theme.muted; font.family: Theme.iconFont; font.pixelSize: 16 }
+                                AppIcon { Layout.preferredWidth: 16; Layout.preferredHeight: 16; name: "arrowRight"; color: Theme.muted }
                             }
                         }
                     }
@@ -279,8 +290,7 @@ ApplicationWindow {
                                 color: wizz.powerOn ? Theme.primary : Theme.cardHi
                                 Item {
                                     anchors.centerIn: parent; width: 30; height: 30
-                                    Rectangle { anchors.centerIn: parent; width: 22; height: 22; radius: 11; color: "transparent"; border.width: 2; border.color: Theme.text }
-                                    Rectangle { anchors.horizontalCenter: parent.horizontalCenter; y: 0; width: 3; height: 13; radius: 2; color: Theme.text }
+                                    AppIcon { anchors.fill: parent; name: "power"; color: Theme.text; strokeWidth: 2 }
                                 }
                             }
                             ColumnLayout {
@@ -290,7 +300,7 @@ ApplicationWindow {
                                 Text { text: wizz.language === "en" ? "Click to toggle the active target" : "Toca para alternar el target activo"; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 11 }
                             }
                             Item { Layout.fillWidth: true }
-                            Text { text: "\uE72A"; color: Theme.accent; font.family: Theme.iconFont; font.pixelSize: 22 }
+                            AppIcon { Layout.preferredWidth: 22; Layout.preferredHeight: 22; name: "arrowRight"; color: Theme.accent }
                         }
                     }
 
@@ -313,7 +323,7 @@ ApplicationWindow {
                                 background: Rectangle {
                                     x: mainSlider.leftPadding; y: mainSlider.topPadding + mainSlider.availableHeight / 2 - height / 2
                                     width: mainSlider.availableWidth; height: 5; radius: 3; color: Theme.stroke
-                                    Rectangle { width: mainSlider.visualPosition * parent.width; height: parent.height; radius: parent.radius; color: Theme.accent }
+                                    Rectangle { width: mainSlider.visualPosition * parent.width; height: parent.height; radius: parent.radius; color: Theme.primary }
                                 }
                                 handle: Rectangle {
                                     x: mainSlider.leftPadding + mainSlider.visualPosition * (mainSlider.availableWidth - width)
@@ -377,8 +387,8 @@ ApplicationWindow {
                     height: item ? item.implicitHeight : 0
                     active: window.currentPage !== 0
                     opacity: window.pageVisible ? 1 : 0
-                    Behavior on opacity { NumberAnimation { duration: window.pageVisible ? Theme.motionFast : 0; easing.type: Easing.OutCubic } }
-                    Behavior on y { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
+                    Behavior on opacity { NumberAnimation { duration: window.pageVisible ? Theme.motionPage : 0; easing.type: Easing.OutCubic } }
+                    Behavior on y { NumberAnimation { duration: Theme.motionPage; easing.type: Easing.OutCubic } }
                     onLoaded: revealPage.restart()
                     Timer { id: revealPage; interval: 16; onTriggered: { window.pageVisible = true; pageLoader.opacity = 1; pageLoader.y = window.pageGutter } }
                     sourceComponent: window.currentPage === 1 ? colorPage : window.currentPage === 2 ? scenesPage : window.currentPage === 3 ? favoritesPage : window.currentPage === 4 ? routinesPage : window.currentPage === 5 ? settingsPage : hotkeysPage

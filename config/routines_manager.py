@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import ipaddress
 import uuid
 from typing import Any
 
@@ -96,13 +97,15 @@ class RoutinesManager(JsonManager):
 
     def __init__(self, i18n=None) -> None:
         self.i18n = i18n or LocalizationManager(preference="es")
-        super().__init__("routines.json", default_data={"routines": copy.deepcopy(DEFAULT_ROUTINES)})
+        super().__init__("routines.json", default_data={"routines": copy.deepcopy(DEFAULT_ROUTINES), "light_groups": []})
         if isinstance(self.data, list):
             self.data = {"routines": self.data}
         if not isinstance(self.data, dict):
             self.data = {"routines": copy.deepcopy(DEFAULT_ROUTINES)}
         if not isinstance(self.data.get("routines"), list):
             self.data["routines"] = copy.deepcopy(DEFAULT_ROUTINES)
+        if not isinstance(self.data.get("light_groups"), list):
+            self.data["light_groups"] = []
         self._ensure_defaults()
 
     def _t(self, key: str, **values) -> str:
@@ -182,6 +185,71 @@ class RoutinesManager(JsonManager):
         self.save()
         return new
 
+    @staticmethod
+    def normalize_group_members(members: Any) -> list[str]:
+        """Only stable bulb identities belong in a reusable light group."""
+        if not isinstance(members, (list, tuple)):
+            return []
+        out: list[str] = []
+        for member in members:
+            if not isinstance(member, str):
+                continue
+            value = member.strip()
+            if value.startswith("mac:"):
+                mac = value[4:].lower()
+                if len(mac) != 12 or any(ch not in "0123456789abcdef" for ch in mac):
+                    continue
+                value = f"mac:{mac}"
+            elif value.startswith("ip:"):
+                try:
+                    value = f"ip:{ipaddress.ip_address(value[3:])}"
+                except ValueError:
+                    continue
+            else:
+                continue
+            if value in out:
+                continue
+            out.append(value)
+            if len(out) >= 64:
+                break
+        return out
+
+    def get_light_groups(self) -> list[dict[str, Any]]:
+        return [group for group in self.data.get("light_groups", []) if isinstance(group, dict)]
+
+    def get_light_group(self, uid: str) -> dict[str, Any] | None:
+        return next((group for group in self.get_light_groups() if str(group.get("id")) == str(uid)), None)
+
+    def upsert_light_group(self, uid: str, name: str, members: Any) -> dict[str, Any] | None:
+        clean_name = str(name or "").strip()[:80]
+        clean_members = self.normalize_group_members(members)
+        if not clean_name or not clean_members:
+            return None
+        existing = self.get_light_group(uid) if uid else None
+        if uid and existing is None:
+            return None
+        if any(
+            group is not existing and str(group.get("name") or "").casefold() == clean_name.casefold()
+            for group in self.get_light_groups()
+        ):
+            return None
+        if existing:
+            existing.update(name=clean_name, members=clean_members)
+            group = existing
+        else:
+            group = {"id": str(uuid.uuid4()), "name": clean_name, "members": clean_members}
+            self.data.setdefault("light_groups", []).append(group)
+        self.save()
+        return group
+
+    def remove_light_group(self, uid: str) -> bool:
+        before = len(self.get_light_groups())
+        self.data["light_groups"] = [group for group in self.get_light_groups() if str(group.get("id")) != str(uid)]
+        if len(self.data["light_groups"]) == before:
+            return False
+        self.save()
+        return True
+
     def normalize_actions(self, actions: Any) -> list[dict[str, Any]]:
         if not isinstance(actions, list):
             return []
@@ -198,6 +266,17 @@ class RoutinesManager(JsonManager):
             for key in ("method", "ms", "speed", "name"):
                 if key in action:
                     item[key] = action.get(key)
+            target = action.get("target")
+            if kind in {
+                "turn_on", "turn_off", "toggle", "brightness", "brightness_delta",
+                "rgb", "white_kelvin", "white_percent", "scene",
+            }:
+                if isinstance(target, str) and target.strip():
+                    item["target"] = target.strip()
+                elif isinstance(target, (list, tuple)):
+                    members = self.normalize_group_members(target)
+                    if members:
+                        item["target"] = members
             out.append(item)
         return out
 

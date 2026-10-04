@@ -83,6 +83,9 @@ install -m 755 "$ROOT/scripts/linux_install.sh" "$PACKAGE_DIR/install.sh"
 install -m 755 "$ROOT/scripts/linux_uninstall.sh" "$PACKAGE_DIR/uninstall.sh"
 mkdir -p "$PACKAGE_DIR/assets"
 cp "$ROOT/assets/icon.png" "$PACKAGE_DIR/assets/icon.png"
+# Preserve the third-party license notice for dependencies bundled by PyInstaller.
+cp "$ROOT/THIRD_PARTY_NOTICES.md" "$PACKAGE_DIR/THIRD_PARTY_NOTICES.md"
+cp -R "$ROOT/licenses" "$PACKAGE_DIR/licenses"
 
 cat > "$PACKAGE_DIR/BUILD_INFO.json" <<EOF
 {

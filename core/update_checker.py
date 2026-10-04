@@ -50,13 +50,22 @@ def parse_release(payload: dict[str, Any], *, platform: str = "windows") -> Rele
     download = None
     checksum = None
     if isinstance(assets, list):
-        expected = f"-{platform}-"
-        package = next(
-            (asset for asset in assets if isinstance(asset, dict)
-             and expected in str(asset.get("name") or "").lower()
-             and str(asset.get("name") or "").lower().endswith(".zip")),
-            None,
-        )
+        platform_name = str(platform or "windows").lower()
+        if platform_name.startswith("linux-"):
+            package_suffix = f"-{platform_name}.tar.gz"
+            package = next(
+                (asset for asset in assets if isinstance(asset, dict)
+                 and str(asset.get("name") or "").lower().endswith(package_suffix)),
+                None,
+            )
+        else:
+            expected = f"-{platform_name}-"
+            package = next(
+                (asset for asset in assets if isinstance(asset, dict)
+                 and expected in str(asset.get("name") or "").lower()
+                 and str(asset.get("name") or "").lower().endswith(".zip")),
+                None,
+            )
         if isinstance(package, dict):
             download = str(package.get("browser_download_url") or "") or None
             package_name = str(package.get("name") or "")
@@ -80,11 +89,12 @@ def select_latest_release(
     payloads: Iterable[dict[str, Any]],
     *,
     channel: str = "stable",
+    platform: str = "windows",
 ) -> ReleaseInfo | None:
     allow_prerelease = str(channel).strip().lower() in {"beta", "prerelease"}
     releases = []
     for payload in payloads:
-        release = parse_release(payload)
+        release = parse_release(payload, platform=platform)
         if release is not None and (allow_prerelease or not release.prerelease):
             releases.append(release)
     return max(releases, key=lambda item: _version_key(item.version), default=None)
