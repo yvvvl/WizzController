@@ -27,18 +27,17 @@ QtObject {
     // Shared motion preference.  Pages and controls consume these tokens so
     // the accessibility setting behaves consistently across the shell.
     property bool reduceMotion: false
-    property int motionPress: reduceMotion ? 0 : 95
-    property int motionFast: reduceMotion ? 0 : 180
-    property int motionNormal: reduceMotion ? 0 : 280
-    property int motionPage: reduceMotion ? 0 : 240
-    // Windows 11 variable faces give controls a calmer, more deliberate
-    // rhythm while preserving a safe Segoe fallback on older systems.
-    readonly property string displayFont: "Segoe UI Variable Display"
-    readonly property string uiFont: "Segoe UI Variable Text"
-    // Deliberately denser face for interactive labels. It keeps small actions
-    // from looking faint against filled buttons and dark surfaces.
-    readonly property string controlFont: "Segoe UI Semibold"
-    readonly property string monoFont: "Cascadia Mono"
+    property int motionPress: reduceMotion ? 0 : 105
+    property int motionFast: reduceMotion ? 0 : 160
+    property int motionNormal: reduceMotion ? 0 : 240
+    property int motionPage: reduceMotion ? 0 : 280
+    // Use the actual installed variable family name. The former Text/Display
+    // aliases are not exposed as separate families on many systems, so Qt
+    // silently fell back to a plainer default face.
+    readonly property string displayFont: "Segoe UI Variable"
+    readonly property string uiFont: "Segoe UI Variable"
+    readonly property string controlFont: "Segoe UI Variable"
+    readonly property string monoFont: "Cascadia Code"
     function setMode(name) {
         var n = String(name || "midnight").toLowerCase()
         mode = n

@@ -32,6 +32,7 @@ from core.update_client import ReleaseClient
 from core.update_installer import (
     UpdateInstallError,
     can_self_update,
+    consume_update_result,
     launch_staged_update,
     stage_linux_update,
     stage_windows_update,
@@ -194,6 +195,8 @@ class WizzBridge(QObject):
     updateChanged = Signal()
     updateResultReceived = Signal(object, str)
     updateInstallResultReceived = Signal(str, str)
+    updateProgressReceived = Signal(int, str)
+    updateProgressReceived = Signal(int, str)
     quitRequested = Signal()
     hotkeyCaptured = Signal(str)
     navigateRequested = Signal(int)
@@ -255,7 +258,7 @@ class WizzBridge(QObject):
             {"key": "relax", "title_es": "Relax", "title_en": "Relax", "glyph": "\ue8cb", "color": "#34d399"},
             {"key": "party", "title_es": "Fiesta", "title_en": "Party", "glyph": "\ue7fc", "color": "#ec4899"},
             {"key": "warm", "title_es": "Cálido", "title_en": "Warm", "glyph": "\ue706", "color": "#ff8a3d"},
-            {"key": "cool", "title_es": "Frío", "title_en": "Cool", "glyph": "\ue9ca", "color": "#38bdf8"},
+            {"key": "cool", "title_es": "Frío", "title_en": "Cool White", "glyph": "\ue9ca", "color": "#38bdf8"},
             {"key": "reset", "title_es": "Restablecer", "title_en": "Reset", "glyph": "\ue777", "color": "#77849e"},
             {"key": "off", "title_es": "Apagar", "title_en": "Turn off", "glyph": "\ue7e8", "color": "#ef6b73"},
             {"key": "on", "title_es": "Encender", "title_en": "Turn on", "glyph": "\ue7e8", "color": "#58d69a"},
@@ -275,6 +278,9 @@ class WizzBridge(QObject):
         self._update_url = ""
         self._update_in_progress = False
         self._update_preparing = False
+        self._update_progress = 0
+        self._update_completion_notice = ""
+        self._update_progress = 0
         stored_channel = str(self._runtime.get("update_channel", "stable") or "stable").lower()
         # Public builds must never silently follow a private beta channel left
         # behind by an earlier test install.  Beta builds retain that option.
@@ -321,6 +327,8 @@ class WizzBridge(QObject):
         self.controllerStateReceived.connect(self._apply_controller_state)
         self.updateResultReceived.connect(self._apply_update_result)
         self.updateInstallResultReceived.connect(self._apply_update_install_result)
+        self.updateProgressReceived.connect(self._apply_update_progress)
+        self.updateProgressReceived.connect(self._apply_update_progress)
         self.hotkeyActionsLoaded.connect(self._apply_hotkey_actions)
         self.controller.set_callback(self._receive_controller_state)
         self.refresh()
@@ -975,6 +983,14 @@ class WizzBridge(QObject):
     def updateCanInstall(self) -> bool:
         return can_self_update()
 
+    @Property(int, notify=updateChanged)
+    def updateProgress(self) -> int:
+        return self._update_progress
+
+    @Property(str, notify=updateChanged)
+    def updateCompletionNotice(self) -> str:
+        return self._update_completion_notice
+
     @Property(bool, notify=updateChanged)
     def updateAvailable(self) -> bool:
         return self._available_release is not None
@@ -1003,6 +1019,8 @@ class WizzBridge(QObject):
             return
         self._update_in_progress = True
         self._update_preparing = False
+        self._update_progress = 0
+        self._update_completion_notice = ""
         self._update_status = self._ui("Buscando actualizaciones…", "Checking for updates…")
         self._update_url = ""
         self._available_release = None
@@ -1035,6 +1053,7 @@ class WizzBridge(QObject):
     def _apply_update_result(self, release: object, message: str) -> None:
         self._update_in_progress = False
         self._update_preparing = False
+        self._update_progress = 0
         self._update_status = str(message)
         self._available_release = release if isinstance(release, ReleaseInfo) else None
         self._update_url = str(
@@ -1059,20 +1078,52 @@ class WizzBridge(QObject):
             return
         self._update_in_progress = True
         self._update_preparing = True
-        self._update_status = self._ui("Descargando y verificando la actualización…", "Downloading and verifying the update…")
+        self._update_progress = 2
+        self._update_completion_notice = ""
+        self._update_status = self._ui("Iniciando la descarga…", "Starting the download…")
         self.updateChanged.emit()
+
+        def report_progress(phase: str, fraction: float | None) -> None:
+            version = release.version
+            if phase == "download":
+                value = 3 if fraction is None else 3 + round(max(0.0, min(1.0, fraction)) * 68)
+                percent = f" {round(fraction * 100)}%" if fraction is not None else ""
+                message = self._ui(
+                    f"Descargando v{version}…{percent}",
+                    f"Downloading v{version}…{percent}",
+                )
+            elif phase == "verify":
+                value = 76
+                message = self._ui("Verificando la descarga…", "Verifying the download…")
+            elif phase == "extract":
+                value = 82
+                message = self._ui("Preparando los archivos…", "Preparing the update files…")
+            else:
+                value = 93
+                message = self._ui(
+                    "Actualización verificada. Preparando reinicio…",
+                    "Update verified. Preparing to restart…",
+                )
+            self.updateProgressReceived.emit(value, message)
 
         def install() -> None:
             try:
                 script = (
-                    stage_linux_update(release)
+                    stage_linux_update(release, progress_callback=report_progress)
                     if sys.platform.startswith("linux")
-                    else stage_windows_update(release)
+                    else stage_windows_update(release, progress_callback=report_progress)
+                )
+                self.updateProgressReceived.emit(
+                    98,
+                    self._ui(
+                        "Reiniciando WizZ para aplicar la actualización…",
+                        "Restarting WizZ to apply the update…",
+                    ),
                 )
                 launch_staged_update(script)
                 message, action = self._ui("Actualización lista. WizZ se reiniciará ahora.", "Update ready. WizZ will restart now."), "quit"
             except UpdateInstallError as exc:
-                message, action = str(exc), ""
+                message, action = exc.localized(self._i18n.language), ""
             except Exception:
                 logging.exception("[Update] Could not launch the staged platform update")
                 message, action = self._ui("No se pudo preparar la actualización. Inténtalo más tarde.", "Could not prepare the update. Try again later."), ""
@@ -1091,6 +1142,32 @@ class WizzBridge(QObject):
             # different: the external updater cannot replace a running app,
             # so hand the request to the desktop runtime for a real exit.
             self.quitRequested.emit()
+
+    @Slot(int, str)
+    def _apply_update_progress(self, progress: int, message: str) -> None:
+        self._update_progress = max(0, min(100, int(progress)))
+        self._update_status = str(message)
+        self.updateChanged.emit()
+
+    @Slot()
+    def loadUpdateCompletion(self) -> None:
+        """Show the result left by the detached updater after the app restarts."""
+        result = consume_update_result()
+        if result is None:
+            return
+        outcome, version = result
+        if outcome == "succeeded":
+            self._update_completion_notice = self._ui(
+                f"Actualización completada: v{version}" if version else "Actualización completada.",
+                f"Update complete: v{version}" if version else "Update complete.",
+            )
+        else:
+            self._update_completion_notice = self._ui(
+                "La actualización no pudo iniciarse; se restauró la versión anterior.",
+                "The update could not start; your previous version was restored.",
+            )
+        self._update_status = self._update_completion_notice
+        self.updateChanged.emit()
 
     @Property(str, notify=languageChanged)
     def language(self) -> str:

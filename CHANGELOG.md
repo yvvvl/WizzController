@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.4.1
+
+### Improved
+
+- Added a live progress indicator for update checks and downloads, including
+  checksum verification and restart preparation.
+- The updater now verifies that the updated app stays open during startup,
+  restores the previous version if it fails, relaunches the restored app, and
+  reports the outcome after restart.
+- Fixed remaining Spanish labels in the English Color Studio and clarified the
+  6500 K preset as “Cool White”.
+- Made shortcut-setting descriptions and color presets wrap cleanly on narrow
+  layouts instead of clipping or overflowing.
+- Corrected the variable font family name so Windows uses its intended modern
+  typeface rather than silently falling back to a generic font.
+- Smoothed page transitions and standardized motion timing while preserving
+  the reduced-motion setting.
+
 ## v1.4.0
 
 ### Highlights

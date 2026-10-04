@@ -22,6 +22,7 @@ ApplicationWindow {
     property string qaFavoriteEditorKind: ""
     property bool qaOpenSceneEditor: false
     property bool qaOpenRoutineEditor: false
+    property bool updateToastVisible: false
     readonly property int pageGutter: width < 960 ? 20 : 28
     readonly property int contentMaxWidth: 1420
     readonly property bool compactHeight: height < 740
@@ -36,6 +37,7 @@ ApplicationWindow {
         pendingPage = index
         pageVisible = false
         pageLoader.y = window.pageGutter + 12
+        pageLoader.scale = 0.985
         currentPage = pendingPage
         pendingPage = -1
         scroll.contentY = 0
@@ -86,7 +88,14 @@ ApplicationWindow {
             window.navigateTo(index)
             quickPanel.hide()
         }
+        function onUpdateChanged() {
+            if (wizz.updateCompletionNotice.length > 0) {
+                window.updateToastVisible = true
+                updateToastTimer.restart()
+            }
+        }
     }
+    Timer { id: updateToastTimer; interval: 6500; onTriggered: window.updateToastVisible = false }
     Component.onCompleted: {
         Theme.setMode(wizz.themeName)
         Theme.reduceMotion = wizz.reducedMotion
@@ -387,12 +396,46 @@ ApplicationWindow {
                     height: item ? item.implicitHeight : 0
                     active: window.currentPage !== 0
                     opacity: window.pageVisible ? 1 : 0
+                    scale: window.pageVisible ? 1 : 0.985
                     Behavior on opacity { NumberAnimation { duration: window.pageVisible ? Theme.motionPage : 0; easing.type: Easing.OutCubic } }
                     Behavior on y { NumberAnimation { duration: Theme.motionPage; easing.type: Easing.OutCubic } }
+                    Behavior on scale { NumberAnimation { duration: Theme.motionPage; easing.type: Easing.OutCubic } }
                     onLoaded: revealPage.restart()
-                    Timer { id: revealPage; interval: 16; onTriggered: { window.pageVisible = true; pageLoader.opacity = 1; pageLoader.y = window.pageGutter } }
+                    Timer { id: revealPage; interval: 16; onTriggered: { window.pageVisible = true; pageLoader.opacity = 1; pageLoader.y = window.pageGutter; pageLoader.scale = 1 } }
                     sourceComponent: window.currentPage === 1 ? colorPage : window.currentPage === 2 ? scenesPage : window.currentPage === 3 ? favoritesPage : window.currentPage === 4 ? routinesPage : window.currentPage === 5 ? settingsPage : hotkeysPage
                 }
+            }
+        }
+    }
+
+    Rectangle {
+        id: updateToast
+        z: 1000
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: window.updateToastVisible ? 22 : 8
+        width: Math.min(parent.width - 36, 520)
+        height: 58
+        radius: 16
+        visible: opacity > 0
+        opacity: window.updateToastVisible ? 1 : 0
+        color: Theme.cardHi
+        border.width: 1
+        border.color: wizz.updateCompletionNotice.indexOf("failed") >= 0 || wizz.updateCompletionNotice.indexOf("could not") >= 0 || wizz.updateCompletionNotice.indexOf("pudo") >= 0 ? Theme.warning : Theme.success
+        Behavior on opacity { NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic } }
+        Behavior on anchors.bottomMargin { NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic } }
+        RowLayout {
+            anchors.fill: parent; anchors.margins: 14; spacing: 10
+            AppIcon {
+                Layout.preferredWidth: 18; Layout.preferredHeight: 18
+                name: updateToast.border.color === Theme.warning ? "info" : "check"
+                color: updateToast.border.color
+            }
+            Text {
+                Layout.fillWidth: true
+                text: wizz.updateCompletionNotice
+                color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.DemiBold
+                wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
             }
         }
     }

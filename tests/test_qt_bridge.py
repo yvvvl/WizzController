@@ -10,6 +10,7 @@ from PySide6.QtCore import QCoreApplication
 from PySide6.QtTest import QSignalSpy
 
 from core.dev_virtual_lights import VirtualLightController
+import qt_ui.bridge as bridge_module
 from qt_ui.bridge import WizzBridge
 
 
@@ -144,11 +145,30 @@ def test_qt_update_requests_a_real_runtime_exit(bridge):
 def test_qt_update_preparing_state_is_separate_from_checking(bridge):
     assert bridge.updateInProgress is False
     assert bridge.updatePreparing is False
-
     bridge._update_in_progress = True
     bridge.updateChanged.emit()
     assert bridge.updateInProgress is True
     assert bridge.updatePreparing is False
+
+
+def test_qt_update_progress_is_clamped_and_exposed(bridge):
+    bridge._apply_update_progress(48, "Downloading v1.4.1… 67%")
+
+    assert bridge.updateProgress == 48
+    assert bridge.updateStatus == "Downloading v1.4.1… 67%"
+
+    bridge._apply_update_progress(140, "Restarting…")
+    assert bridge.updateProgress == 100
+
+
+def test_qt_bridge_shows_update_completion_after_restart(bridge, monkeypatch):
+    monkeypatch.setattr(bridge_module, "consume_update_result", lambda: ("succeeded", "1.4.1"))
+    bridge.setPreviewLanguage("en")
+
+    bridge.loadUpdateCompletion()
+
+    assert bridge.updateCompletionNotice == "Update complete: v1.4.1"
+    assert bridge.updateStatus == bridge.updateCompletionNotice
 
 
 def test_qt_bridge_selection_updates_immediately(bridge):

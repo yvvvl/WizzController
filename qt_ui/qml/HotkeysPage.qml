@@ -119,20 +119,20 @@ Item {
                     Repeater {
                         model: [
                             { title: root.t("Atajos activos", "Hotkeys enabled"), help: root.t("Servicio global de la aplicación", "Global application service"), value: wizz.hotkeysEnabled, kind: "enabled" },
-                            { title: root.t("Bloquear combinación", "Suppress shortcut"), help: root.t("Evita que el atajo llegue a la app activa (si el backend lo admite)", "Keep the shortcut from reaching the active app (when supported by the backend)"), value: wizz.hotkeysSuppress, kind: "suppress" },
+                            { title: root.t("Bloquear combinación", "Block shortcut"), help: root.t("Evita que el atajo llegue a la app activa, si está disponible.", "Keep the shortcut from reaching the active app, if supported."), value: wizz.hotkeysSuppress, kind: "suppress" },
                             { title: root.t("Ejecutar al soltar", "Run on release"), help: root.t("Evita repeticiones accidentales", "Avoids accidental repeats"), value: wizz.hotkeysRelease, kind: "release" }
                         ]
                         delegate: Rectangle {
                             id: settingCard
                             required property var modelData
-                            Layout.fillWidth: true; Layout.preferredHeight: 66; radius: 12
+                            Layout.fillWidth: true; Layout.preferredHeight: Math.max(72, settingHelp.implicitHeight + 42); radius: 12
                             color: Theme.cardHi; border.width: 1; border.color: Theme.stroke
                             RowLayout {
                                 anchors.fill: parent; anchors.margins: 12; spacing: 8
                                 ColumnLayout {
                                     Layout.fillWidth: true; spacing: 2
-                                    Text { text: settingCard.modelData.title; color: Theme.text; font.pixelSize: 12; font.weight: Font.DemiBold }
-                                    Text { text: settingCard.modelData.help; color: Theme.faint; font.pixelSize: 9 }
+                                    Text { Layout.fillWidth: true; text: settingCard.modelData.title; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
+                                    Text { id: settingHelp; Layout.fillWidth: true; text: settingCard.modelData.help; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 10; wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight }
                                 }
                                 Switch {
                                     id: switchControl

@@ -190,6 +190,9 @@ def main() -> int:
             print("[QT] Real WiZ LAN control enabled.")
         controller.start()
         bridge = WizzBridge(controller)
+        # The detached updater writes its final health-check result shortly
+        # after relaunch. Delay consumption until that helper has completed.
+        QTimer.singleShot(5000, bridge.loadUpdateCompletion)
         # Test captures can validate either language without changing the
         # user's saved preference.
         if language := os.environ.get("WIZZ_QT_LANGUAGE"):

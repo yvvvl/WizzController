@@ -173,10 +173,13 @@ Item {
             Rectangle { x: Math.max(0, Math.min(parent.width-width, (root.kelvin-2200)/4300*parent.width-width/2)); y: 5; width: 24; height: 24; radius: 12; color: "#fff"; border.width: 2; border.color: "#b6a58e" }
             MouseArea { anchors.fill: parent; preventStealing: true; onPressed: (mouse) => updateWhite(mouse.x); onPositionChanged: (mouse) => { if (pressed) updateWhite(mouse.x) }; onReleased: { root.flushPreview(); wizz.commitWhite(root.kelvin) } function updateWhite(px) { root.kelvin = Math.round(2200 + Math.max(0,Math.min(1,px/width))*4300); root.whiteDirty = true; root.schedulePreview() } }
         }
-        RowLayout {
-            Layout.fillWidth: true; spacing: 8
+        Flow {
+            id: presetFlow
+            Layout.fillWidth: true
+            Layout.preferredHeight: childrenRect.height
+            spacing: 8
             PressSurface {
-                Layout.preferredWidth: 132; Layout.preferredHeight: 36; radius: 18
+                width: 132; height: 36; radius: 18
                 color: wizz.currentFavoriteSaved && wizz.colorMode === "white" ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.20) : Theme.cardHi
                 accentColor: Theme.primary
                 outlined: true
@@ -184,23 +187,22 @@ Item {
                 Row { anchors.centerIn: parent; spacing: 7; AppIcon { anchors.verticalCenter: parent.verticalCenter; width: 15; height: 15; name: "heart"; color: Theme.primary; filled: wizz.currentFavoriteSaved && wizz.colorMode === "white" } Text { text: wizz.currentFavoriteSaved && wizz.colorMode === "white" ? (wizz.language === "en" ? "Saved" : "Guardado") : (wizz.language === "en" ? "Save favorite" : "Guardar favorito"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.DemiBold } }
             }
             PressSurface {
-                Layout.preferredWidth: 116; Layout.preferredHeight: 36; radius: 18
+                width: 116; height: 36; radius: 18
                 color: Theme.cardHi; accentColor: Theme.warning; outlined: true
                 onClicked: { root.kelvin = 2700; wizz.setWhite(2700); wizz.commitWhite(2700) }
                 Row { anchors.centerIn: parent; spacing: 6; Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 11; height: 11; radius: 6; color: "#ffe0a5" } Text { text: wizz.language === "en" ? "Warm · 2700 K" : "Cálido · 2700 K"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 9; font.weight: Font.DemiBold } }
             }
             PressSurface {
-                Layout.preferredWidth: 116; Layout.preferredHeight: 36; radius: 18
+                width: 140; height: 36; radius: 18
                 color: Theme.cardHi; accentColor: Theme.primary; outlined: true
                 onClicked: { root.kelvin = 6500; wizz.setWhite(6500); wizz.commitWhite(6500) }
-                Row { anchors.centerIn: parent; spacing: 6; Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 11; height: 11; radius: 6; color: "#d8efff" } Text { text: wizz.language === "en" ? "Cool · 6500 K" : "Frío · 6500 K"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 9; font.weight: Font.DemiBold } }
+                Row { anchors.centerIn: parent; spacing: 6; Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 11; height: 11; radius: 6; color: "#d8efff" } Text { text: wizz.language === "en" ? "Cool White · 6500 K" : "Blanco frío · 6500 K"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 9; font.weight: Font.DemiBold } }
             }
             Rectangle {
-                Layout.preferredWidth: 88; Layout.preferredHeight: 30; radius: 15
+                width: 88; height: 30; radius: 15
                 color: Theme.cardHi; border.width: 1; border.color: Theme.stroke
-                Text { anchors.centerIn: parent; text: root.kelvin + "K"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+                Text { anchors.centerIn: parent; text: root.kelvin + " K"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
             }
-            Item { Layout.fillWidth: true }
         }
     }
 }

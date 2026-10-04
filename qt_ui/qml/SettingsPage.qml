@@ -223,15 +223,40 @@ Item {
         }
 
         Rectangle {
-            Layout.fillWidth: true; Layout.preferredHeight: 86; radius: Theme.radiusMedium
+            Layout.fillWidth: true; Layout.preferredHeight: wizz.updateInProgress ? 112 : 86; radius: Theme.radiusMedium
             color: Theme.card; border.width: 1; border.color: Theme.stroke
             RowLayout {
-                anchors.fill: parent; anchors.margins: 16; spacing: 14
+                anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 16; anchors.topMargin: 12; anchors.bottomMargin: 12; spacing: 14
                 Rectangle { Layout.preferredWidth: 46; Layout.preferredHeight: 46; radius: 14; color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.16); BulbIcon { anchors.centerIn: parent; width: 25; height: 25; iconColor: Theme.primary } }
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 3
                     Text { text: wizz.appProduct + " · " + wizz.appVersion; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 13; font.weight: Font.Bold }
-                    Text { Layout.fillWidth: true; text: wizz.updateStatus; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; elide: Text.ElideRight }
+                    Text { Layout.fillWidth: true; text: wizz.updateStatus; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
+                    ProgressBar {
+                        id: updateProgress
+                        visible: wizz.updateInProgress
+                        Layout.fillWidth: true; Layout.preferredHeight: 5
+                        from: 0; to: 100; value: wizz.updateProgress
+                        indeterminate: !wizz.updatePreparing
+                        background: Rectangle { implicitHeight: 5; radius: 3; color: Theme.stroke }
+                        contentItem: Item {
+                            id: updateProgressContent
+                            property real sweepWidth: Math.max(32, width * 0.28)
+                            property real sweepX: -sweepWidth
+                            Rectangle {
+                                id: updateSweep
+                                width: updateProgress.indeterminate ? parent.sweepWidth : updateProgress.visualPosition * parent.width
+                                x: updateProgress.indeterminate ? parent.sweepX : 0
+                                height: parent.height; radius: 3; color: Theme.primary
+                                Behavior on width { NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic } }
+                            }
+                            SequentialAnimation on sweepX {
+                                    running: updateProgress.indeterminate
+                                    loops: Animation.Infinite
+                                    NumberAnimation { from: -updateProgressContent.sweepWidth; to: updateProgress.width; duration: 1050; easing.type: Easing.InOutCubic }
+                            }
+                        }
+                    }
                 }
                 RowLayout {
                     spacing: 8
@@ -255,7 +280,9 @@ Item {
                         onClicked: { if (wizz.updateCanInstall) wizz.installUpdate(); else Qt.openUrlExternally(wizz.updateUrl) }
                         Text {
                             anchors.centerIn: parent
-                            text: wizz.updatePreparing ? root.t("Preparando…", "Preparing…") : wizz.updateCanInstall ? root.t("Instalar y reiniciar", "Install and restart") : root.t("Abrir descarga", "Open download")
+                            text: wizz.updatePreparing
+                                ? root.t("Actualizando · ", "Updating · ") + wizz.updateProgress + "%"
+                                : wizz.updateCanInstall ? root.t("Instalar y reiniciar", "Install and restart") : root.t("Abrir descarga", "Open download")
                             color: "white"; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold
                         }
                     }

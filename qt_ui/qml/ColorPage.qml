@@ -8,12 +8,17 @@ Item {
     objectName: "colorPage"
     implicitHeight: pageContent.implicitHeight
 
+    function t(spanish, english) { return wizz.language === "en" ? english : spanish }
+
     function activeName() {
-        return wizz.colorMode === "white" ? "Blanco " + wizz.whiteKelvin + "K" : "Color " + wizz.colorHex.toUpperCase()
+        return wizz.colorMode === "white"
+            ? root.t("Blanco ", "White ") + wizz.whiteKelvin + "K"
+            : root.t("Color ", "Color ") + wizz.colorHex.toUpperCase()
     }
 
     function activeSubtitle() {
-        return (wizz.colorMode === "white" ? "Temperatura WiZ" : "Color RGB") + " · Brillo " + wizz.brightness + "%"
+        return (wizz.colorMode === "white" ? root.t("Temperatura WiZ", "WiZ temperature") : root.t("Color RGB", "RGB color"))
+            + " · " + root.t("Brillo ", "Brightness ") + wizz.brightness + "%"
     }
 
     function applyExactValue(value) {
@@ -37,8 +42,8 @@ Item {
             Layout.fillWidth: true
             ColumnLayout {
                 Layout.fillWidth: true; spacing: 3
-                Text { text: wizz.language === "en" ? "Color Studio" : "Color Studio"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 30; font.weight: Font.Bold }
-                Text { text: wizz.language === "en" ? "Pure color, Kelvin whites and independent brightness" : "Color puro, blancos Kelvin y brillo independiente"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
+                Text { text: "Color Studio"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 30; font.weight: Font.Bold }
+                Text { text: root.t("Color puro, blancos Kelvin y brillo independiente", "Pure color, Kelvin whites and independent brightness"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
             }
         }
 
@@ -66,7 +71,7 @@ Item {
                         Item { Layout.fillWidth: true }
                         Text { text: Math.round(level.value) + "%"; color: Theme.text; font.pixelSize: 20; font.weight: Font.Bold }
                     }
-                    Text { text: wizz.language === "en" ? "Physical light dimming" : "Dimming real de la ampolleta"; color: Theme.faint; font.pixelSize: 11 }
+                    Text { text: root.t("Atenuación real de la ampolleta", "Physical light dimming"); color: Theme.faint; font.pixelSize: 11; wrapMode: Text.WordWrap }
                     Slider {
                         id: level
                         Layout.fillWidth: true; from: 10; to: 100; value: wizz.brightness
@@ -97,11 +102,11 @@ Item {
                     RowLayout {
                         Layout.fillWidth: true; spacing: 10
                         Rectangle { Layout.preferredWidth: 28; Layout.preferredHeight: 28; radius: 14; color: wizz.colorHex; border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.24) }
-                        ColumnLayout { Layout.fillWidth: true; spacing: 1; Text { text: wizz.colorMode === "white" ? "Modo blanco" : "Modo color"; color: Theme.text; font.pixelSize: 11; font.weight: Font.DemiBold } Text { text: wizz.colorMode === "white" ? wizz.whiteKelvin + "K" : wizz.colorHex.toUpperCase(); color: Theme.faint; font.pixelSize: 10 } }
+                        ColumnLayout { Layout.fillWidth: true; spacing: 1; Text { text: wizz.colorMode === "white" ? root.t("Modo blanco", "White mode") : root.t("Modo color", "Color mode"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.DemiBold } Text { text: wizz.colorMode === "white" ? wizz.whiteKelvin + " K" : wizz.colorHex.toUpperCase(); color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 11 } }
                     }
                     RowLayout {
                         Layout.fillWidth: true; spacing: 8
-                        Text { text: wizz.colorMode === "white" ? "KELVIN EXACTO" : "HEX EXACTO"; color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+                        Text { text: wizz.colorMode === "white" ? root.t("KELVIN EXACTO", "EXACT KELVIN") : root.t("HEX EXACTO", "EXACT HEX"); color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 9; font.weight: Font.Bold; elide: Text.ElideRight; Layout.maximumWidth: 92 }
                         TextField {
                             id: exactValue
                             Layout.fillWidth: true; Layout.preferredHeight: 34
