@@ -53,12 +53,11 @@ jobs:
           WIZZ_QT_QUICK_PANEL=1 WIZZ_QT_SCREENSHOT="$shots/quick-panel.png" "$app"
           test -s "$shots/quick-panel.png"
 
-      - name: Upload experimental Mac app and visual captures
+      - name: Upload experimental Mac archive and visual captures
         uses: actions/upload-artifact@v4
         with:
           name: WizZDesktop-macos-arm64-experimental
           path: |
-            ${{ runner.temp }}/macos-build/WizZDesktop.app
             ${{ runner.temp }}/macos-release/*.zip
             ${{ runner.temp }}/macos-release/*.sha256
             ${{ runner.temp }}/macos-smoke-shots/*.png
