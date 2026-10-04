@@ -132,7 +132,7 @@ Item {
             width: parent.width; height: 48
             Column {
                 anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; spacing: 3
-                Text { text: root.t("Favoritos", "Favorites"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 30; font.weight: Font.Bold }
+                Text { text: root.t("Favoritos", "Favorites"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Font.Bold }
                 Text { text: root.t("Colores, blancos, escenas y brillo guardados", "Saved colors, whites, scenes, and brightness"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
             }
             PressSurface {
@@ -198,7 +198,7 @@ Item {
                     Column {
                         x: 14; y: 82; width: parent.width - 28; spacing: 3
                         Text { width: parent.width; text: favoriteCard.title; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 14; font.weight: Font.DemiBold; elide: Text.ElideRight }
-                        Text { width: parent.width; text: favoriteCard.subtitle; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; elide: Text.ElideRight }
+                        Text { width: parent.width; text: favoriteCard.subtitle; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; elide: Text.ElideRight }
                     }
                 }
             }
@@ -258,7 +258,7 @@ Item {
                         required property int modelData
                         Layout.preferredWidth: 56; Layout.preferredHeight: 30; radius: 15; accentColor: "#ffd9a0"
                         onClicked: valueField.text = String(modelData)
-                        Text { anchors.centerIn: parent; text: modelData + "K"; color: Theme.text; font.pixelSize: 9; font.weight: Font.DemiBold }
+                        Text { anchors.centerIn: parent; text: modelData + "K"; color: Theme.text; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold }
                     }
                 }
                 Item { Layout.fillWidth: true }
@@ -273,7 +273,7 @@ Item {
                         required property int modelData
                         Layout.preferredWidth: 46; Layout.preferredHeight: 30; radius: 15; accentColor: Theme.primary
                         onClicked: valueField.text = String(modelData)
-                        Text { anchors.centerIn: parent; text: modelData + "%"; color: Theme.text; font.pixelSize: 9; font.weight: Font.DemiBold }
+                        Text { anchors.centerIn: parent; text: modelData + "%"; color: Theme.text; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold }
                     }
                 }
                 Item { Layout.fillWidth: true }
@@ -281,7 +281,7 @@ Item {
 
             RowLayout {
                 Layout.fillWidth: true; spacing: 10; visible: typeBox.currentIndex === 3
-                Text { text: root.t("VELOCIDAD", "SPEED"); color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold }
+                Text { text: root.t("VELOCIDAD", "SPEED"); color: Theme.muted; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                 Slider {
                     id: sceneSpeed
                     Layout.fillWidth: true
@@ -300,10 +300,10 @@ Item {
                         border.width: 2; border.color: Qt.rgba(0, 0, 0, 0.14)
                     }
                 }
-                Text { text: Math.round(sceneSpeed.value); color: Theme.text; font.pixelSize: 11; font.weight: Font.DemiBold }
+                Text { text: Math.round(sceneSpeed.value); color: Theme.text; font.pixelSize: Theme.labelSize; font.weight: Font.DemiBold }
             }
 
-            Text { text: root.t("NOMBRE", "NAME"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
+            Text { text: root.t("NOMBRE", "NAME"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
             TextField {
                 id: nameField
                 Layout.fillWidth: true; Layout.preferredHeight: 46
@@ -316,7 +316,7 @@ Item {
                 Layout.fillWidth: true; spacing: 12
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 7
-                    Text { text: root.t("TIPO", "TYPE"); color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold }
+                    Text { text: root.t("TIPO", "TYPE"); color: Theme.muted; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                     WizComboBox {
                         id: typeBox
                         Layout.fillWidth: true; Layout.preferredHeight: 46
@@ -328,7 +328,7 @@ Item {
                 }
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 7
-                    Text { text: typeBox.currentIndex === 0 ? "HEX" : typeBox.currentIndex === 1 ? "KELVIN" : typeBox.currentIndex === 2 ? root.t("PORCENTAJE", "PERCENTAGE") : root.t("ESCENA WIZ", "WIZ SCENE"); color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold }
+                    Text { text: typeBox.currentIndex === 0 ? "HEX" : typeBox.currentIndex === 1 ? "KELVIN" : typeBox.currentIndex === 2 ? root.t("PORCENTAJE", "PERCENTAGE") : root.t("ESCENA WIZ", "WIZ SCENE"); color: Theme.muted; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                     TextField {
                         id: valueField
                         Layout.fillWidth: true; Layout.preferredHeight: 46
@@ -366,7 +366,7 @@ Item {
                 onPicked: function(value) { valueField.text = value }
             }
 
-            Text { text: root.t("VISTA PREVIA", "PREVIEW"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
+            Text { text: root.t("VISTA PREVIA", "PREVIEW"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
             Rectangle {
                 Layout.fillWidth: true; Layout.preferredHeight: 72; radius: 14
                 color: root.previewColor()
@@ -374,7 +374,7 @@ Item {
                 RowLayout {
                     anchors.fill: parent; anchors.margins: 14; spacing: 12
                     Rectangle { Layout.preferredWidth: 42; Layout.preferredHeight: 42; radius: 13; color: Qt.rgba(0, 0, 0, 0.16); AppIcon { anchors.centerIn: parent; width: 18; height: 18; name: typeBox.currentIndex === 3 ? "sparkles" : "bulb"; color: "white" } }
-                    ColumnLayout { Layout.fillWidth: true; spacing: 2; Text { text: nameField.text || root.t("Nuevo favorito", "New favorite"); color: root.previewTextColor(); font.pixelSize: 14; font.weight: Font.DemiBold } Text { text: typeBox.currentIndex === 3 ? root.selectedSceneLabel() + " · " + root.t("Velocidad ", "Speed ") + Math.round(sceneSpeed.value) : valueField.text; color: Qt.rgba(Qt.color(root.previewTextColor()).r, Qt.color(root.previewTextColor()).g, Qt.color(root.previewTextColor()).b, 0.78); font.pixelSize: 11 } }
+                    ColumnLayout { Layout.fillWidth: true; spacing: 2; Text { text: nameField.text || root.t("Nuevo favorito", "New favorite"); color: root.previewTextColor(); font.pixelSize: 14; font.weight: Font.DemiBold } Text { text: typeBox.currentIndex === 3 ? root.selectedSceneLabel() + " · " + root.t("Velocidad ", "Speed ") + Math.round(sceneSpeed.value) : valueField.text; color: Qt.rgba(Qt.color(root.previewTextColor()).r, Qt.color(root.previewTextColor()).g, Qt.color(root.previewTextColor()).b, 0.78); font.pixelSize: Theme.labelSize } }
                 }
             }
 

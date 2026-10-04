@@ -33,7 +33,7 @@ Item {
             Layout.fillWidth: true; spacing: 10
             ColumnLayout {
                 Layout.fillWidth: true; spacing: 2
-                Text { text: root.t("Ajustes", "Settings"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 30; font.weight: Font.Bold }
+                Text { text: root.t("Ajustes", "Settings"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Font.Bold }
                 Text { text: root.t("Destino, búsqueda y comportamiento de WizZ Desktop", "Target, discovery, and WizZ Desktop behavior"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
             }
             PressSurface {
@@ -58,7 +58,7 @@ Item {
             RowLayout {
                 anchors.fill: parent; anchors.margins: 14; spacing: 10
                 Rectangle { Layout.preferredWidth: 9; Layout.preferredHeight: 9; radius: 5; color: Theme.success }
-                Text { Layout.fillWidth: true; text: wizz.scanMessage; color: Theme.muted; font.pixelSize: 11 }
+                Text { Layout.fillWidth: true; text: wizz.scanMessage; color: Theme.muted; font.pixelSize: Theme.labelSize }
             }
         }
 
@@ -70,9 +70,9 @@ Item {
                 anchors.fill: parent; anchors.margins: 18; spacing: 12
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: root.t("DESTINO", "TARGET"); color: Theme.muted; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.7 }
+                    Text { text: root.t("DESTINO", "TARGET"); color: Theme.muted; font.pixelSize: Theme.labelSize; font.weight: Font.Bold; font.letterSpacing: 0.7 }
                     Item { Layout.fillWidth: true }
-                    Text { text: wizz.language === "en" ? wizz.selectedCount + " selected" : wizz.selectedCount + " seleccionada" + (wizz.selectedCount === 1 ? "" : "s"); color: Theme.accent; font.pixelSize: 11; font.weight: Font.DemiBold }
+                    Text { text: wizz.language === "en" ? wizz.selectedCount + " selected" : wizz.selectedCount + " seleccionada" + (wizz.selectedCount === 1 ? "" : "s"); color: Theme.accent; font.pixelSize: Theme.labelSize; font.weight: Font.DemiBold }
                 }
                 RowLayout {
                     Layout.fillWidth: true; spacing: 12
@@ -80,9 +80,9 @@ Item {
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 2
                         Text { text: wizz.targetLine; color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold }
-                        Text { text: root.t("Selecciona una o varias tarjetas para dirigir los comandos.", "Select one or more cards to direct commands."); color: Theme.faint; font.pixelSize: 10 }
+                        Text { text: root.t("Selecciona una o varias tarjetas para dirigir los comandos.", "Select one or more cards to direct commands."); color: Theme.faint; font.pixelSize: Theme.captionSize }
                     }
-                    PressSurface { Layout.preferredWidth: 112; Layout.preferredHeight: 34; radius: 17; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: wizz.selectAll(); Text { anchors.centerIn: parent; text: root.t("Seleccionar todo", "Select all"); color: Theme.text; font.pixelSize: 10 } }
+                    PressSurface { Layout.preferredWidth: 112; Layout.preferredHeight: 34; radius: 17; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: wizz.selectAll(); Text { anchors.centerIn: parent; text: root.t("Seleccionar todo", "Select all"); color: Theme.text; font.pixelSize: Theme.captionSize } }
                 }
                 RowLayout {
                     Layout.fillWidth: true; spacing: 8
@@ -90,20 +90,20 @@ Item {
                         Layout.preferredWidth: 104; Layout.preferredHeight: 30; radius: 15
                         selected: wizz.targetMode === "single"; accentColor: Theme.primary
                         onClicked: wizz.setTargetMode("single")
-                        Text { anchors.centerIn: parent; text: root.t("Selección", "Selection"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+                        Text { anchors.centerIn: parent; text: root.t("Selección", "Selection"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                     }
                     PressSurface {
                         Layout.preferredWidth: 86; Layout.preferredHeight: 30; radius: 15
                         selected: wizz.targetMode === "all"; accentColor: Theme.primary
                         onClicked: wizz.setTargetMode("all")
-                        Text { anchors.centerIn: parent; text: root.t("Todas", "All"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+                        Text { anchors.centerIn: parent; text: root.t("Todas", "All"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                     }
                     Item { Layout.fillWidth: true }
                 }
                 Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.stroke }
                 RowLayout {
                     Layout.fillWidth: true; spacing: 12
-                    ColumnLayout { Layout.fillWidth: true; spacing: 3; Text { text: root.t("RESPUESTA DE CONTROLES", "CONTROL RESPONSE"); color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold } Text { text: root.t("Equilibra continuidad visual y tráfico de red.", "Balance visual continuity and network traffic."); color: Theme.faint; font.pixelSize: 10 } }
+                    ColumnLayout { Layout.fillWidth: true; spacing: 3; Text { text: root.t("RESPUESTA DE CONTROLES", "CONTROL RESPONSE"); color: Theme.muted; font.pixelSize: Theme.captionSize; font.weight: Font.Bold } Text { Layout.fillWidth: true; text: root.t("Equilibra continuidad visual y tráfico de red.", "Balance visual continuity and network traffic."); color: Theme.muted; font.pixelSize: Theme.captionSize; wrapMode: Text.WordWrap } }
                     WizComboBox {
                         id: intervalBox
                         Layout.preferredWidth: 218; Layout.preferredHeight: 42
@@ -112,10 +112,10 @@ Item {
                             : ["35 ms · máxima", "65 ms · recomendada", "90 ms · estable", "130 ms · conservadora"]
                         currentIndex: wizz.sliderInterval <= 35 ? 0 : wizz.sliderInterval <= 65 ? 1 : wizz.sliderInterval <= 90 ? 2 : 3
                         onActivated: wizz.setSliderInterval([35, 65, 90, 130][currentIndex])
-                        contentItem: Text { leftPadding: 13; text: intervalBox.displayText; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: 11 }
+                        contentItem: Text { leftPadding: 13; text: intervalBox.displayText; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: Theme.labelSize }
                         background: Rectangle { color: Theme.bg; radius: 11; border.width: 1; border.color: intervalBox.activeFocus ? Theme.primary : Theme.stroke }
                     }
-                    PressSurface { Layout.preferredWidth: 128; Layout.preferredHeight: 38; radius: 19; color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.error; onClicked: wizz.cleanupOfflineLights(); Text { anchors.centerIn: parent; text: root.t("Limpiar desconectadas", "Remove offline"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.DemiBold } }
+                    PressSurface { Layout.preferredWidth: 128; Layout.preferredHeight: 38; radius: 19; color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.error; onClicked: wizz.cleanupOfflineLights(); Text { anchors.centerIn: parent; text: root.t("Limpiar desconectadas", "Remove offline"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold } }
                 }
             }
         }
@@ -126,21 +126,21 @@ Item {
             ColumnLayout {
                 id: appearanceContent
                 anchors.fill: parent; anchors.margins: 18; spacing: 12
-                Text { text: root.t("APARIENCIA", "APPEARANCE"); color: Theme.muted; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.7 }
-                Text { text: root.t("Elige un estilo; todos los componentes comparten los mismos colores.", "Choose a style; every component shares the same colors."); color: Theme.faint; font.pixelSize: 10 }
+                Text { text: root.t("APARIENCIA", "APPEARANCE"); color: Theme.muted; font.pixelSize: Theme.labelSize; font.weight: Font.Bold; font.letterSpacing: 0.7 }
+                Text { text: root.t("Elige un estilo; todos los componentes comparten los mismos colores.", "Choose a style; every component shares the same colors."); color: Theme.faint; font.pixelSize: Theme.captionSize }
                 RowLayout {
                     Layout.fillWidth: true; spacing: 12
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 2
                         Text { text: wizz.language === "en" ? "Application language" : "Idioma de la aplicación"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
-                        Text { text: wizz.language === "en" ? "Choose the language used across the application." : "Elige el idioma que se usa en toda la aplicación."; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 10 }
+                        Text { text: wizz.language === "en" ? "Choose the language used across the application." : "Elige el idioma que se usa en toda la aplicación."; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize }
                     }
                     WizComboBox {
                         id: languageBox; Layout.preferredWidth: 150; Layout.preferredHeight: 40
                         model: ["English", "Español"]
                         currentIndex: wizz.language === "es" ? 1 : 0
                         onActivated: wizz.setLanguage(currentIndex === 1 ? "es" : "en")
-                        contentItem: Text { leftPadding: 13; text: languageBox.displayText; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: 11 }
+                        contentItem: Text { leftPadding: 13; text: languageBox.displayText; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: Theme.labelSize }
                         background: Rectangle { color: Theme.bg; radius: 11; border.width: 1; border.color: languageBox.activeFocus ? Theme.primary : Theme.stroke }
                     }
                 }
@@ -170,7 +170,7 @@ Item {
                             RowLayout {
                                 anchors.fill: parent; anchors.margins: 12; spacing: 9
                                 Rectangle { Layout.preferredWidth: 24; Layout.preferredHeight: 24; radius: 8; color: themeCard.modelData.color; border.width: themeCard.modelData.name === "light" ? 1 : 0; border.color: Theme.stroke }
-                                Text { Layout.fillWidth: true; text: themeCard.modelData.label; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 11; font.weight: Font.Bold }
+                                Text { Layout.fillWidth: true; text: themeCard.modelData.label; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
                                 AppIcon { visible: themeCard.selected; Layout.preferredWidth: 13; Layout.preferredHeight: 13; name: "check"; color: Theme.primary }
                             }
                         }
@@ -184,7 +184,7 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true; spacing: 2
                             Text { text: root.t("Reducir animaciones", "Reduce animations"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
-                            Text { text: root.t("Elimina transiciones no esenciales y mantiene la respuesta inmediata.", "Removes non-essential transitions and keeps the response immediate."); color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 10 }
+                            Text { text: root.t("Elimina transiciones no esenciales y mantiene la respuesta inmediata.", "Removes non-essential transitions and keeps the response immediate."); color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize }
                         }
                         PressSurface {
                             Layout.preferredWidth: 48; Layout.preferredHeight: 28; radius: 14
@@ -209,7 +209,7 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true; spacing: 2
                             Text { text: root.t("Icono con color de las luces", "Light-colored icon"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
-                            Text { text: root.t("Tiñe sólo el icono WiZ con el estado actual; desactívalo para usar el color del tema.", "Tints only the WiZ icon with the current state; turn it off to use the theme color."); color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 10 }
+                            Text { text: root.t("Tiñe sólo el icono WiZ con el estado actual; desactívalo para usar el color del tema.", "Tints only the WiZ icon with the current state; turn it off to use the theme color."); color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize }
                         }
                         PressSurface {
                             Layout.preferredWidth: 48; Layout.preferredHeight: 28; radius: 14
@@ -231,7 +231,7 @@ Item {
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 3
                     Text { text: wizz.appProduct + " · " + wizz.appVersion; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 13; font.weight: Font.Bold }
-                    Text { Layout.fillWidth: true; text: wizz.updateStatus; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
+                    Text { Layout.fillWidth: true; text: wizz.updateStatus; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
                     ProgressBar {
                         id: updateProgress
                         visible: wizz.updateInProgress
@@ -269,7 +269,7 @@ Item {
                         Text {
                             anchors.centerIn: parent
                             text: wizz.updateInProgress ? root.t("Buscando…", "Checking…") : root.t("Buscar actualización", "Check for updates")
-                            color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold
+                            color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold
                         }
                     }
                     PressSurface {
@@ -283,7 +283,7 @@ Item {
                             text: wizz.updatePreparing
                                 ? root.t("Actualizando · ", "Updating · ") + wizz.updateProgress + "%"
                                 : wizz.updateCanInstall ? root.t("Instalar y reiniciar", "Install and restart") : root.t("Abrir descarga", "Open download")
-                            color: "white"; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold
+                            color: "white"; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold
                         }
                     }
                 }
@@ -292,14 +292,14 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            Text { text: root.t("AMPOLLETAS", "LIGHTS"); color: Theme.muted; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.7 }
+            Text { text: root.t("AMPOLLETAS", "LIGHTS"); color: Theme.muted; font.pixelSize: Theme.labelSize; font.weight: Font.Bold; font.letterSpacing: 0.7 }
             Item { Layout.fillWidth: true }
-            Text { text: wizz.scanMessage; color: Theme.faint; font.pixelSize: 10 }
+            Text { text: wizz.scanMessage; color: Theme.faint; font.pixelSize: Theme.captionSize }
         }
         Rectangle {
             Layout.fillWidth: true; Layout.preferredHeight: 66; visible: wizz.totalCount === 0
             radius: 14; color: Theme.card; border.width: 1; border.color: Theme.stroke
-            Text { anchors.centerIn: parent; text: root.t("No hay ampolletas vinculadas. Usa Buscar luces o agrega una IP.", "No linked lights. Use Find lights or add an IP."); color: Theme.muted; font.pixelSize: 11 }
+            Text { anchors.centerIn: parent; text: root.t("No hay ampolletas vinculadas. Usa Buscar luces o agrega una IP.", "No linked lights. Use Find lights or add an IP."); color: Theme.muted; font.pixelSize: Theme.labelSize }
         }
         GridLayout {
             Layout.fillWidth: true; columns: width >= 740 ? 2 : 1; columnSpacing: 12; rowSpacing: 12
@@ -324,8 +324,8 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true; spacing: 2
                             Text { Layout.fillWidth: true; text: deviceCard.displayName; color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold; elide: Text.ElideRight }
-                            Text { text: deviceCard.address; color: Theme.muted; font.pixelSize: 11 }
-                            Text { Layout.fillWidth: true; text: (deviceCard.isOnline ? "En línea" : "Sin respuesta") + (deviceCard.moduleName ? " · " + deviceCard.moduleName : ""); color: Theme.faint; font.pixelSize: 9; elide: Text.ElideRight }
+                            Text { text: deviceCard.address; color: Theme.muted; font.pixelSize: Theme.labelSize }
+                            Text { Layout.fillWidth: true; text: (deviceCard.isOnline ? "En línea" : "Sin respuesta") + (deviceCard.moduleName ? " · " + deviceCard.moduleName : ""); color: Theme.faint; font.pixelSize: Theme.captionSize; elide: Text.ElideRight }
                         }
                         Rectangle { Layout.preferredWidth: 9; Layout.preferredHeight: 9; radius: 5; color: deviceCard.isSelected ? Theme.primary : Theme.stroke }
                         PressSurface {
@@ -359,7 +359,7 @@ Item {
             anchors.fill: parent; anchors.margins: 22; spacing: 12
             RowLayout {
                 Layout.fillWidth: true
-                ColumnLayout { Layout.fillWidth: true; spacing: 2; Text { text: root.selectedInfo.name || root.t("Ampolleta WiZ", "WiZ light"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 21; font.weight: Font.Bold } Text { text: root.t("Información del dispositivo", "Device information"); color: Theme.muted; font.pixelSize: 11 } }
+                ColumnLayout { Layout.fillWidth: true; spacing: 2; Text { text: root.selectedInfo.name || root.t("Ampolleta WiZ", "WiZ light"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 21; font.weight: Font.Bold } Text { text: root.t("Información del dispositivo", "Device information"); color: Theme.muted; font.pixelSize: Theme.labelSize } }
                 PressSurface { Layout.preferredWidth: 32; Layout.preferredHeight: 32; radius: 16; color: "transparent"; onClicked: infoDialog.close(); AppIcon { anchors.centerIn: parent; width: 14; height: 14; name: "close"; color: Theme.muted } }
             }
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.stroke }
@@ -373,7 +373,7 @@ Item {
                         {label:"RGB", value:root.selectedInfo.rgb ? root.t("Compatible", "Supported") : root.t("No disponible", "Unavailable")}, {label:root.t("Blancos", "Whites"), value:root.selectedInfo.tunableWhite ? root.t("Compatible", "Supported") : root.t("No disponible", "Unavailable")},
                         {label:root.t("Rango CCT", "CCT range"), value:root.selectedInfo.kelvinMin ? root.selectedInfo.kelvinMin + "–" + root.selectedInfo.kelvinMax + "K" : "—"}, {label:"Firmware", value:root.selectedInfo.firmware || "—"}
                     ]
-                    delegate: Rectangle { required property var modelData; Layout.fillWidth: true; Layout.preferredHeight: 54; radius: 11; color: Theme.cardHi; border.width: 1; border.color: Theme.stroke; Column { anchors.fill: parent; anchors.margins: 10; spacing: 3; Text { text: modelData.label.toUpperCase(); color: Theme.faint; font.pixelSize: 9; font.weight: Font.Bold } Text { width: parent.width; text: modelData.value; color: Theme.text; font.pixelSize: 11; font.weight: Font.DemiBold; elide: Text.ElideRight } } }
+                    delegate: Rectangle { required property var modelData; Layout.fillWidth: true; Layout.preferredHeight: 54; radius: 11; color: Theme.cardHi; border.width: 1; border.color: Theme.stroke; Column { anchors.fill: parent; anchors.margins: 10; spacing: 3; Text { text: modelData.label.toUpperCase(); color: Theme.faint; font.pixelSize: Theme.captionSize; font.weight: Font.Bold } Text { width: parent.width; text: modelData.value; color: Theme.text; font.pixelSize: Theme.labelSize; font.weight: Font.DemiBold; elide: Text.ElideRight } } }
                 }
             }
             Item { Layout.fillHeight: true }
@@ -387,7 +387,7 @@ Item {
                         wizz.setActiveLight(root.selectedInfo.ip || "")
                         infoDialog.close()
                     }
-                    Text { anchors.centerIn: parent; text: root.t("Usar como activa", "Use as active"); color: "white"; font.family: Theme.controlFont; font.pixelSize: 11; font.weight: Font.Bold }
+                    Text { anchors.centerIn: parent; text: root.t("Usar como activa", "Use as active"); color: "white"; font.family: Theme.controlFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
                 }
             }
         }
@@ -402,10 +402,10 @@ Item {
         contentItem: ColumnLayout {
             anchors.fill: parent; anchors.margins: 22; spacing: 12
             Text { text: root.t("Agregar por IP", "Add by IP"); color: Theme.text; font.pixelSize: 21; font.weight: Font.Bold }
-            Text { text: root.t("La ampolleta debe estar conectada a la misma red local.", "The light must be connected to the same local network."); color: Theme.muted; font.pixelSize: 11 }
+            Text { text: root.t("La ampolleta debe estar conectada a la misma red local.", "The light must be connected to the same local network."); color: Theme.muted; font.pixelSize: Theme.labelSize }
             TextField { id: ipField; Layout.fillWidth: true; Layout.preferredHeight: 44; placeholderText: "192.168.1.20"; color: Theme.text; placeholderTextColor: Theme.faint; leftPadding: 13; background: Rectangle { color: Theme.bg; radius: 11; border.width: 1; border.color: ipField.activeFocus ? Theme.primary : Theme.stroke } }
             Item { Layout.fillHeight: true }
-            RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } PressSurface { Layout.preferredWidth: 96; Layout.preferredHeight: 38; radius: 19; color: "transparent"; onClicked: addDialog.close(); Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.pixelSize: 11 } } PressSurface { Layout.preferredWidth: 106; Layout.preferredHeight: 38; radius: 19; color: Theme.primary; onClicked: { if (wizz.addLight(ipField.text)) { ipField.text = ""; addDialog.close() } } Text { anchors.centerIn: parent; text: root.t("Agregar", "Add"); color: "white"; font.pixelSize: 11; font.weight: Font.Bold } } }
+            RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } PressSurface { Layout.preferredWidth: 96; Layout.preferredHeight: 38; radius: 19; color: "transparent"; onClicked: addDialog.close(); Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.pixelSize: Theme.labelSize } } PressSurface { Layout.preferredWidth: 106; Layout.preferredHeight: 38; radius: 19; color: Theme.primary; onClicked: { if (wizz.addLight(ipField.text)) { ipField.text = ""; addDialog.close() } } Text { anchors.centerIn: parent; text: root.t("Agregar", "Add"); color: "white"; font.pixelSize: Theme.labelSize; font.weight: Font.Bold } } }
         }
     }
 
@@ -420,7 +420,7 @@ Item {
             Text { text: root.t("Renombrar ampolleta", "Rename light"); color: Theme.text; font.pixelSize: 21; font.weight: Font.Bold }
             TextField { id: renameField; Layout.fillWidth: true; Layout.preferredHeight: 44; color: Theme.text; leftPadding: 13; background: Rectangle { color: Theme.bg; radius: 11; border.width: 1; border.color: renameField.activeFocus ? Theme.primary : Theme.stroke } }
             Item { Layout.fillHeight: true }
-            RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } PressSurface { Layout.preferredWidth: 96; Layout.preferredHeight: 38; radius: 19; color: "transparent"; onClicked: renameDialog.close(); Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.pixelSize: 11 } } PressSurface { Layout.preferredWidth: 106; Layout.preferredHeight: 38; radius: 19; color: Theme.primary; onClicked: { if (wizz.renameLight(root.editingIp, renameField.text)) renameDialog.close() } Text { anchors.centerIn: parent; text: root.t("Guardar", "Save"); color: "white"; font.pixelSize: 11; font.weight: Font.Bold } } }
+            RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } PressSurface { Layout.preferredWidth: 96; Layout.preferredHeight: 38; radius: 19; color: "transparent"; onClicked: renameDialog.close(); Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.pixelSize: Theme.labelSize } } PressSurface { Layout.preferredWidth: 106; Layout.preferredHeight: 38; radius: 19; color: Theme.primary; onClicked: { if (wizz.renameLight(root.editingIp, renameField.text)) renameDialog.close() } Text { anchors.centerIn: parent; text: root.t("Guardar", "Save"); color: "white"; font.pixelSize: Theme.labelSize; font.weight: Font.Bold } } }
         }
     }
 
@@ -433,9 +433,9 @@ Item {
         contentItem: ColumnLayout {
             anchors.fill: parent; anchors.margins: 22; spacing: 10
             Text { text: root.t("Quitar ampolleta", "Remove light"); color: Theme.text; font.pixelSize: 21; font.weight: Font.Bold }
-            Text { Layout.fillWidth: true; text: root.t("¿Quieres quitar “", "Do you want to remove “") + root.deletingName + root.t("”? Puedes recuperarla con una búsqueda posterior.", "”? You can find it again later."); color: Theme.muted; font.pixelSize: 11; wrapMode: Text.WordWrap }
+            Text { Layout.fillWidth: true; text: root.t("¿Quieres quitar “", "Do you want to remove “") + root.deletingName + root.t("”? Puedes recuperarla con una búsqueda posterior.", "”? You can find it again later."); color: Theme.muted; font.pixelSize: Theme.labelSize; wrapMode: Text.WordWrap }
             Item { Layout.fillHeight: true }
-            RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } PressSurface { Layout.preferredWidth: 96; Layout.preferredHeight: 38; radius: 19; color: "transparent"; onClicked: deleteDialog.close(); Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.pixelSize: 11 } } PressSurface { Layout.preferredWidth: 106; Layout.preferredHeight: 38; radius: 19; color: Theme.error; accentColor: Theme.error; onClicked: { wizz.removeLight(root.deletingIp); deleteDialog.close() } Text { anchors.centerIn: parent; text: root.t("Quitar", "Remove"); color: "white"; font.pixelSize: 11; font.weight: Font.Bold } } }
+            RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } PressSurface { Layout.preferredWidth: 96; Layout.preferredHeight: 38; radius: 19; color: "transparent"; onClicked: deleteDialog.close(); Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.pixelSize: Theme.labelSize } } PressSurface { Layout.preferredWidth: 106; Layout.preferredHeight: 38; radius: 19; color: Theme.error; accentColor: Theme.error; onClicked: { wizz.removeLight(root.deletingIp); deleteDialog.close() } Text { anchors.centerIn: parent; text: root.t("Quitar", "Remove"); color: "white"; font.pixelSize: Theme.labelSize; font.weight: Font.Bold } } }
         }
     }
 }

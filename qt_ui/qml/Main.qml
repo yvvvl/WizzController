@@ -238,7 +238,7 @@ ApplicationWindow {
                         width: parent.width
                         ColumnLayout {
                             spacing: 2
-                            Text { text: wizz.language === "en" ? "Home" : "Inicio"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 30; font.weight: Font.Bold }
+                            Text { text: wizz.language === "en" ? "Home" : "Inicio"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Font.Bold }
                             Text { text: wizz.language === "en" ? "Main lighting control" : "Control principal de iluminación"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
                         }
                         Item { Layout.fillWidth: true }
@@ -250,8 +250,8 @@ ApplicationWindow {
                                 Rectangle { Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4; color: Theme.success }
                                 ColumnLayout {
                                     spacing: 0
-                                    Text { text: wizz.statusLine; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 11 }
-                                    Text { text: wizz.targetLine; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 10 }
+                                    Text { text: wizz.statusLine; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize }
+                                    Text { text: wizz.targetLine; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize }
                                 }
                                 Item { Layout.fillWidth: true }
                                 AppIcon { Layout.preferredWidth: 16; Layout.preferredHeight: 16; name: "arrowRight"; color: Theme.muted }
@@ -268,7 +268,7 @@ ApplicationWindow {
                             Layout.preferredWidth: 64; Layout.preferredHeight: 30; radius: 15
                             color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.primary
                             onClicked: wizz.selectAll()
-                            Text { anchors.centerIn: parent; text: wizz.language === "en" ? "All" : "Todas"; color: Theme.accent; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+                            Text { anchors.centerIn: parent; text: wizz.language === "en" ? "All" : "Todas"; color: Theme.accent; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                         }
                     }
 
@@ -306,7 +306,7 @@ ApplicationWindow {
                                 spacing: 2
                                 Text { text: wizz.language === "en" ? "Master control" : "Control maestro"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 12 }
                                 Text { text: wizz.powerOn ? (wizz.language === "en" ? "ON" : "ENCENDIDO") : (wizz.language === "en" ? "OFF" : "APAGADO"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 19; font.weight: Font.Bold }
-                                Text { text: wizz.language === "en" ? "Click to toggle the active target" : "Toca para alternar el target activo"; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 11 }
+                                Text { text: wizz.language === "en" ? "Click to toggle the active target" : "Toca para alternar el target activo"; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize }
                             }
                             Item { Layout.fillWidth: true }
                             AppIcon { Layout.preferredWidth: 22; Layout.preferredHeight: 22; name: "arrowRight"; color: Theme.accent }
@@ -320,7 +320,7 @@ ApplicationWindow {
                             anchors.fill: parent; anchors.margins: 18; spacing: 7
                             RowLayout {
                                 Layout.fillWidth: true
-                                Text { text: wizz.language === "en" ? "BRIGHTNESS" : "BRILLO"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.Bold }
+                                Text { text: wizz.language === "en" ? "BRIGHTNESS" : "BRILLO"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
                                 Item { Layout.fillWidth: true }
                                 Text { text: Math.round(mainSlider.value) + "%"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 13; font.weight: Font.Bold }
                             }
@@ -343,7 +343,7 @@ ApplicationWindow {
                         }
                     }
 
-                    Text { text: wizz.language === "en" ? "QUICK ACTIONS" : "ACCESOS RÁPIDOS"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.Bold }
+                    Text { text: wizz.language === "en" ? "QUICK ACTIONS" : "ACCESOS RÁPIDOS"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
                     GridLayout {
                         width: parent.width
                         columns: width >= 1080 ? 8 : width >= 700 ? 4 : 2
@@ -360,13 +360,13 @@ ApplicationWindow {
                     }
                     RowLayout {
                         width: parent.width
-                    Text { text: wizz.language === "en" ? "FAVORITES" : "FAVORITOS"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.Bold }
+                    Text { text: wizz.language === "en" ? "FAVORITES" : "FAVORITOS"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
                         Item { Layout.fillWidth: true }
                         PressSurface {
                             Layout.preferredWidth: 112; Layout.preferredHeight: 30; radius: 15
                             color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.primary
                             onClicked: window.navigateTo(3)
-                            Text { anchors.centerIn: parent; text: wizz.language === "en" ? "Manage →" : "Administrar →"; color: Theme.primary; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+                            Text { anchors.centerIn: parent; text: wizz.language === "en" ? "Manage →" : "Administrar →"; color: Theme.primary; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                         }
                     }
                     GridLayout {
@@ -382,7 +382,7 @@ ApplicationWindow {
                                 onClicked: wizz.applyFavorite(uid)
                                 RowLayout { anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 11
                                     Rectangle { Layout.preferredWidth: 22; Layout.preferredHeight: 22; radius: 11; color: entryColor }
-                                    ColumnLayout { Layout.fillWidth: true; spacing: 1; Text { Layout.fillWidth: true; text: title; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold; elide: Text.ElideRight } Text { Layout.fillWidth: true; text: subtitle; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; elide: Text.ElideRight } }
+                                    ColumnLayout { Layout.fillWidth: true; spacing: 1; Text { Layout.fillWidth: true; text: title; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold; elide: Text.ElideRight } Text { Layout.fillWidth: true; text: subtitle; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; elide: Text.ElideRight } }
                                 }
                             }
                         }

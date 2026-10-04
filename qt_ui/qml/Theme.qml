@@ -31,12 +31,15 @@ QtObject {
     property int motionFast: reduceMotion ? 0 : 160
     property int motionNormal: reduceMotion ? 0 : 240
     property int motionPage: reduceMotion ? 0 : 280
-    // Use the actual installed variable family name. The former Text/Display
-    // aliases are not exposed as separate families on many systems, so Qt
-    // silently fell back to a plainer default face.
-    readonly property string displayFont: Qt.platform.os === "osx" ? "Helvetica Neue" : "Segoe UI Variable"
-    readonly property string uiFont: Qt.platform.os === "osx" ? "Helvetica Neue" : "Segoe UI Variable"
-    readonly property string controlFont: Qt.platform.os === "osx" ? "Helvetica Neue" : "Segoe UI Variable"
+    // This font is registered before the QML engine starts. Bundling one
+    // family keeps line breaks and weight consistent across desktop systems.
+    readonly property string displayFont: "Inter Variable"
+    readonly property string uiFont: "Inter Variable"
+    readonly property string controlFont: "Inter Variable"
+    readonly property int pageTitleSize: 28
+    readonly property int bodySize: 13
+    readonly property int labelSize: 12
+    readonly property int captionSize: 11
     readonly property string monoFont: "Cascadia Code"
     function setMode(name) {
         var n = String(name || "midnight").toLowerCase()

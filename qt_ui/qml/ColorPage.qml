@@ -42,7 +42,7 @@ Item {
             Layout.fillWidth: true
             ColumnLayout {
                 Layout.fillWidth: true; spacing: 3
-                Text { text: "Color Studio"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 30; font.weight: Font.Bold }
+                Text { text: "Color Studio"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Font.Bold }
                 Text { text: root.t("Color puro, blancos Kelvin y brillo independiente", "Pure color, Kelvin whites and independent brightness"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
             }
         }
@@ -67,11 +67,11 @@ Item {
                     anchors.fill: parent; anchors.margins: 18; spacing: 12
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: wizz.language === "en" ? "BRIGHTNESS" : "BRILLO"; color: Theme.muted; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.8 }
+                        Text { text: wizz.language === "en" ? "BRIGHTNESS" : "BRILLO"; color: Theme.muted; font.pixelSize: Theme.labelSize; font.weight: Font.Bold; font.letterSpacing: 0.8 }
                         Item { Layout.fillWidth: true }
                         Text { text: Math.round(level.value) + "%"; color: Theme.text; font.pixelSize: 20; font.weight: Font.Bold }
                     }
-                    Text { text: root.t("Atenuación real de la ampolleta", "Physical light dimming"); color: Theme.faint; font.pixelSize: 11; wrapMode: Text.WordWrap }
+                    Text { text: root.t("Atenuación real de la ampolleta", "Physical light dimming"); color: Theme.faint; font.pixelSize: Theme.labelSize; wrapMode: Text.WordWrap }
                     Slider {
                         id: level
                         Layout.fillWidth: true; from: 10; to: 100; value: wizz.brightness
@@ -94,7 +94,7 @@ Item {
                                 border.color: Math.round(level.value) === modelData ? Theme.primary : Theme.stroke
                                 accentColor: Theme.primary
                                 onClicked: { level.value = modelData; wizz.queueBrightness(modelData) }
-                                Text { anchors.centerIn: parent; text: modelData + "%"; color: Theme.text; font.pixelSize: 9; font.weight: Font.DemiBold }
+                                Text { anchors.centerIn: parent; text: modelData + "%"; color: Theme.text; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold }
                             }
                         }
                     }
@@ -102,23 +102,23 @@ Item {
                     RowLayout {
                         Layout.fillWidth: true; spacing: 10
                         Rectangle { Layout.preferredWidth: 28; Layout.preferredHeight: 28; radius: 14; color: wizz.colorHex; border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.24) }
-                        ColumnLayout { Layout.fillWidth: true; spacing: 1; Text { text: wizz.colorMode === "white" ? root.t("Modo blanco", "White mode") : root.t("Modo color", "Color mode"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.DemiBold } Text { text: wizz.colorMode === "white" ? wizz.whiteKelvin + " K" : wizz.colorHex.toUpperCase(); color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 11 } }
+                        ColumnLayout { Layout.fillWidth: true; spacing: 1; Text { text: wizz.colorMode === "white" ? root.t("Modo blanco", "White mode") : root.t("Modo color", "Color mode"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.DemiBold } Text { text: wizz.colorMode === "white" ? wizz.whiteKelvin + " K" : wizz.colorHex.toUpperCase(); color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize } }
                     }
                     RowLayout {
                         Layout.fillWidth: true; spacing: 8
-                        Text { text: wizz.colorMode === "white" ? root.t("KELVIN EXACTO", "EXACT KELVIN") : root.t("HEX EXACTO", "EXACT HEX"); color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 9; font.weight: Font.Bold; elide: Text.ElideRight; Layout.maximumWidth: 92 }
+                        Text { text: wizz.colorMode === "white" ? root.t("KELVIN EXACTO", "EXACT KELVIN") : root.t("HEX EXACTO", "EXACT HEX"); color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold; elide: Text.ElideRight; Layout.maximumWidth: 92 }
                         TextField {
                             id: exactValue
                             Layout.fillWidth: true; Layout.preferredHeight: 34
                             text: wizz.colorMode === "white" ? String(wizz.whiteKelvin) : wizz.colorHex.toUpperCase()
-                            color: Theme.text; font.family: Theme.monoFont; font.pixelSize: 10; leftPadding: 10; rightPadding: 10
+                            color: Theme.text; font.family: Theme.monoFont; font.pixelSize: Theme.captionSize; leftPadding: 10; rightPadding: 10
                             onAccepted: root.applyExactValue(text)
                             background: Rectangle { color: Theme.cardHi; radius: 10; border.width: 1; border.color: exactValue.activeFocus ? Theme.primary : Theme.stroke }
                         }
                         PressSurface {
                             Layout.preferredWidth: 66; Layout.preferredHeight: 34; radius: 17; color: "transparent"; outlined: true; border.color: Theme.stroke
                             onClicked: root.applyExactValue(exactValue.text)
-                            Text { anchors.centerIn: parent; text: wizz.language === "en" ? "Apply" : "Aplicar"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+                            Text { anchors.centerIn: parent; text: wizz.language === "en" ? "Apply" : "Aplicar"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                         }
                     }
                 }
@@ -131,9 +131,9 @@ Item {
             ColumnLayout {
                 id: recentContent
                 anchors.fill: parent; anchors.margins: 16; spacing: 8
-                RowLayout { Layout.fillWidth: true; Text { text: wizz.language === "en" ? "RECENT" : "RECIENTES"; color: Theme.muted; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.8 } Item { Layout.fillWidth: true } PressSurface { visible: recentRepeater.count > 0; Layout.preferredWidth: 62; Layout.preferredHeight: 26; radius: 13; color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.error; onClicked: wizz.clearRecents(); Text { anchors.centerIn: parent; text: wizz.language === "en" ? "Clear" : "Limpiar"; color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 9; font.weight: Font.Bold } } }
-                Text { text: wizz.language === "en" ? "Last applied colors and whites" : "Últimos colores y blancos aplicados"; color: Theme.faint; font.pixelSize: 11 }
-                Text { visible: recentRepeater.count === 0; text: wizz.language === "en" ? "No recent colors yet. Apply one to save it here." : "Aún no hay colores recientes. Aplica uno para guardarlo aquí."; color: Theme.faint; font.pixelSize: 11 }
+                RowLayout { Layout.fillWidth: true; Text { text: wizz.language === "en" ? "RECENT" : "RECIENTES"; color: Theme.muted; font.pixelSize: Theme.labelSize; font.weight: Font.Bold; font.letterSpacing: 0.8 } Item { Layout.fillWidth: true } PressSurface { visible: recentRepeater.count > 0; Layout.preferredWidth: 62; Layout.preferredHeight: 26; radius: 13; color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.error; onClicked: wizz.clearRecents(); Text { anchors.centerIn: parent; text: wizz.language === "en" ? "Clear" : "Limpiar"; color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold } } }
+                Text { text: wizz.language === "en" ? "Last applied colors and whites" : "Últimos colores y blancos aplicados"; color: Theme.faint; font.pixelSize: Theme.labelSize }
+                Text { visible: recentRepeater.count === 0; text: wizz.language === "en" ? "No recent colors yet. Apply one to save it here." : "Aún no hay colores recientes. Aplica uno para guardarlo aquí."; color: Theme.faint; font.pixelSize: Theme.labelSize }
                 GridLayout {
                     // The history is capped at eight entries in the bridge;
                     // four columns intentionally produce a calm two-row grid.
@@ -145,7 +145,7 @@ Item {
                             required property string title; required property color entryColor; required property string uid
                             Layout.fillWidth: true; Layout.preferredHeight: 38; radius: 11; accentColor: recentCard.entryColor
                             onClicked: wizz.applyRecent(recentCard.uid)
-                            RowLayout { anchors.fill: parent; anchors.margins: 9; spacing: 7; Rectangle { Layout.preferredWidth: 18; Layout.preferredHeight: 18; radius: 9; color: recentCard.entryColor } Text { Layout.fillWidth: true; text: recentCard.title; color: Theme.text; font.pixelSize: 10; elide: Text.ElideRight } }
+                            RowLayout { anchors.fill: parent; anchors.margins: 9; spacing: 7; Rectangle { Layout.preferredWidth: 18; Layout.preferredHeight: 18; radius: 9; color: recentCard.entryColor } Text { Layout.fillWidth: true; text: recentCard.title; color: Theme.text; font.pixelSize: Theme.captionSize; elide: Text.ElideRight } }
                         }
                     }
                 }
@@ -158,8 +158,8 @@ Item {
             ColumnLayout {
                 id: favoriteContent
                 anchors.fill: parent; anchors.margins: 16; spacing: 9
-                RowLayout { Layout.fillWidth: true; Text { text: wizz.language === "en" ? "QUICK FAVORITES" : "FAVORITOS RÁPIDOS"; color: Theme.muted; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.8 } Item { Layout.fillWidth: true } Text { text: wizz.language === "en" ? "Manage →" : "Gestionar →"; color: Theme.primary; font.pixelSize: 10; MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: wizz.navigate(3) } } }
-                Text { text: wizz.language === "en" ? "Shortcuts saved in WizZ" : "Accesos guardados en WiZ"; color: Theme.faint; font.pixelSize: 11 }
+                RowLayout { Layout.fillWidth: true; Text { text: wizz.language === "en" ? "QUICK FAVORITES" : "FAVORITOS RÁPIDOS"; color: Theme.muted; font.pixelSize: Theme.labelSize; font.weight: Font.Bold; font.letterSpacing: 0.8 } Item { Layout.fillWidth: true } Text { text: wizz.language === "en" ? "Manage →" : "Gestionar →"; color: Theme.primary; font.pixelSize: Theme.captionSize; MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: wizz.navigate(3) } } }
+                Text { text: wizz.language === "en" ? "Shortcuts saved in WizZ" : "Accesos guardados en WiZ"; color: Theme.faint; font.pixelSize: Theme.labelSize }
                 GridLayout {
                     Layout.fillWidth: true; columns: width >= 1120 ? 4 : width >= 600 ? 3 : 2; columnSpacing: 8; rowSpacing: 8
                     Repeater {
@@ -174,8 +174,8 @@ Item {
                                 Rectangle { Layout.preferredWidth: 18; Layout.preferredHeight: 18; radius: 9; color: favoriteCard.entryColor }
                                 ColumnLayout {
                                     Layout.fillWidth: true; spacing: 0
-                                    Text { Layout.fillWidth: true; text: favoriteCard.title; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 11; font.weight: Font.Bold; elide: Text.ElideRight }
-                                    Text { Layout.fillWidth: true; text: favoriteCard.subtitle; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 9; elide: Text.ElideRight }
+                                    Text { Layout.fillWidth: true; text: favoriteCard.title; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold; elide: Text.ElideRight }
+                                    Text { Layout.fillWidth: true; text: favoriteCard.subtitle; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; elide: Text.ElideRight }
                                 }
                             }
                         }

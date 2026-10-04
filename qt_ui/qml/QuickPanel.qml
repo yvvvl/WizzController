@@ -192,7 +192,7 @@ Window {
                 ColumnLayout {
                     spacing: 1
                     Text { text: wizz.language === "en" ? "Quick control" : "Control rápido"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 18; font.weight: Font.DemiBold }
-                    Text { text: wizz.language === "en" ? wizz.selectedCount + " lights selected" : wizz.selectedCount + " luces seleccionadas"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11 }
+                    Text { text: wizz.language === "en" ? wizz.selectedCount + " lights selected" : wizz.selectedCount + " luces seleccionadas"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize }
                 }
                 Item {
                     id: dragHandle
@@ -293,7 +293,7 @@ Window {
                         Text {
                             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                             anchors.leftMargin: 6; anchors.rightMargin: 6; anchors.bottomMargin: 4
-                            text: displayName; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 9; font.weight: Font.DemiBold
+                            text: displayName; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold
                             horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
                         }
                     }
@@ -310,7 +310,7 @@ Window {
                             selected: Math.floor((lightCarousel.contentX + lightCarousel.width / 2) / lightCarousel.width) === index
                             accentColor: Theme.primary
                             onClicked: panel.showLightPage(index)
-                            Text { anchors.centerIn: parent; text: index + 1; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 8; font.weight: Font.Bold }
+                            Text { anchors.centerIn: parent; text: index + 1; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                         }
                     }
                 }
@@ -332,7 +332,7 @@ Window {
                     }
                     ColumnLayout {
                         spacing: 2
-                        Text { text: wizz.language === "en" ? "Master control" : "Control maestro"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10 }
+                        Text { text: wizz.language === "en" ? "Master control" : "Control maestro"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize }
                         Text { text: wizz.powerOn ? (wizz.language === "en" ? "ON" : "ENCENDIDO") : (wizz.language === "en" ? "OFF" : "APAGADO"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 15; font.weight: Font.Bold }
                     }
                     Item { Layout.fillWidth: true }
@@ -351,7 +351,7 @@ Window {
                     anchors.fill: parent; anchors.margins: 10; spacing: 4
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: wizz.language === "en" ? "BRIGHTNESS" : "BRILLO"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.DemiBold }
+                        Text { text: wizz.language === "en" ? "BRIGHTNESS" : "BRILLO"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.DemiBold }
                         Item { Layout.fillWidth: true }
                         Text { text: Math.round(brightnessSlider.value) + "%"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 13; font.weight: Font.DemiBold }
                     }
@@ -375,7 +375,7 @@ Window {
                 }
             }
 
-            Text { text: wizz.language === "en" ? "QUICK ACTIONS" : "ACCESOS RÁPIDOS"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.DemiBold }
+            Text { text: wizz.language === "en" ? "QUICK ACTIONS" : "ACCESOS RÁPIDOS"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.DemiBold }
             GridLayout {
                 Layout.fillWidth: true
                 columns: 3
@@ -411,24 +411,24 @@ Window {
                     width: parent.width; height: 34; radius: 9; selected: wizz.quickPanelPlacement === modelData.id
                     accentColor: Theme.primary
                     onClicked: { wizz.setQuickPanelPlacement(modelData.id); placementPopup.close(); panel.reveal() }
-                    Text { anchors.left: parent.left; anchors.leftMargin: 11; anchors.verticalCenter: parent.verticalCenter; text: modelData.label; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.DemiBold }
+                    Text { anchors.left: parent.left; anchors.leftMargin: 11; anchors.verticalCenter: parent.verticalCenter; text: modelData.label; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold }
                 }
             }
             Rectangle { width: parent.width; height: 1; color: Theme.stroke; opacity: 0.8 }
             PressSurface {
                 width: parent.width; height: 36; radius: 9; accentColor: Theme.primary
                 onClicked: { placementPopup.close(); quickActionsPopup.open() }
-                Text { anchors.centerIn: parent; text: wizz.language === "en" ? "Edit quick actions" : "Editar accesos rápidos"; color: Theme.primary; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+                Text { anchors.centerIn: parent; text: wizz.language === "en" ? "Edit quick actions" : "Editar accesos rápidos"; color: Theme.primary; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
             }
             PressSurface {
                 width: parent.width; height: 36; radius: 9; accentColor: Theme.primary
                 onClicked: panel.showMainApp()
-                Text { anchors.centerIn: parent; text: wizz.language === "en" ? "Open WizZ Desktop" : "Abrir WizZ Desktop"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.DemiBold }
+                Text { anchors.centerIn: parent; text: wizz.language === "en" ? "Open WizZ Desktop" : "Abrir WizZ Desktop"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold }
             }
             PressSurface {
                 width: parent.width; height: 36; radius: 9; accentColor: Theme.error
                 onClicked: panel.quitApp()
-                Text { anchors.centerIn: parent; text: wizz.language === "en" ? "Quit WizZ Desktop" : "Salir de WizZ Desktop"; color: Theme.error; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.DemiBold }
+                Text { anchors.centerIn: parent; text: wizz.language === "en" ? "Quit WizZ Desktop" : "Salir de WizZ Desktop"; color: Theme.error; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold }
             }
         }
     }
@@ -441,7 +441,7 @@ Window {
         contentItem: Column {
             spacing: 8
             Text { text: wizz.language === "en" ? "QUICK ACTIONS" : "ACCESOS RÁPIDOS"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 13; font.weight: Font.Bold }
-            Text { text: wizz.language === "en" ? "Choose up to 6. They also appear on Home." : "Elige hasta 6. Se actualizarán también en Inicio."; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; wrapMode: Text.WordWrap; width: parent.width }
+            Text { text: wizz.language === "en" ? "Choose up to 6. They also appear on Home." : "Elige hasta 6. Se actualizarán también en Inicio."; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; wrapMode: Text.WordWrap; width: parent.width }
             Grid {
                 width: parent.width; columns: 2; spacing: 6
                 Repeater {
@@ -455,7 +455,7 @@ Window {
                         Row {
                             anchors.centerIn: parent; spacing: 6
                             AppIcon { width: 14; height: 14; glyph: modelData.glyph; color: modelData.color }
-                            Text { text: modelData.title; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.DemiBold }
+                            Text { text: modelData.title; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold }
                         }
                     }
                 }

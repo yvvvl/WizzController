@@ -6,7 +6,7 @@ import QtQuick.Controls.Basic
 ComboBox {
     id: control
     font.family: Theme.controlFont
-    font.pixelSize: 11
+    font.pixelSize: Theme.labelSize
     // Opt-in search keeps compact selectors simple while large scene and
     // library catalogues become directly navigable.
     property bool searchable: false
@@ -43,7 +43,7 @@ ComboBox {
                 text: sectionName.toUpperCase()
                 color: Theme.primary
                 font.family: Theme.controlFont
-                font.pixelSize: 9
+                font.pixelSize: Theme.captionSize
                 font.weight: Font.Bold
                 font.letterSpacing: 0.7
                 verticalAlignment: Text.AlignVCenter
@@ -101,7 +101,7 @@ ComboBox {
                     : control.count + (wizz.language === "en" ? " options" : " opciones")
                 color: Theme.faint
                 font.family: Theme.controlFont
-                font.pixelSize: 9
+                font.pixelSize: Theme.captionSize
             }
             ListView {
                 width: parent.width

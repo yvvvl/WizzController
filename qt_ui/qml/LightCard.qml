@@ -49,7 +49,7 @@ PressSurface {
         x: 121; y: 78
         spacing: 4
         Text { text: root.displayName; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 15; font.weight: Font.DemiBold }
-        Text { text: root.address; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11 }
+        Text { text: root.address; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize }
     }
     AppIcon {
         id: brightnessGlyph
@@ -88,6 +88,6 @@ PressSurface {
         text: root.brightness + "%"
         color: Theme.muted
         font.family: Theme.uiFont
-        font.pixelSize: 11
+        font.pixelSize: Theme.labelSize
     }
 }

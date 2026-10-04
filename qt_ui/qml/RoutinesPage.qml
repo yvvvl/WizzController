@@ -193,7 +193,7 @@ Item {
             width: parent.width; height: 48
             Column {
                 anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; spacing: 3
-                Text { text: root.t("Rutinas", "Routines"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 30; font.weight: Font.Bold }
+                Text { text: root.t("Rutinas", "Routines"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Font.Bold }
                 Text { text: root.t("Secuencias visuales para acciones rápidas y hotkeys", "Visual sequences for quick actions and hotkeys"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
             }
             Row {
@@ -202,13 +202,13 @@ Item {
                 width: 150; height: 38; radius: 19
                 color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.primary
                 onClicked: { if (wizz.captureCurrentRoutine()) root.feedback = root.t("Estado actual guardado como rutina.", "Current state saved as a routine.") }
-                Text { anchors.centerIn: parent; text: root.t("Capturar estado", "Capture state"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.DemiBold }
+                Text { anchors.centerIn: parent; text: root.t("Capturar estado", "Capture state"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.DemiBold }
             }
             PressSurface {
                 width: 154; height: 38; radius: 19
                 color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.accent
                 onClicked: wizz.resetRoutineDefaults()
-                Text { anchors.centerIn: parent; text: root.t("Restaurar valores", "Restore defaults"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.DemiBold }
+                Text { anchors.centerIn: parent; text: root.t("Restaurar valores", "Restore defaults"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.DemiBold }
             }
             PressSurface {
                 width: 108; height: 38; radius: 19
@@ -260,12 +260,12 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true; spacing: 3
                             Text { Layout.fillWidth: true; text: routineCard.title; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 16; font.weight: Font.DemiBold; elide: Text.ElideRight }
-                            Text { Layout.fillWidth: true; text: routineCard.subtitle; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; elide: Text.ElideRight }
+                            Text { Layout.fillWidth: true; text: routineCard.subtitle; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; elide: Text.ElideRight }
                         }
                         PressSurface {
                             Layout.preferredWidth: 108; Layout.preferredHeight: 38; radius: 19; color: Theme.primary; accentColor: Theme.primary
                             onClicked: wizz.runRoutine(routineCard.uid)
-                            Text { anchors.centerIn: parent; text: root.t("Aplicar", "Apply"); color: "white"; font.pixelSize: 11; font.weight: Font.Bold }
+                            Text { anchors.centerIn: parent; text: root.t("Aplicar", "Apply"); color: "white"; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
                         }
                         PressSurface {
                             Layout.preferredWidth: 36; Layout.preferredHeight: 36; radius: 18; color: "transparent"; accentColor: Theme.primary
@@ -338,9 +338,9 @@ Item {
 
             RowLayout {
                 Layout.fillWidth: true
-                Text { text: root.t("PASOS", "STEPS"); color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1 }
+                Text { text: root.t("PASOS", "STEPS"); color: Theme.muted; font.pixelSize: Theme.captionSize; font.weight: Font.Bold; font.letterSpacing: 1 }
                 Item { Layout.fillWidth: true }
-                Text { text: actionDraft.count + (actionDraft.count === 1 ? root.t(" paso", " step") : root.t(" pasos", " steps")); color: Theme.faint; font.pixelSize: 11 }
+                Text { text: actionDraft.count + (actionDraft.count === 1 ? root.t(" paso", " step") : root.t(" pasos", " steps")); color: Theme.faint; font.pixelSize: Theme.labelSize }
             }
 
             Rectangle {
@@ -367,7 +367,7 @@ Item {
                             anchors.fill: parent; anchors.margins: 7; spacing: 8
                             RowLayout {
                             Layout.fillWidth: true; Layout.preferredHeight: 42; spacing: 8
-                            Rectangle { Layout.preferredWidth: 28; Layout.preferredHeight: 28; radius: 9; color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.16); Text { anchors.centerIn: parent; text: String(stepRow.index + 1); color: Theme.primary; font.pixelSize: 11; font.weight: Font.Bold } }
+                            Rectangle { Layout.preferredWidth: 28; Layout.preferredHeight: 28; radius: 9; color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.16); Text { anchors.centerIn: parent; text: String(stepRow.index + 1); color: Theme.primary; font.pixelSize: Theme.labelSize; font.weight: Font.Bold } }
                             WizComboBox {
                                 id: actionType
                                 Layout.preferredWidth: 176; Layout.preferredHeight: 40
@@ -474,7 +474,7 @@ Item {
                                         color: String(stepRow.value) === modelData.value ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.18) : Theme.card
                                         accentColor: Theme.primary
                                         onClicked: actionDraft.setProperty(stepRow.index, "value", modelData.value)
-                                        Text { anchors.centerIn: parent; text: modelData.label; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 8; font.weight: Font.Bold }
+                                        Text { anchors.centerIn: parent; text: modelData.label; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                                     }
                                 }
                             }
@@ -486,7 +486,7 @@ Item {
                             RowLayout {
                                 visible: stepRow.showTarget
                                 Layout.fillWidth: true; Layout.preferredHeight: visible ? 36 : 0; spacing: 8
-                                Text { text: root.t("DESTINO", "TARGET"); color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold; Layout.preferredWidth: 56 }
+                                Text { text: root.t("DESTINO", "TARGET"); color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold; Layout.preferredWidth: 56 }
                                 WizComboBox {
                                     id: stepTarget
                                     Layout.fillWidth: true; Layout.preferredHeight: 34
@@ -494,14 +494,14 @@ Item {
                                     textRole: "label"; valueRole: "value"
                                     currentIndex: Math.max(0, stepTarget.indexOfValue(stepRow.target))
                                     onActivated: actionDraft.setProperty(stepRow.index, "target", String(currentValue))
-                                    contentItem: Text { leftPadding: 11; text: stepTarget.displayText; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: 11; elide: Text.ElideRight }
+                                    contentItem: Text { leftPadding: 11; text: stepTarget.displayText; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: Theme.labelSize; elide: Text.ElideRight }
                                     background: Rectangle { color: Theme.card; radius: 9; border.width: 1; border.color: stepTarget.activeFocus ? Theme.primary : Theme.stroke }
                                 }
                                 PressSurface {
                                     Layout.preferredWidth: 82; Layout.preferredHeight: 34; radius: 9
                                     color: Theme.card; accentColor: Theme.primary
                                     onClicked: multiTargetPicker.openFor(stepRow.index, stepRow.target)
-                                    Text { anchors.centerIn: parent; text: stepRow.target.startsWith("group:") || stepRow.target.startsWith("multi:") ? root.t("Editar", "Edit") : root.t("Varias…", "Multiple…"); color: Theme.primary; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+                                    Text { anchors.centerIn: parent; text: stepRow.target.startsWith("group:") || stepRow.target.startsWith("multi:") ? root.t("Editar", "Edit") : root.t("Varias…", "Multiple…"); color: Theme.primary; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                                 }
                             }
                         }
@@ -514,7 +514,7 @@ Item {
                 PressSurface {
                     Layout.preferredWidth: 124; Layout.preferredHeight: 40; radius: 20; color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.primary
                     onClicked: actionDraft.append({ kind: "wait", value: "500", target: "" })
-                    Text { anchors.centerIn: parent; text: "+  " + root.t("Agregar paso", "Add step"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 11; font.weight: Font.Bold }
+                    Text { anchors.centerIn: parent; text: "+  " + root.t("Agregar paso", "Add step"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
                 }
                 Item { Layout.fillWidth: true }
                 PressSurface { Layout.preferredWidth: 94; Layout.preferredHeight: 40; radius: 20; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: editor.close(); Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold } }
@@ -608,11 +608,11 @@ Item {
                 Column {
                     Layout.fillWidth: true; spacing: 3
                     Text { text: root.t("Elegir ampolletas", "Choose lights"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 20; font.weight: Font.Bold }
-                    Text { text: root.t("Esta selección afecta solo a este paso.", "This selection applies only to this step."); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11 }
+                    Text { text: root.t("Esta selección afecta solo a este paso.", "This selection applies only to this step."); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize }
                 }
                 PressSurface { Layout.preferredWidth: 32; Layout.preferredHeight: 32; radius: 16; color: "transparent"; onClicked: multiTargetPicker.close(); AppIcon { anchors.centerIn: parent; width: 14; height: 14; name: "close"; color: Theme.muted } }
             }
-            Text { text: multiTargetPicker.selectedMembers.length + root.t(" seleccionadas", " selected"); color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 11 }
+            Text { text: multiTargetPicker.selectedMembers.length + root.t(" seleccionadas", " selected"); color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: Theme.labelSize }
             Rectangle {
                 Layout.fillWidth: true; Layout.preferredHeight: Math.min(250, Math.max(60, multiTargetPicker.bulbChoices().length * 46 + 12))
                 radius: 12; color: Theme.bg; border.width: 1; border.color: Theme.stroke
@@ -637,7 +637,7 @@ Item {
                     }
                 }
             }
-            Text { text: root.t("GUARDAR COMO GRUPO REUTILIZABLE", "SAVE AS A REUSABLE GROUP"); color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+            Text { text: root.t("GUARDAR COMO GRUPO REUTILIZABLE", "SAVE AS A REUSABLE GROUP"); color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
             RowLayout {
                 Layout.fillWidth: true; spacing: 8
                 TextField {
@@ -653,10 +653,10 @@ Item {
                     Layout.preferredWidth: 104; Layout.preferredHeight: 40; radius: 10
                     color: Theme.cardHi; accentColor: Theme.primary
                     onClicked: multiTargetPicker.saveGroup()
-                    Text { anchors.centerIn: parent; text: multiTargetPicker.editingGroupUid ? root.t("Actualizar", "Update") : root.t("Crear grupo", "Create group"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 11; font.weight: Font.Bold }
+                    Text { anchors.centerIn: parent; text: multiTargetPicker.editingGroupUid ? root.t("Actualizar", "Update") : root.t("Crear grupo", "Create group"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
                 }
             }
-            Text { visible: multiTargetPicker.feedback.length > 0; Layout.fillWidth: true; text: multiTargetPicker.feedback; color: Theme.error; font.family: Theme.uiFont; font.pixelSize: 11; wrapMode: Text.Wrap }
+            Text { visible: multiTargetPicker.feedback.length > 0; Layout.fillWidth: true; text: multiTargetPicker.feedback; color: Theme.error; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; wrapMode: Text.Wrap }
             RowLayout {
                 Layout.fillWidth: true; spacing: 8
                 PressSurface {
@@ -671,11 +671,11 @@ Item {
                             multiTargetPicker.applySelection()
                         }
                     }
-                    Text { anchors.centerIn: parent; text: multiTargetPicker.groupDeletePending ? root.t("Confirmar borrado", "Confirm delete") : root.t("Borrar grupo", "Delete group"); color: Theme.error; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+                    Text { anchors.centerIn: parent; text: multiTargetPicker.groupDeletePending ? root.t("Confirmar borrado", "Confirm delete") : root.t("Borrar grupo", "Delete group"); color: Theme.error; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                 }
                 Item { Layout.fillWidth: true }
-                PressSurface { Layout.preferredWidth: 86; Layout.preferredHeight: 38; radius: 10; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: multiTargetPicker.close(); Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 11 } }
-                PressSurface { Layout.preferredWidth: 142; Layout.preferredHeight: 38; radius: 10; color: Theme.primary; accentColor: Theme.primary; onClicked: multiTargetPicker.applySelection(); Text { anchors.centerIn: parent; text: root.t("Usar selección", "Use selection"); color: "white"; font.family: Theme.controlFont; font.pixelSize: 11; font.weight: Font.Bold } }
+                PressSurface { Layout.preferredWidth: 86; Layout.preferredHeight: 38; radius: 10; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: multiTargetPicker.close(); Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.labelSize } }
+                PressSurface { Layout.preferredWidth: 142; Layout.preferredHeight: 38; radius: 10; color: Theme.primary; accentColor: Theme.primary; onClicked: multiTargetPicker.applySelection(); Text { anchors.centerIn: parent; text: root.t("Usar selección", "Use selection"); color: "white"; font.family: Theme.controlFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold } }
             }
         }
     }
@@ -711,7 +711,7 @@ Item {
             Rectangle {
                 Layout.fillWidth: true; Layout.preferredHeight: 38; radius: 10
                 color: root.routinePreviewColor(routineValuePicker.stepKind, routineValuePicker.stepValue)
-                Text { anchors.centerIn: parent; text: routineValuePicker.stepKind === "rgb" ? routineValuePicker.stepValue.toUpperCase() : routineValuePicker.stepValue + "K"; color: Qt.color(parent.color).r * .299 + Qt.color(parent.color).g * .587 + Qt.color(parent.color).b * .114 > .72 ? Theme.bg : "white"; font.family: Theme.controlFont; font.pixelSize: 11; font.weight: Font.Bold }
+                Text { anchors.centerIn: parent; text: routineValuePicker.stepKind === "rgb" ? routineValuePicker.stepValue.toUpperCase() : routineValuePicker.stepValue + "K"; color: Qt.color(parent.color).r * .299 + Qt.color(parent.color).g * .587 + Qt.color(parent.color).b * .114 > .72 ? Theme.bg : "white"; font.family: Theme.controlFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
             }
             Item { Layout.fillHeight: true }
         }

@@ -60,11 +60,11 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            Text { text: wizz.language === "en" ? "HUE / SATURATION PALETTE" : "PALETA HUE / PUREZA"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.Bold }
+            Text { text: wizz.language === "en" ? "HUE / SATURATION PALETTE" : "PALETA HUE / PUREZA"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
             Item { Layout.fillWidth: true }
-            Text { text: "HEX"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
+            Text { text: "HEX"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
         }
-        Text { text: wizz.language === "en" ? "Horizontal: hue · vertical: perceptual saturation · no black" : "Horizontal: matiz · vertical: pureza perceptual · sin negro"; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 11 }
+        Text { text: wizz.language === "en" ? "Horizontal: hue · vertical: perceptual saturation · no black" : "Horizontal: matiz · vertical: pureza perceptual · sin negro"; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize }
 
         Rectangle {
             id: spectrum
@@ -149,18 +149,18 @@ Item {
                 accentColor: Theme.primary
                 outlined: true
                 onClicked: wizz.saveCurrentFavorite()
-                Row { anchors.centerIn: parent; spacing: 7; AppIcon { anchors.verticalCenter: parent.verticalCenter; width: 15; height: 15; name: "heart"; color: Theme.primary; filled: wizz.currentFavoriteSaved && wizz.colorMode === "rgb" } Text { text: wizz.currentFavoriteSaved && wizz.colorMode === "rgb" ? (wizz.language === "en" ? "Saved" : "Guardado") : (wizz.language === "en" ? "Save favorite" : "Guardar favorito"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.DemiBold } }
+                Row { anchors.centerIn: parent; spacing: 7; AppIcon { anchors.verticalCenter: parent.verticalCenter; width: 15; height: 15; name: "heart"; color: Theme.primary; filled: wizz.currentFavoriteSaved && wizz.colorMode === "rgb" } Text { text: wizz.currentFavoriteSaved && wizz.colorMode === "rgb" ? (wizz.language === "en" ? "Saved" : "Guardado") : (wizz.language === "en" ? "Save favorite" : "Guardar favorito"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold } }
             }
             Rectangle {
                 Layout.preferredWidth: 88; Layout.preferredHeight: 30; radius: 15
                 color: Theme.cardHi; border.width: 1; border.color: Theme.stroke
-                Text { anchors.centerIn: parent; text: String(root.previewColor).toUpperCase(); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+                Text { anchors.centerIn: parent; text: String(root.previewColor).toUpperCase(); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
             }
             Item { Layout.fillWidth: true }
         }
 
         Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.stroke }
-        Text { text: wizz.language === "en" ? "CCT WHITES" : "BLANCOS CCT"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.Bold }
+        Text { text: wizz.language === "en" ? "CCT WHITES" : "BLANCOS CCT"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
         Rectangle {
             id: cctTrack
             Layout.fillWidth: true; Layout.preferredHeight: 34; radius: 12
@@ -184,24 +184,24 @@ Item {
                 accentColor: Theme.primary
                 outlined: true
                 onClicked: wizz.saveCurrentFavorite()
-                Row { anchors.centerIn: parent; spacing: 7; AppIcon { anchors.verticalCenter: parent.verticalCenter; width: 15; height: 15; name: "heart"; color: Theme.primary; filled: wizz.currentFavoriteSaved && wizz.colorMode === "white" } Text { text: wizz.currentFavoriteSaved && wizz.colorMode === "white" ? (wizz.language === "en" ? "Saved" : "Guardado") : (wizz.language === "en" ? "Save favorite" : "Guardar favorito"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.DemiBold } }
+                Row { anchors.centerIn: parent; spacing: 7; AppIcon { anchors.verticalCenter: parent.verticalCenter; width: 15; height: 15; name: "heart"; color: Theme.primary; filled: wizz.currentFavoriteSaved && wizz.colorMode === "white" } Text { text: wizz.currentFavoriteSaved && wizz.colorMode === "white" ? (wizz.language === "en" ? "Saved" : "Guardado") : (wizz.language === "en" ? "Save favorite" : "Guardar favorito"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold } }
             }
             PressSurface {
                 width: 116; height: 36; radius: 18
                 color: Theme.cardHi; accentColor: Theme.warning; outlined: true
                 onClicked: { root.kelvin = 2700; wizz.setWhite(2700); wizz.commitWhite(2700) }
-                Row { anchors.centerIn: parent; spacing: 6; Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 11; height: 11; radius: 6; color: "#ffe0a5" } Text { text: wizz.language === "en" ? "Warm · 2700 K" : "Cálido · 2700 K"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 9; font.weight: Font.DemiBold } }
+                Row { anchors.centerIn: parent; spacing: 6; Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 11; height: 11; radius: 6; color: "#ffe0a5" } Text { text: wizz.language === "en" ? "Warm · 2700 K" : "Cálido · 2700 K"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold } }
             }
             PressSurface {
                 width: 140; height: 36; radius: 18
                 color: Theme.cardHi; accentColor: Theme.primary; outlined: true
                 onClicked: { root.kelvin = 6500; wizz.setWhite(6500); wizz.commitWhite(6500) }
-                Row { anchors.centerIn: parent; spacing: 6; Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 11; height: 11; radius: 6; color: "#d8efff" } Text { text: wizz.language === "en" ? "Cool White · 6500 K" : "Blanco frío · 6500 K"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 9; font.weight: Font.DemiBold } }
+                Row { anchors.centerIn: parent; spacing: 6; Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 11; height: 11; radius: 6; color: "#d8efff" } Text { text: wizz.language === "en" ? "Cool White · 6500 K" : "Blanco frío · 6500 K"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold } }
             }
             Rectangle {
                 width: 88; height: 30; radius: 15
                 color: Theme.cardHi; border.width: 1; border.color: Theme.stroke
-                Text { anchors.centerIn: parent; text: root.kelvin + " K"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+                Text { anchors.centerIn: parent; text: root.kelvin + " K"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
             }
         }
     }

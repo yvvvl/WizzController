@@ -86,7 +86,7 @@ Item {
             width: parent.width; spacing: 12
             ColumnLayout {
                 Layout.fillWidth: true; spacing: 3
-                Text { text: root.t("Atajos globales", "Global hotkeys"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 30; font.weight: Font.Bold }
+                Text { text: root.t("Atajos globales", "Global hotkeys"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Font.Bold }
                 Text { text: root.t("Atajos para luz, escenas, favoritos y rutinas", "Shortcuts for lights, scenes, favorites, and routines"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
             }
             Rectangle {
@@ -103,7 +103,7 @@ Item {
                             color: wizz.hotkeysEnabled && wizz.hotkeysOperational ? Theme.success : Theme.warning
                         }
                     }
-                    Text { Layout.fillWidth: true; text: wizz.hotkeysStatus; color: Theme.muted; font.pixelSize: 11; elide: Text.ElideRight }
+                    Text { Layout.fillWidth: true; text: wizz.hotkeysStatus; color: Theme.muted; font.pixelSize: Theme.labelSize; elide: Text.ElideRight }
                 }
             }
         }
@@ -139,7 +139,7 @@ Item {
                         text: root.t("Tu configuración se conserva. La biblioteca de terceros marca el soporte para macOS como experimental y usa permisos de entrada del sistema; lo activaremos cuando esté validado en un Mac real.", "Your settings are preserved. The third-party library labels macOS support experimental and uses system input permissions; we’ll enable it after validating it on a real Mac.")
                         color: Theme.muted
                         font.family: Theme.uiFont
-                        font.pixelSize: 10
+                        font.pixelSize: Theme.captionSize
                         wrapMode: Text.WordWrap
                     }
                 }
@@ -147,11 +147,11 @@ Item {
         }
 
         Rectangle {
-            width: parent.width; height: 208; radius: Theme.radiusMedium
+            width: parent.width; height: root.width < 750 ? 244 : 220; radius: Theme.radiusMedium
             color: Theme.card; border.width: 1; border.color: Theme.stroke
             ColumnLayout {
                 anchors.fill: parent; anchors.margins: 16; spacing: 12
-                Text { text: root.t("ESTADO", "STATUS"); color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1 }
+                Text { text: root.t("ESTADO", "STATUS"); color: Theme.muted; font.pixelSize: Theme.captionSize; font.weight: Font.Bold; font.letterSpacing: 1 }
                 RowLayout {
                     Layout.fillWidth: true; spacing: 10
                     Repeater {
@@ -163,14 +163,14 @@ Item {
                         delegate: Rectangle {
                             id: settingCard
                             required property var modelData
-                            Layout.fillWidth: true; Layout.preferredHeight: Math.max(72, settingHelp.implicitHeight + 42); radius: 12
+                            Layout.fillWidth: true; Layout.preferredHeight: root.width < 750 ? 108 : 84; radius: 12
                             color: Theme.cardHi; border.width: 1; border.color: Theme.stroke
                             RowLayout {
                                 anchors.fill: parent; anchors.margins: 12; spacing: 8
                                 ColumnLayout {
                                     Layout.fillWidth: true; spacing: 2
                                     Text { Layout.fillWidth: true; text: settingCard.modelData.title; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
-                                    Text { id: settingHelp; Layout.fillWidth: true; text: settingCard.modelData.help; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 10; wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight }
+                                    Text { id: settingHelp; Layout.fillWidth: true; text: settingCard.modelData.help; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; wrapMode: Text.WordWrap; maximumLineCount: 4; elide: Text.ElideRight }
                                 }
                                 Switch {
                                     id: switchControl
@@ -193,7 +193,7 @@ Item {
                 }
                 RowLayout {
                     Layout.fillWidth: true; spacing: 12
-                    Text { text: root.t("Antirrebote", "Debounce"); color: Theme.muted; font.pixelSize: 11 }
+                    Text { text: root.t("Antirrebote", "Debounce"); color: Theme.muted; font.pixelSize: Theme.labelSize }
                     Slider {
                         id: cooldown
                         Layout.fillWidth: true; from: 120; to: 900; stepSize: 60; value: wizz.hotkeysCooldown
@@ -201,7 +201,7 @@ Item {
                         background: Rectangle { x: cooldown.leftPadding; y: cooldown.topPadding + cooldown.availableHeight / 2 - 2; width: cooldown.availableWidth; height: 4; radius: 2; color: Theme.stroke; Rectangle { width: cooldown.visualPosition * parent.width; height: parent.height; radius: 2; color: Theme.accent } }
                         handle: Rectangle { x: cooldown.leftPadding + cooldown.visualPosition * (cooldown.availableWidth - width); y: cooldown.topPadding + cooldown.availableHeight / 2 - height / 2; width: 20; height: 20; radius: 10; color: Theme.text }
                     }
-                    Text { text: Math.round(cooldown.value) + " ms"; color: Theme.muted; font.pixelSize: 11; Layout.preferredWidth: 54 }
+                    Text { text: Math.round(cooldown.value) + " ms"; color: Theme.muted; font.pixelSize: Theme.labelSize; Layout.preferredWidth: 54 }
                     PressSurface {
                         Layout.preferredWidth: 122; Layout.preferredHeight: 36; radius: 18; color: "transparent"; border.color: Theme.stroke
                         // Re-registering is a recovery action, not part of
@@ -210,7 +210,7 @@ Item {
                         // reconnect.
                         outlined: true; visible: wizz.hotkeysAvailable && wizz.hotkeyModel.rowCount() > 0
                         onClicked: wizz.reregisterHotkeys()
-                        Text { anchors.centerIn: parent; text: root.t("Re-registrar", "Re-register"); color: Theme.text; font.pixelSize: 10; font.weight: Font.DemiBold }
+                        Text { anchors.centerIn: parent; text: root.t("Re-registrar", "Re-register"); color: Theme.text; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold }
                     }
                 }
             }
@@ -222,8 +222,8 @@ Item {
             Behavior on height { NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic } }
             ColumnLayout {
                 anchors.fill: parent; anchors.margins: 16; spacing: 11
-                Text { text: root.t("CREAR / EDITAR ATAJO", "CREATE / EDIT SHORTCUT"); color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1 }
-                Text { text: root.t("Elige una acción, escribe o captura la combinación y guárdala.", "Choose an action, enter or capture the combination, then save it."); color: Theme.muted; font.pixelSize: 11 }
+                Text { text: root.t("CREAR / EDITAR ATAJO", "CREATE / EDIT SHORTCUT"); color: Theme.muted; font.pixelSize: Theme.captionSize; font.weight: Font.Bold; font.letterSpacing: 1 }
+                Text { text: root.t("Elige una acción, escribe o captura la combinación y guárdala.", "Choose an action, enter or capture the combination, then save it."); color: Theme.muted; font.pixelSize: Theme.labelSize }
                 RowLayout {
                     Layout.fillWidth: true; spacing: 10
                     WizComboBox {
@@ -232,7 +232,7 @@ Item {
                         model: root.actionGroups()
                         currentIndex: Math.max(0, model.indexOf(root.actionGroup))
                         onActivated: root.actionGroup = currentText
-                        contentItem: Text { leftPadding: 13; text: groupBox.displayText; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: 11; elide: Text.ElideRight }
+                        contentItem: Text { leftPadding: 13; text: groupBox.displayText; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: Theme.labelSize; elide: Text.ElideRight }
                         background: Rectangle { color: Theme.cardHi; radius: 11; border.width: 1; border.color: groupBox.activeFocus ? Theme.primary : Theme.stroke }
                     }
                     TextField {
@@ -309,19 +309,19 @@ Item {
                             }
                             ColumnLayout {
                                 Layout.fillWidth: true; spacing: 2
-                                Text { text: root.t("COLOR PERSONALIZADO", "CUSTOM COLOR"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 11; font.weight: Font.Bold }
-                                Text { text: root.customHex; color: Theme.muted; font.family: Theme.monoFont; font.pixelSize: 11 }
+                                Text { text: root.t("COLOR PERSONALIZADO", "CUSTOM COLOR"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
+                                Text { text: root.customHex; color: Theme.muted; font.family: Theme.monoFont; font.pixelSize: Theme.labelSize }
                             }
                             TextField {
                                 id: customHexField
                                 Layout.preferredWidth: 142; Layout.preferredHeight: 38
-                                text: root.customHex; placeholderText: "#FF0000"; color: Theme.text; font.family: Theme.monoFont; font.pixelSize: 11
+                                text: root.customHex; placeholderText: "#FF0000"; color: Theme.text; font.family: Theme.monoFont; font.pixelSize: Theme.labelSize
                                 validator: RegularExpressionValidator { regularExpression: /#?[0-9a-fA-F]{0,6}/ }
                                 onEditingFinished: { const hex = root.normalizedHex(text); if (hex) root.customHex = hex; text = root.customHex }
                                 background: Rectangle { color: Theme.cardHi; radius: 10; border.width: 1; border.color: customHexField.activeFocus ? Theme.primary : Theme.stroke }
                             }
                         }
-                        Text { text: root.t("COLORES RÁPIDOS", "QUICK COLORS"); color: Theme.muted; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 0.8 }
+                        Text { text: root.t("COLORES RÁPIDOS", "QUICK COLORS"); color: Theme.muted; font.pixelSize: Theme.captionSize; font.weight: Font.Bold; font.letterSpacing: 0.8 }
                         RowLayout {
                             Layout.fillWidth: true; spacing: 7
                             Repeater {
@@ -340,7 +340,7 @@ Item {
                         }
                         RowLayout {
                             Layout.fillWidth: true; spacing: 9
-                            Text { text: root.t("Matiz", "Hue"); color: Theme.muted; font.pixelSize: 10; Layout.preferredWidth: 58 }
+                            Text { text: root.t("Matiz", "Hue"); color: Theme.muted; font.pixelSize: Theme.captionSize; Layout.preferredWidth: 58 }
                             Slider {
                                 id: hueSlider
                                 Layout.fillWidth: true; from: 0; to: 360; stepSize: 1; value: 0
@@ -351,7 +351,7 @@ Item {
                         }
                         RowLayout {
                             Layout.fillWidth: true; spacing: 9
-                            Text { text: root.t("Saturación", "Saturation"); color: Theme.muted; font.pixelSize: 10; Layout.preferredWidth: 58 }
+                            Text { text: root.t("Saturación", "Saturation"); color: Theme.muted; font.pixelSize: Theme.captionSize; Layout.preferredWidth: 58 }
                             Slider {
                                 id: saturationSlider
                                 Layout.fillWidth: true; from: 0; to: 100; stepSize: 1; value: 100
@@ -362,7 +362,7 @@ Item {
                         }
                         RowLayout {
                             Layout.fillWidth: true; spacing: 9
-                            Text { text: root.t("Luminosidad", "Lightness"); color: Theme.muted; font.pixelSize: 10; Layout.preferredWidth: 58 }
+                            Text { text: root.t("Luminosidad", "Lightness"); color: Theme.muted; font.pixelSize: Theme.captionSize; Layout.preferredWidth: 58 }
                             Slider {
                                 id: lightnessSlider
                                 Layout.fillWidth: true; from: 10; to: 100; stepSize: 1; value: 100
@@ -373,7 +373,7 @@ Item {
                         }
                     }
                 }
-                Text { Layout.fillWidth: true; text: root.feedback; visible: text.length > 0; color: Theme.accent; font.pixelSize: 11; wrapMode: Text.WordWrap }
+                Text { Layout.fillWidth: true; text: root.feedback; visible: text.length > 0; color: Theme.accent; font.pixelSize: Theme.labelSize; wrapMode: Text.WordWrap }
             }
         }
 
@@ -384,9 +384,9 @@ Item {
                 anchors.fill: parent; anchors.margins: 16; spacing: 10
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: root.t("PLANTILLAS ÚTILES", "USEFUL TEMPLATES"); color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1 }
+                    Text { text: root.t("PLANTILLAS ÚTILES", "USEFUL TEMPLATES"); color: Theme.muted; font.pixelSize: Theme.captionSize; font.weight: Font.Bold; font.letterSpacing: 1 }
                     Item { Layout.fillWidth: true }
-                    PressSurface { Layout.preferredWidth: 166; Layout.preferredHeight: 32; radius: 16; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: wizz.resetHotkeys(); Text { anchors.centerIn: parent; text: root.t("Restaurar predeterminados", "Restore defaults"); color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold } }
+                    PressSurface { Layout.preferredWidth: 166; Layout.preferredHeight: 32; radius: 16; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: wizz.resetHotkeys(); Text { anchors.centerIn: parent; text: root.t("Restaurar predeterminados", "Restore defaults"); color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold } }
                 }
                 RowLayout {
                     Layout.fillWidth: true; spacing: 9
@@ -402,7 +402,7 @@ Item {
                             required property var modelData
                             Layout.fillWidth: true; Layout.preferredHeight: 58; radius: 11; accentColor: Theme.primary
                             onClicked: root.chooseAction(presetCard.modelData.action, presetCard.modelData.combo)
-                            Column { anchors.left: parent.left; anchors.leftMargin: 12; anchors.verticalCenter: parent.verticalCenter; spacing: 2; Text { text: presetCard.modelData.name; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold } Text { text: presetCard.modelData.combo; color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: 9 } }
+                            Column { anchors.left: parent.left; anchors.leftMargin: 12; anchors.verticalCenter: parent.verticalCenter; spacing: 2; Text { text: presetCard.modelData.name; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold } Text { text: presetCard.modelData.combo; color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize } }
                         }
                     }
                 }
@@ -417,12 +417,12 @@ Item {
                 x: 16; y: 16; width: parent.width - 32; spacing: 8
                 RowLayout {
                     width: parent.width; height: 30
-                    Text { Layout.fillWidth: true; text: root.t("ATAJOS ASIGNADOS", "ASSIGNED SHORTCUTS"); color: Theme.muted; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1 }
+                    Text { Layout.fillWidth: true; text: root.t("ATAJOS ASIGNADOS", "ASSIGNED SHORTCUTS"); color: Theme.muted; font.pixelSize: Theme.captionSize; font.weight: Font.Bold; font.letterSpacing: 1 }
                     PressSurface {
                         Layout.preferredWidth: 100; Layout.preferredHeight: 30; radius: 15
                         color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.primary
                         onClicked: { root.exportText = wizz.exportHotkeys(); exportDialog.open() }
-                        Text { anchors.centerIn: parent; text: root.t("Exportar", "Export"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+                        Text { anchors.centerIn: parent; text: root.t("Exportar", "Export"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                     }
                 }
                 Repeater {
@@ -450,15 +450,15 @@ Item {
                         }
                         Column {
                             x: 56; anchors.verticalCenter: parent.verticalCenter; width: 190; spacing: 1
-                            Text { width: parent.width; text: assignedCard.title; color: Theme.text; font.pixelSize: 11; font.weight: Font.DemiBold; elide: Text.ElideRight }
-                            Text { width: parent.width; text: assignedCard.subtitle; color: Theme.faint; font.pixelSize: 9; elide: Text.ElideRight }
+                            Text { width: parent.width; text: assignedCard.title; color: Theme.text; font.pixelSize: Theme.labelSize; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                            Text { width: parent.width; text: assignedCard.subtitle; color: Theme.faint; font.pixelSize: Theme.captionSize; elide: Text.ElideRight }
                         }
                         Rectangle {
                             anchors.horizontalCenter: parent.horizontalCenter; anchors.verticalCenter: parent.verticalCenter
                             width: 166; height: 30; radius: 9
                             color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08)
                             border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.28)
-                            Text { anchors.centerIn: parent; text: assignedCard.rawValue.toUpperCase().split("+").join("  +  "); color: Theme.accent; font.family: Theme.controlFont; font.pixelSize: 10; font.weight: Font.Bold }
+                            Text { anchors.centerIn: parent; text: assignedCard.rawValue.toUpperCase().split("+").join("  +  "); color: Theme.accent; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                         }
                         PressSurface {
                             width: 30; height: 30; anchors.right: parent.right; anchors.rightMargin: 11; anchors.verticalCenter: parent.verticalCenter
@@ -483,16 +483,16 @@ Item {
             anchors.fill: parent; anchors.margins: 22; spacing: 12
             RowLayout {
                 Layout.fillWidth: true
-                ColumnLayout { Layout.fillWidth: true; spacing: 2; Text { text: root.t("Exportar atajos", "Export shortcuts"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 21; font.weight: Font.Bold } Text { text: root.t("Copia este JSON para conservar tu configuración.", "Copy this JSON to keep your configuration."); color: Theme.muted; font.pixelSize: 11 } }
+                ColumnLayout { Layout.fillWidth: true; spacing: 2; Text { text: root.t("Exportar atajos", "Export shortcuts"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 21; font.weight: Font.Bold } Text { text: root.t("Copia este JSON para conservar tu configuración.", "Copy this JSON to keep your configuration."); color: Theme.muted; font.pixelSize: Theme.labelSize } }
                 PressSurface { Layout.preferredWidth: 32; Layout.preferredHeight: 32; radius: 16; color: "transparent"; onClicked: exportDialog.close(); AppIcon { anchors.centerIn: parent; width: 14; height: 14; name: "close"; color: Theme.muted } }
             }
             TextArea {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 readOnly: true; text: root.exportText; selectByMouse: true; wrapMode: TextEdit.WrapAnywhere
-                color: Theme.text; font.family: Theme.monoFont; font.pixelSize: 11; leftPadding: 13; rightPadding: 13; topPadding: 12; bottomPadding: 12
+                color: Theme.text; font.family: Theme.monoFont; font.pixelSize: Theme.labelSize; leftPadding: 13; rightPadding: 13; topPadding: 12; bottomPadding: 12
                 background: Rectangle { color: Theme.bg; radius: 12; border.width: 1; border.color: Theme.stroke }
             }
-            RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } PressSurface { Layout.preferredWidth: 92; Layout.preferredHeight: 38; radius: 19; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: exportDialog.close(); Text { anchors.centerIn: parent; text: root.t("Cerrar", "Close"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 11; font.weight: Font.Bold } } }
+            RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } PressSurface { Layout.preferredWidth: 92; Layout.preferredHeight: 38; radius: 19; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: exportDialog.close(); Text { anchors.centerIn: parent; text: root.t("Cerrar", "Close"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold } } }
         }
     }
 }

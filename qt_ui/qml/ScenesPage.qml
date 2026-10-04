@@ -93,7 +93,7 @@ Item {
             width: parent.width; height: 48
             Column {
                 anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; spacing: 3
-                Text { text: root.t("Escenas", "Scenes"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 30; font.weight: Font.Bold }
+                Text { text: root.t("Escenas", "Scenes"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Font.Bold }
                 Text { text: root.t("Escenas WiZ y escenas personalizadas locales", "WiZ scenes and local custom scenes"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
             }
             Row {
@@ -126,7 +126,7 @@ Item {
                 ColumnLayout {
                     Layout.preferredWidth: 158; spacing: 2
                     Text { text: root.t("Velocidad", "Speed"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 16; font.weight: Font.Bold }
-                    Text { text: root.sceneNameFor(root.selectedSceneId); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; elide: Text.ElideRight }
+                    Text { text: root.sceneNameFor(root.selectedSceneId); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; elide: Text.ElideRight }
                 }
                 Slider {
                     id: speedSlider
@@ -177,9 +177,9 @@ Item {
             spacing: 10
             RowLayout {
                 width: parent.width
-                Text { text: root.t("MIS ESCENAS", "MY SCENES"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 1 }
+                Text { text: root.t("MIS ESCENAS", "MY SCENES"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold; font.letterSpacing: 1 }
                 Item { Layout.fillWidth: true }
-                Text { text: customRepeater.count + root.t(" guardadas", " saved"); color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 11 }
+                Text { text: customRepeater.count + root.t(" guardadas", " saved"); color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize }
             }
             Rectangle {
                 width: parent.width; height: 54; radius: 12
@@ -189,7 +189,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.left: parent.left; anchors.leftMargin: 15; spacing: 9
                     AppIcon { anchors.verticalCenter: parent.verticalCenter; width: 14; height: 14; name: "info"; color: Theme.muted }
-                    Text { text: root.t("Aún no tienes escenas personalizadas.", "You do not have any custom scenes yet."); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11 }
+                    Text { text: root.t("Aún no tienes escenas personalizadas.", "You do not have any custom scenes yet."); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize }
                 }
             }
             GridLayout {
@@ -219,7 +219,7 @@ Item {
                             AppIcon { anchors.centerIn: parent; width: 18; height: 18; glyph: customCard.kind === "scene" ? "\uE734" : customCard.kind === "white" ? "\uE706" : "\uE790"; color: customCard.entryColor }
                         }
                         Text { anchors.horizontalCenter: parent.horizontalCenter; y: 60; width: parent.width - 18; text: customCard.title; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.DemiBold; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight }
-                        Text { anchors.horizontalCenter: parent.horizontalCenter; y: 80; width: parent.width - 18; text: customCard.subtitle; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 9; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight }
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; y: 80; width: parent.width - 18; text: customCard.subtitle; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight }
                         Row {
                             anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 5; spacing: 2
                             PressSurface {
@@ -249,7 +249,7 @@ Item {
                 required property var modelData
                 width: root.width
                 spacing: 10
-                Text { text: groupBlock.modelData.name.toUpperCase(); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 1 }
+                Text { text: groupBlock.modelData.name.toUpperCase(); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold; font.letterSpacing: 1 }
                 GridLayout {
                     width: parent.width
                     columns: width >= 940 ? 7 : width >= 720 ? 5 : 3
@@ -276,7 +276,7 @@ Item {
                                 AppIcon { anchors.centerIn: parent; width: 23; height: 23; sceneId: sceneCard.modelData.sceneId; glyph: sceneCard.modelData.glyph; color: sceneCard.cardColor }
                             }
                             Text { anchors.horizontalCenter: parent.horizontalCenter; y: 57; width: parent.width - 14; text: sceneCard.modelData.title; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.DemiBold; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight }
-                            Text { anchors.horizontalCenter: parent.horizontalCenter; y: 77; text: sceneCard.modelData.dynamic ? "dinámica" : "estática"; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: 9 }
+                            Text { anchors.horizontalCenter: parent.horizontalCenter; y: 77; text: sceneCard.modelData.dynamic ? "dinámica" : "estática"; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize }
                         }
                     }
                 }
@@ -367,7 +367,7 @@ Item {
                 spacing: 12
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 7
-                    Text { text: root.t("NOMBRE", "NAME"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
+                    Text { text: root.t("NOMBRE", "NAME"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                     TextField {
                         id: customName
                         Layout.fillWidth: true; Layout.preferredHeight: 44
@@ -377,7 +377,7 @@ Item {
                 }
                 ColumnLayout {
                     Layout.preferredWidth: 178; spacing: 7
-                    Text { text: root.t("TIPO", "TYPE"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
+                    Text { text: root.t("TIPO", "TYPE"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                     WizComboBox {
                         id: customTypeBox
                         Layout.fillWidth: true; Layout.preferredHeight: 44
@@ -415,7 +415,7 @@ Item {
                         required property int modelData
                         Layout.preferredWidth: 58; Layout.preferredHeight: 30; radius: 15; accentColor: "#ffd9a0"
                         onClicked: customValue.text = String(modelData)
-                        Text { anchors.centerIn: parent; text: modelData + "K"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 9; font.weight: Font.DemiBold }
+                        Text { anchors.centerIn: parent; text: modelData + "K"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold }
                     }
                 }
                 Item { Layout.fillWidth: true }
@@ -440,7 +440,7 @@ Item {
                         RowLayout {
                             anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 10; spacing: 6
                             Rectangle { Layout.preferredWidth: 10; Layout.preferredHeight: 10; radius: 5; color: modelData.color }
-                            Text { Layout.fillWidth: true; text: modelData.title; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 9; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                            Text { Layout.fillWidth: true; text: modelData.title; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold; elide: Text.ElideRight }
                         }
                     }
                 }
@@ -451,7 +451,7 @@ Item {
                 Layout.fillWidth: true; spacing: 12
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 7
-                    Text { text: customTypeBox.currentIndex === 0 ? "HEX" : customTypeBox.currentIndex === 1 ? "KELVIN" : root.t("ESCENA WIZ", "WIZ SCENE"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
+                    Text { text: customTypeBox.currentIndex === 0 ? "HEX" : customTypeBox.currentIndex === 1 ? "KELVIN" : root.t("ESCENA WIZ", "WIZ SCENE"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                     TextField {
                         id: customValue
                         Layout.fillWidth: true; Layout.preferredHeight: 44
@@ -476,7 +476,7 @@ Item {
                     Layout.preferredWidth: 170; spacing: 7
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: root.t("BRILLO", "BRIGHTNESS"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
+                        Text { text: root.t("BRILLO", "BRIGHTNESS"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                         Item { Layout.fillWidth: true }
                         Text { text: Math.round(customDimming.value) + "%"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.Bold }
                     }
@@ -513,7 +513,7 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 visible: customTypeBox.currentIndex === 2
-                Text { text: root.t("VELOCIDAD", "SPEED"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 10; font.weight: Font.Bold }
+                Text { text: root.t("VELOCIDAD", "SPEED"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                 Slider {
                     id: customSpeed
                     Layout.fillWidth: true

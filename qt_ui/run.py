@@ -7,7 +7,7 @@ from ctypes.util import find_library
 from pathlib import Path
 
 from PySide6.QtCore import QMetaObject, QSize, QTimer, QUrl
-from PySide6.QtGui import QGuiApplication, QIcon
+from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication, QIcon
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtWidgets import QApplication
@@ -179,6 +179,13 @@ def main() -> int:
         app.setQuitOnLastWindowClosed(False)
     root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
     app.setWindowIcon(QIcon(str(root / "assets" / "icon_windows.png")))
+    font_path = root / "assets" / "fonts" / "InterVariable.ttf"
+    font_id = QFontDatabase.addApplicationFont(str(font_path))
+    families = QFontDatabase.applicationFontFamilies(font_id) if font_id >= 0 else []
+    if families:
+        app.setFont(QFont(families[0], 10))
+    else:
+        print(f"[QT] Could not load bundled UI font: {font_path}")
 
     controller = create_controller()
     bridge: WizzBridge | None = None

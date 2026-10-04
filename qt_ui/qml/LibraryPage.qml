@@ -37,7 +37,7 @@ Item {
                     Layout.fillWidth: true; implicitHeight: 132; accentColor: entryColor
                     onClicked: { if (root.actionKind === "favorite") wizz.applyFavorite(uid); else if (root.actionKind === "scene") wizz.applyScene(uid); else wizz.runRoutine(uid) }
                     Rectangle { x: 18; y: 18; width: 42; height: 42; radius: 14; color: Qt.rgba(entryColor.r, entryColor.g, entryColor.b, 0.18); AppIcon { anchors.centerIn: parent; width: 21; height: 21; name: root.actionKind === "favorite" ? "star" : root.actionKind === "scene" ? "sparkles" : "routines"; color: entryColor } }
-                    Column { x: 18; y: 78; spacing: 3; Text { text: title; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 14; font.weight: Font.DemiBold } Text { text: subtitle; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 11 } }
+                    Column { x: 18; y: 78; spacing: 3; Text { text: title; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 14; font.weight: Font.DemiBold } Text { text: subtitle; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize } }
                 }
             }
         }
