@@ -21,8 +21,8 @@ jobs:
       WIZZ_DEV_VIRTUAL_BULBS: "2"
       WIZZ_QT_LANGUAGE: en
       WIZZ_QT_PAGE: "1"
-      WIZZ_CONFIG_DIR: ${{ runner.temp }}/wizz-macos-smoke-config
-      WIZZ_QT_SCREENSHOT: ${{ runner.temp }}/wizz-macos-smoke.png
+      WIZZ_CONFIG_DIR: ${{ github.workspace }}/build/macos-smoke-config
+      WIZZ_QT_SCREENSHOT: ${{ github.workspace }}/macos-smoke.png
 
     steps:
       - name: Check out source
@@ -50,6 +50,6 @@ jobs:
             ${{ runner.temp }}/macos-build/WizZDesktop.app
             ${{ runner.temp }}/macos-release/*.zip
             ${{ runner.temp }}/macos-release/*.sha256
-            ${{ runner.temp }}/wizz-macos-smoke.png
+            ${{ github.workspace }}/macos-smoke.png
           if-no-files-found: error
           retention-days: 14
