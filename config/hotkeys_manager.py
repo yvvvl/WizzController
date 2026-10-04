@@ -147,18 +147,26 @@ class HotkeysManager(JsonManager):
         # compatible y nunca intenta registrar hooks.
         if sys.platform.startswith("linux"):
             return False
+        # ``keyboard`` only describes its macOS implementation as
+        # experimental. It relies on Quartz event taps and system input
+        # permissions; keep it off until this path has been exercised on a
+        # real Mac with the packaged app and its permission flow.
+        if sys.platform == "darwin":
+            return False
         return sys.platform.startswith("win") or _keyboard is not None
 
     @property
     def can_record(self) -> bool:
         """La grabación interactiva sigue usando la librería keyboard."""
-        if sys.platform.startswith("linux"):
+        if sys.platform.startswith("linux") or sys.platform == "darwin":
             return False
         return _keyboard is not None
 
     def dependency_message(self) -> str:
         if sys.platform.startswith("linux"):
             return self._t("hotkeys.dependency.linux_unavailable")
+        if sys.platform == "darwin":
+            return self._t("hotkeys.dependency.macos_unavailable")
         if sys.platform.startswith("win"):
             if _keyboard is None:
                 return self._t("hotkeys.dependency.native_recording_missing", error=_IMPORT_ERROR)
@@ -172,6 +180,8 @@ class HotkeysManager(JsonManager):
         return value if value in {"auto", "native", "keyboard"} else "auto"
 
     def backend_status(self) -> str:
+        if sys.platform == "darwin":
+            return self._t("hotkeys.status.macos_unavailable")
         if not self.is_enabled():
             return self._t("hotkeys.status.disabled")
         report = self.registration_report()
@@ -189,6 +199,11 @@ class HotkeysManager(JsonManager):
         if self.last_error:
             return self._t("hotkeys.status.unregistered")
         return self._t("hotkeys.status.empty") if not total else self._t("hotkeys.status.unregistered")
+
+    @property
+    def operational(self) -> bool:
+        """Whether at least one configured shortcut is actually registered."""
+        return self.last_backend in {"windows", "hybrid", "keyboard"}
 
     def registration_report(self) -> dict[str, Any]:
         report = dict(self._registration_report)

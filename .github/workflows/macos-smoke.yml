@@ -20,9 +20,9 @@ jobs:
       QT_QPA_PLATFORM: offscreen
       WIZZ_DEV_VIRTUAL_BULBS: "2"
       WIZZ_QT_LANGUAGE: en
-      WIZZ_QT_PAGE: "1"
+      WIZZ_QT_WIDTH: "1440"
+      WIZZ_QT_HEIGHT: "960"
       WIZZ_CONFIG_DIR: ${{ github.workspace }}/build/macos-smoke-config
-      WIZZ_QT_SCREENSHOT: ${{ github.workspace }}/macos-smoke.png
 
     steps:
       - name: Check out source
@@ -39,10 +39,21 @@ jobs:
       - name: Build the experimental .app and run focused tests
         run: bash scripts/build_qt_macos.sh --output "$RUNNER_TEMP/macos-build" --release-dir "$RUNNER_TEMP/macos-release"
 
-      - name: Launch packaged app with virtual lights and capture its UI
-        run: "$RUNNER_TEMP/macos-build/WizZDesktop.app/Contents/MacOS/WizZDesktop"
+      - name: Capture all app sections and the Quick Panel
+        shell: bash
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/macos-build/WizZDesktop.app/Contents/MacOS/WizZDesktop"
+          shots="$RUNNER_TEMP/macos-smoke-shots"
+          mkdir -p "$shots"
+          for page in 0 1 2 3 4 5 6; do
+            WIZZ_QT_PAGE="$page" WIZZ_QT_SCREENSHOT="$shots/page-$page.png" "$app"
+            test -s "$shots/page-$page.png"
+          done
+          WIZZ_QT_QUICK_PANEL=1 WIZZ_QT_SCREENSHOT="$shots/quick-panel.png" "$app"
+          test -s "$shots/quick-panel.png"
 
-      - name: Upload unsigned test app and screenshot
+      - name: Upload experimental Mac app and visual captures
         uses: actions/upload-artifact@v4
         with:
           name: WizZDesktop-macos-arm64-experimental
@@ -50,6 +61,6 @@ jobs:
             ${{ runner.temp }}/macos-build/WizZDesktop.app
             ${{ runner.temp }}/macos-release/*.zip
             ${{ runner.temp }}/macos-release/*.sha256
-            ${{ github.workspace }}/macos-smoke.png
+            ${{ runner.temp }}/macos-smoke-shots/*.png
           if-no-files-found: error
           retention-days: 14

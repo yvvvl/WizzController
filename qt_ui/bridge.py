@@ -1328,6 +1328,10 @@ class WizzBridge(QObject):
         return bool(self._hotkeys_manager.available)
 
     @Property(bool, notify=hotkeysChanged)
+    def hotkeysOperational(self) -> bool:
+        return bool(self._hotkeys_manager.operational)
+
+    @Property(bool, notify=hotkeysChanged)
     def hotkeysEnabled(self) -> bool:
         return self._hotkeys_manager.is_enabled()
 

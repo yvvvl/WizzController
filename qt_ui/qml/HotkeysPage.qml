@@ -100,10 +100,48 @@ Item {
                         Rectangle {
                             anchors.centerIn: parent
                             width: 11; height: 11; radius: 6
-                            color: wizz.hotkeysEnabled && wizz.hotkeysAvailable ? Theme.success : Theme.warning
+                            color: wizz.hotkeysEnabled && wizz.hotkeysOperational ? Theme.success : Theme.warning
                         }
                     }
                     Text { Layout.fillWidth: true; text: wizz.hotkeysStatus; color: Theme.muted; font.pixelSize: 11; elide: Text.ElideRight }
+                }
+            }
+        }
+
+        Rectangle {
+            visible: Qt.platform.os === "osx"
+            width: parent.width
+            height: Math.max(84, macosNotice.implicitHeight + 28)
+            radius: Theme.radiusMedium
+            color: Qt.rgba(Theme.warning.r, Theme.warning.g, Theme.warning.b, 0.09)
+            border.width: 1
+            border.color: Qt.rgba(Theme.warning.r, Theme.warning.g, Theme.warning.b, 0.36)
+            RowLayout {
+                id: macosNotice
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 11
+                AppIcon { Layout.preferredWidth: 18; Layout.preferredHeight: 18; name: "info"; color: Theme.warning }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 3
+                    Text {
+                        Layout.fillWidth: true
+                        text: root.t("Atajos globales todavía no disponibles en esta versión experimental para macOS", "Global shortcuts are not available in this experimental macOS build yet")
+                        color: Theme.text
+                        font.family: Theme.controlFont
+                        font.pixelSize: 12
+                        font.weight: Font.DemiBold
+                        wrapMode: Text.WordWrap
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: root.t("Tu configuración se conserva. La biblioteca de terceros marca el soporte para macOS como experimental y usa permisos de entrada del sistema; lo activaremos cuando esté validado en un Mac real.", "Your settings are preserved. The third-party library labels macOS support experimental and uses system input permissions; we’ll enable it after validating it on a real Mac.")
+                        color: Theme.muted
+                        font.family: Theme.uiFont
+                        font.pixelSize: 10
+                        wrapMode: Text.WordWrap
+                    }
                 }
             }
         }
@@ -137,6 +175,7 @@ Item {
                                 Switch {
                                     id: switchControl
                                     checked: settingCard.modelData.value
+                                    enabled: wizz.hotkeysAvailable
                                     onToggled: {
                                         if (settingCard.modelData.kind === "enabled") wizz.setHotkeysEnabled(checked)
                                         else if (settingCard.modelData.kind === "suppress") wizz.setHotkeysSuppress(checked)

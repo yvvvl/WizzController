@@ -57,6 +57,25 @@ def test_linux_does_not_attempt_unsafe_global_keyboard_hooks(tmp_path, monkeypat
     assert "Linux" in (manager.last_error or "")
 
 
+def test_macos_does_not_register_experimental_global_hooks_in_unsigned_build(tmp_path, monkeypatch):
+    _temp_json(monkeypatch, tmp_path)
+    import config.hotkeys_manager as hotkeys_module
+
+    keyboard = _FakeKeyboard()
+    monkeypatch.setattr(hotkeys_module.sys, "platform", "darwin")
+    monkeypatch.setattr(hotkeys_module, "_keyboard", keyboard)
+
+    manager = HotkeysManager(FakeWiz(), auto_apply=False)
+    manager.apply_hooks()
+
+    assert not manager.available
+    assert not manager.can_record
+    assert not manager.operational
+    assert not keyboard.added
+    assert "macOS" in (manager.last_error or "")
+    assert "macOS" in manager.backend_status()
+
+
 def test_assign_replaces_conflict_without_keyboard_hooks(tmp_path, monkeypatch):
     _temp_json(monkeypatch, tmp_path)
     manager = HotkeysManager(FakeWiz(), auto_apply=False)
@@ -180,11 +199,12 @@ def test_reregister_removes_old_keyboard_handles(tmp_path, monkeypatch):
 
     # Exercise the legacy keyboard fallback without pretending a real Linux
     # session supports unsafe global input hooks.
-    monkeypatch.setattr(hotkeys_module.sys, "platform", "darwin")
+    monkeypatch.setattr(hotkeys_module.sys, "platform", "win32")
     fake_keyboard = _FakeKeyboard()
     monkeypatch.setattr(hotkeys_module, "_keyboard", fake_keyboard)
 
     manager = HotkeysManager(FakeWiz(), auto_apply=False)
+    manager.data["backend"] = "keyboard"
     manager.data["hotkeys"] = {"toggle": "ctrl+alt+l"}
 
     manager.apply_hooks()
@@ -194,6 +214,7 @@ def test_reregister_removes_old_keyboard_handles(tmp_path, monkeypatch):
     assert first_handle in fake_keyboard.removed
     assert len(manager._handles) == 1
     assert manager.backend_status().endswith("1/1")
+    assert manager.operational
 
 
 def test_hotkey_conflict_error_is_human_readable():
