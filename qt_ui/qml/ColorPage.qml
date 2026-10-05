@@ -42,7 +42,7 @@ Item {
             Layout.fillWidth: true
             ColumnLayout {
                 Layout.fillWidth: true; spacing: 3
-                Text { text: "Color Studio"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Font.Bold }
+                Text { text: "Color Studio"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Theme.pageTitleWeight }
                 Text { text: root.t("Color puro, blancos Kelvin y brillo independiente", "Pure color, Kelvin whites and independent brightness"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
             }
         }

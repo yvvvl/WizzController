@@ -33,7 +33,7 @@ Item {
             Layout.fillWidth: true; spacing: 10
             ColumnLayout {
                 Layout.fillWidth: true; spacing: 2
-                Text { text: root.t("Ajustes", "Settings"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Font.Bold }
+                Text { text: root.t("Ajustes", "Settings"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Theme.pageTitleWeight }
                 Text { text: root.t("Destino, búsqueda y comportamiento de WizZ Desktop", "Target, discovery, and WizZ Desktop behavior"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.bodySize }
             }
             PressSurface {

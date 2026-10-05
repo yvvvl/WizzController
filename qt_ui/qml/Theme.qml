@@ -37,6 +37,8 @@ QtObject {
     readonly property string uiFont: "Inter Variable"
     readonly property string controlFont: "Inter Variable"
     readonly property int pageTitleSize: 28
+    readonly property int pageTitleWeight: 800
+    readonly property int stateWeight: 800
     readonly property int bodySize: 14
     readonly property int labelSize: 13
     readonly property int captionSize: 12

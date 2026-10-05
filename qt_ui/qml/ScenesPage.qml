@@ -93,7 +93,7 @@ Item {
             width: parent.width; height: 48
             Column {
                 anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; spacing: 3
-                Text { text: root.t("Escenas", "Scenes"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Font.Bold }
+                Text { text: root.t("Escenas", "Scenes"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Theme.pageTitleWeight }
                 Text { text: root.t("Escenas WiZ y escenas personalizadas locales", "WiZ scenes and local custom scenes"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
             }
             Row {

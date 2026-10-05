@@ -239,7 +239,7 @@ ApplicationWindow {
                         width: parent.width
                         ColumnLayout {
                             spacing: 2
-                            Text { text: wizz.language === "en" ? "Home" : "Inicio"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Font.Bold }
+                            Text { text: wizz.language === "en" ? "Home" : "Inicio"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Theme.pageTitleWeight }
                             Text { text: wizz.language === "en" ? "Main lighting control" : "Control principal de iluminación"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.bodySize }
                         }
                         Item { Layout.fillWidth: true }
@@ -250,11 +250,11 @@ ApplicationWindow {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 14; spacing: 10
                                 Rectangle { Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4; color: Theme.success }
                                 ColumnLayout {
+                                     Layout.fillWidth: true
                                     spacing: 0
-                                    Text { text: wizz.statusLine; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize }
-                                    Text { text: wizz.targetLine; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize }
+                                     Text { Layout.fillWidth: true; text: wizz.statusLine; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold; elide: Text.ElideRight }
+                                     Text { Layout.fillWidth: true; text: wizz.targetLine; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; elide: Text.ElideRight }
                                 }
-                                Item { Layout.fillWidth: true }
                                 AppIcon { Layout.preferredWidth: 16; Layout.preferredHeight: 16; name: "arrowRight"; color: Theme.muted }
                             }
                         }
@@ -306,7 +306,7 @@ ApplicationWindow {
                             ColumnLayout {
                                 spacing: 2
                                 Text { text: wizz.language === "en" ? "Master control" : "Control maestro"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.bodySize }
-                                Text { text: wizz.powerOn ? (wizz.language === "en" ? "ON" : "ENCENDIDO") : (wizz.language === "en" ? "OFF" : "APAGADO"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 19; font.weight: Font.Bold }
+                                Text { text: wizz.powerOn ? (wizz.language === "en" ? "ON" : "ENCENDIDO") : (wizz.language === "en" ? "OFF" : "APAGADO"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 19; font.weight: Theme.stateWeight }
                                 Text { text: wizz.language === "en" ? "Click to toggle the active target" : "Toca para alternar el target activo"; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize }
                             }
                             Item { Layout.fillWidth: true }

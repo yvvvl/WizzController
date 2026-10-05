@@ -82,15 +82,24 @@ Item {
         width: parent.width
         spacing: 16
 
-        RowLayout {
-            width: parent.width; spacing: 12
-            ColumnLayout {
-                Layout.fillWidth: true; spacing: 3
-                Text { text: root.t("Atajos globales", "Global hotkeys"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Font.Bold }
-                Text { text: root.t("Atajos para luz, escenas, favoritos y rutinas", "Shortcuts for lights, scenes, favorites, and routines"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
+        Item {
+            width: parent.width
+            height: 62
+            Column {
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.max(0, hotkeysStatusBadge.x - x - 12)
+                spacing: 3
+                Text { width: parent.width; text: root.t("Atajos globales", "Global hotkeys"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Theme.pageTitleWeight; elide: Text.ElideRight }
+                Text { width: parent.width; text: root.t("Atajos para luz, escenas, favoritos y rutinas", "Shortcuts for lights, scenes, favorites, and routines"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13; elide: Text.ElideRight }
             }
             Rectangle {
-                Layout.preferredWidth: 300; Layout.preferredHeight: 38; radius: 19
+                id: hotkeysStatusBadge
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.min(300, Math.max(210, parent.width * 0.43))
+                height: 38
+                radius: 19
                 color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.10)
                 border.width: 1; border.color: Theme.stroke
                 RowLayout {
@@ -103,7 +112,7 @@ Item {
                             color: wizz.hotkeysEnabled && wizz.hotkeysOperational ? Theme.success : Theme.warning
                         }
                     }
-                    Text { Layout.fillWidth: true; text: wizz.hotkeysStatus; color: Theme.muted; font.pixelSize: Theme.labelSize; elide: Text.ElideRight }
+                    Text { Layout.fillWidth: true; text: wizz.hotkeysStatus; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.DemiBold; elide: Text.ElideRight }
                 }
             }
         }

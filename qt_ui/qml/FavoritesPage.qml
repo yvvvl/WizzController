@@ -132,7 +132,7 @@ Item {
             width: parent.width; height: 48
             Column {
                 anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; spacing: 3
-                Text { text: root.t("Favoritos", "Favorites"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Font.Bold }
+                Text { text: root.t("Favoritos", "Favorites"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Theme.pageTitleWeight }
                 Text { text: root.t("Colores, blancos, escenas y brillo guardados", "Saved colors, whites, scenes, and brightness"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
             }
             PressSurface {

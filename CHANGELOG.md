@@ -17,6 +17,8 @@
   and captions, and clearer secondary text in the Midnight theme. Navigation,
   light cards, Quick Actions, Settings, and the Quick Panel use the revised
   typography without clipping at the minimum window size.
+- Strengthen page titles, connection status, and ON/OFF labels consistently,
+  and align the Windows hotkey-status badge to the right edge of its header.
 - Keep the retired Flet interface out of normal runtime dependencies while
   retaining its optional development and migration support.
 
