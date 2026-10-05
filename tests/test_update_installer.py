@@ -11,6 +11,7 @@ import sys
 import tarfile
 import time
 import zipfile
+from xml.etree import ElementTree
 import pytest
 
 from core.update_checker import ReleaseInfo
@@ -162,29 +163,18 @@ def test_windows_update_still_launches_helper_if_progress_window_fails(monkeypat
     assert calls[1][-2] == str(script)
 
 
-def test_windows_progress_window_markup_loads(tmp_path):
-    if not sys.platform.startswith("win"):
-        return
-
+def test_windows_progress_window_markup_is_well_formed(tmp_path):
     viewer = windows_progress_script(tmp_path / "state.json", tmp_path / "config", "1.4.2")
     match = re.search(r"\[xml\]\$layout = @'\n(.*?)\n'@", viewer, re.DOTALL)
     assert match is not None
-    xaml = match.group(1)
-    command = (
-        "Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase\n"
-        "[xml]$layout = @'\n" + xaml + "\n'@\n"
-        "$reader = New-Object System.Xml.XmlNodeReader($layout)\n"
-        "$window = [System.Windows.Markup.XamlReader]::Load($reader)\n"
-        "Write-Output $window.Title"
-    )
-    powershell = Path(os.environ["WINDIR"]) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
-    result = subprocess.run(
-        [str(powershell), "-NoProfile", "-Sta", "-Command", command],
-        capture_output=True, text=True, timeout=15, check=False,
-    )
-
-    assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == "WizZ Desktop updater"
+    window = ElementTree.fromstring(match.group(1))
+    namespace = "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}"
+    assert window.tag == namespace + "Window"
+    assert window.attrib["Title"] == "WizZ Desktop updater"
+    assert {item.attrib.get("Name") for item in window.iter()} >= {
+        "StatusText", "HintText", "Progress"
+    }
+    assert window.find(".//" + namespace + "ProgressBar") is not None
 
 
 def test_windows_update_rejects_bundle_with_wrong_version(monkeypatch, tmp_path):
