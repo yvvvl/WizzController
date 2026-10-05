@@ -122,21 +122,24 @@ resultado real.
   experimentales para tiras y bucle de FPS. No los
   reportes como fallas; márcalos como **N/A**.
 
-### Comandos opcionales para probar desde el código (solo colaboradores)
+### Probar el código actual (solo colaboradores)
 
-No uses estos comandos para validar el ZIP descargado. Son únicamente para un
-tester al que se le dio acceso explícito al repositorio fuente:
+No uses estos comandos para validar el ZIP descargado. Ejecutan el código de
+desarrollo actual, que puede diferir de la versión pública. En PowerShell,
+desde una copia nueva del repositorio:
 
 ```powershell
-git clone https://github.com/yvvvl/WizzController-Beta.git
-Set-Location .\WizzController-Beta
-git switch release/v1.4.0-public
-py -3.13 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt -r requirements-dev.txt
-python -m qt_ui.run
-python -m pytest -q
+git clone https://github.com/yvvvl/WizzController.git
+Set-Location .\WizzController
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m qt_ui.run
+.\.venv\Scripts\python.exe -m pytest -q
 ```
+
+Para probar la interfaz sin ampolletas físicas, define
+`WIZZ_DEV_VIRTUAL_BULBS=3` solo durante esa ejecución. No lo actives al probar
+tu ampolleta real.
 
 ### Cómo enviar un reporte útil
 
@@ -557,9 +560,20 @@ python tools/probe_remove_active_bulb.py --ip 192.168.1.4
 
 ## Estado del proyecto
 
-La versión pública `v1.2.0` ofrece una build estable portable para Windows x64
-y la primera beta nativa para Linux x64. El siguiente ciclo, `v1.3.0`, se
-enfoca en refactorizar la interfaz sin perder la estabilidad alcanzada.
+La guía de publicación anterior documenta v1.4.0. El código de desarrollo
+actual se identifica como v1.4.2; probarlo no equivale a probar una release
+publicada. El trabajo experimental de Govee LAN está en otra rama y aún no
+forma parte de la interfaz Qt de usuario.
+
+En esta rama de desarrollo, **Ajustes → Acciones rápidas** permite crear,
+editar, mostrar/ocultar y borrar controles propios de encendido, brillo, blanco
+Kelvin, RGB y escenas WiZ. Hasta seis acciones seleccionadas aparecen en
+Inicio y el panel rápido. Se aplican a las luces seleccionadas.
+
+La interfaz de escritorio compatible es Qt/PySide6. El código antiguo de Flet
+se conserva para migración y pruebas históricas, pero Flet ya no es una
+dependencia normal de ejecución; los requisitos de desarrollo aún lo incluyen
+para poder ejecutar esas pruebas.
 
 El proyecto cuenta con pruebas automatizadas para:
 

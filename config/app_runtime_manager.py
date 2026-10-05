@@ -44,6 +44,7 @@ class AppRuntimeManager:
         # These actions are shared by Inicio and the quick panel. Keeping
         # their identifiers here makes the selection survive app restarts.
         "quick_actions": ["warm", "reading", "cool", "relax", "party", "off"],
+        "quick_action_custom": [],
         "update_channel": "stable",
     }
 

@@ -276,7 +276,7 @@ Item {
                                 AppIcon { anchors.centerIn: parent; width: 23; height: 23; sceneId: sceneCard.modelData.sceneId; glyph: sceneCard.modelData.glyph; color: sceneCard.cardColor }
                             }
                             Text { anchors.horizontalCenter: parent.horizontalCenter; y: 57; width: parent.width - 14; text: sceneCard.modelData.title; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.DemiBold; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight }
-                            Text { anchors.horizontalCenter: parent.horizontalCenter; y: 77; text: sceneCard.modelData.dynamic ? "dinámica" : "estática"; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize }
+                            Text { anchors.horizontalCenter: parent.horizontalCenter; y: 77; text: sceneCard.modelData.dynamic ? root.t("dinámica", "dynamic") : root.t("estática", "static"); color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize }
                         }
                     }
                 }

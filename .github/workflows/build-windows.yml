@@ -163,7 +163,9 @@ jobs:
           retention-days: 30
 
   publish:
-    if: github.event.repository.private == false && !contains(github.ref_name, 'beta')
+    # A release branch or manual run builds downloadable artifacts only.
+    # Publishing is reserved for an explicit stable version tag.
+    if: github.event.repository.private == false && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, 'beta')
     needs: [build, build-linux]
     runs-on: ubuntu-latest
     steps:
@@ -203,7 +205,7 @@ jobs:
       - name: Publish GitHub Release with Windows and Linux downloads
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', steps.version.outputs.version) }}
+          tag_name: ${{ github.ref_name }}
           target_commitish: ${{ github.sha }}
           name: ${{ format('WizZ Desktop v{0}', steps.version.outputs.version) }}
           prerelease: false

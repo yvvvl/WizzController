@@ -5,28 +5,35 @@ import logging
 import sys
 import threading
 from typing import Any
+from uuid import uuid4
 
 from PySide6.QtCore import (
+    Property,
     QAbstractListModel,
     QByteArray,
     QModelIndex,
     QObject,
-    Property,
     QPoint,
-    QTimer,
     Qt,
+    QTimer,
     Signal,
     Slot,
 )
 from PySide6.QtGui import QGuiApplication
+
+from app_meta import APP_PRODUCT, APP_VERSION, display_version
+from config.app_runtime_manager import AppRuntimeManager
 from config.custom_scenes_manager import CustomScenesManager
 from config.favorites_manager import FavoritesManager
 from config.hotkeys_manager import HotkeysManager
+from config.quick_actions_manager import (
+    MAX_CUSTOM_QUICK_ACTIONS,
+    load_custom_quick_actions,
+    validated_quick_action,
+)
 from config.routines_manager import RoutinesManager
-from config.app_runtime_manager import AppRuntimeManager
-from app_meta import APP_PRODUCT, APP_VERSION, display_version
-from core.action_sequence import ActionSequenceExecutor
 from core import wiz_scenes
+from core.action_sequence import ActionSequenceExecutor
 from core.update_checker import ReleaseInfo, is_update_available
 from core.update_client import ReleaseClient
 from core.update_installer import (
@@ -196,7 +203,6 @@ class WizzBridge(QObject):
     updateResultReceived = Signal(object, str)
     updateInstallResultReceived = Signal(str, str)
     updateProgressReceived = Signal(int, str)
-    updateProgressReceived = Signal(int, str)
     quitRequested = Signal()
     hotkeyCaptured = Signal(str)
     navigateRequested = Signal(int)
@@ -266,11 +272,20 @@ class WizzBridge(QObject):
             {"key": "night", "title_es": "Noche", "title_en": "Night", "glyph": "\ue708", "color": "#8b7cff"},
             {"key": "dim", "title_es": "Atenuar", "title_en": "Dim", "glyph": "\ue9c5", "color": "#f4b860"},
         ]
+        self._custom_quick_actions = load_custom_quick_actions(
+            self._runtime.get("quick_action_custom", [])
+        )
         known_quick_actions = {item["key"] for item in self._quick_action_catalog}
+        known_quick_actions.update(item["key"] for item in self._custom_quick_actions)
         stored_quick_actions = self._runtime.get("quick_actions", [])
-        self._quick_actions = [str(key) for key in stored_quick_actions if str(key) in known_quick_actions][:6]
-        if not self._quick_actions:
-            self._quick_actions = ["warm", "reading", "cool", "relax", "party", "off"]
+        if not isinstance(stored_quick_actions, list):
+            stored_quick_actions = AppRuntimeManager.DEFAULTS["quick_actions"]
+        self._quick_actions = []
+        for key in stored_quick_actions:
+            if isinstance(key, str) and key in known_quick_actions and key not in self._quick_actions:
+                self._quick_actions.append(key)
+            if len(self._quick_actions) == 6:
+                break
         self._update_status = self._ui(
             "Comprueba si hay una versión nueva cuando lo necesites.",
             "Check for a new version whenever you need to.",
@@ -327,7 +342,6 @@ class WizzBridge(QObject):
         self.controllerStateReceived.connect(self._apply_controller_state)
         self.updateResultReceived.connect(self._apply_update_result)
         self.updateInstallResultReceived.connect(self._apply_update_install_result)
-        self.updateProgressReceived.connect(self._apply_update_progress)
         self.updateProgressReceived.connect(self._apply_update_progress)
         self.hotkeyActionsLoaded.connect(self._apply_hotkey_actions)
         self.controller.set_callback(self._receive_controller_state)
@@ -540,7 +554,8 @@ class WizzBridge(QObject):
         self.favorites.replace([self._favorite_entry(item) for item in favorites])
         self.favoriteStateChanged.emit()
         built_in_scenes = [
-            {"title": scene.name, "subtitle": "WiZ · " + self._ui("dinámica", "dynamic") if scene.dynamic else "WiZ · " + self._ui("estática", "static"),
+            {"title": translated_scene_name(self._i18n, scene.id, scene.name),
+             "subtitle": "WiZ · " + self._ui("dinámica", "dynamic") if scene.dynamic else "WiZ · " + self._ui("estática", "static"),
              "entryColor": scene.color, "uid": f"wiz:{scene.id}", "kind": "scene"}
             for scene in wiz_scenes.CATALOG.values()
         ]
@@ -916,13 +931,41 @@ class WizzBridge(QObject):
         self._runtime.update(quick_panel_x=int(x), quick_panel_y=int(y))
 
     @Property("QVariantList", notify=quickActionsChanged)
-    def quickActions(self) -> list[dict[str, str]]:
-        by_key = {item["key"]: item for item in self._quick_action_catalog}
-        return [self._localize_quick_action(by_key[key]) for key in self._quick_actions if key in by_key]
+    def quickActions(self) -> list[dict[str, Any]]:
+        by_key = {item["key"]: self._localize_quick_action(item) for item in self._quick_action_catalog}
+        by_key.update((item["key"], self._custom_quick_action_view(item)) for item in self._custom_quick_actions)
+        return [by_key[key] for key in self._quick_actions if key in by_key]
 
-    @Property("QVariantList", notify=languageChanged)
-    def quickActionCatalog(self) -> list[dict[str, str]]:
-        return [self._localize_quick_action(item) for item in self._quick_action_catalog]
+    @Property("QVariantList", notify=quickActionsChanged)
+    def quickActionCatalog(self) -> list[dict[str, Any]]:
+        return (self.customQuickActions
+                + [self._localize_quick_action(item) for item in self._quick_action_catalog])
+
+    @Property("QVariantList", notify=quickActionsChanged)
+    def customQuickActions(self) -> list[dict[str, Any]]:
+        return [self._custom_quick_action_view(item) for item in self._custom_quick_actions]
+
+    def _custom_quick_action_view(self, item: dict[str, Any]) -> dict[str, Any]:
+        kind, value = item["kind"], item["value"]
+        if kind == "rgb":
+            glyph, color, detail = "\ue790", value, str(value)
+        elif kind == "white":
+            glyph = "\ue706" if value <= 3500 else "\ue9ca"
+            color, detail = ("#ffbd72" if value <= 3500 else "#9dd8ff"), f"{value} K"
+        elif kind == "brightness":
+            glyph, color, detail = "\ue9c5", "#f4b860", f"{value}%"
+        elif kind == "scene":
+            scene = wiz_scenes.get(value)
+            glyph = scene.glyph if scene else "\ue734"
+            color = scene.color if scene else "#9b6cff"
+            detail = translated_scene_name(self._i18n, value, scene.name if scene else None)
+        elif kind == "on":
+            glyph, color, detail = "\ue7e8", "#58d69a", self._ui("Encender", "Turn on")
+        else:
+            glyph, color, detail = "\ue7e8", "#ef6b73", self._ui("Apagar", "Turn off")
+        return {"key": item["key"], "title": item["name"], "name": item["name"],
+                "kind": kind, "value": value, "glyph": glyph, "color": color,
+                "detail": detail, "custom": True}
 
     def _localize_quick_action(self, item: dict[str, str]) -> dict[str, str]:
         localized = dict(item)
@@ -937,6 +980,7 @@ class WizzBridge(QObject):
     @Slot(list)
     def setQuickActions(self, actions: list) -> None:
         known = {item["key"] for item in self._quick_action_catalog}
+        known.update(item["key"] for item in self._custom_quick_actions)
         selected: list[str] = []
         for action in actions or []:
             key = str(action)
@@ -944,11 +988,50 @@ class WizzBridge(QObject):
                 selected.append(key)
             if len(selected) == 6:
                 break
-        if not selected or selected == self._quick_actions:
+        if selected == self._quick_actions:
             return
         self._quick_actions = selected
         self._runtime.update(quick_actions=selected)
         self.quickActionsChanged.emit()
+
+    @Slot(str, str, str, str, result=str)
+    def upsertQuickAction(self, key: str, name: str, kind: str, value: str) -> str:
+        action = validated_quick_action(name, kind, value)
+        if action is None:
+            return ""
+        existing = next((index for index, item in enumerate(self._custom_quick_actions)
+                         if item["key"] == key), -1)
+        if key and existing < 0:
+            return ""
+        if existing < 0 and len(self._custom_quick_actions) >= MAX_CUSTOM_QUICK_ACTIONS:
+            return ""
+        if existing >= 0:
+            self._custom_quick_actions[existing] = {"key": key, **action}
+        else:
+            key = f"custom:{uuid4().hex}"
+            self._custom_quick_actions.append({"key": key, **action})
+            if len(self._quick_actions) < 6:
+                self._quick_actions.append(key)
+        self._runtime.update(
+            quick_action_custom=self._custom_quick_actions,
+            quick_actions=self._quick_actions,
+        )
+        self.quickActionsChanged.emit()
+        return key
+
+    @Slot(str, result=bool)
+    def deleteQuickAction(self, key: str) -> bool:
+        remaining = [item for item in self._custom_quick_actions if item["key"] != key]
+        if len(remaining) == len(self._custom_quick_actions):
+            return False
+        self._custom_quick_actions = remaining
+        self._quick_actions = [selected for selected in self._quick_actions if selected != key]
+        self._runtime.update(
+            quick_action_custom=self._custom_quick_actions,
+            quick_actions=self._quick_actions,
+        )
+        self.quickActionsChanged.emit()
+        return True
 
     @Property(str, constant=True)
     def appVersion(self) -> str:
@@ -1133,15 +1216,16 @@ class WizzBridge(QObject):
 
     @Slot(str, str)
     def _apply_update_install_result(self, message: str, action: str) -> None:
-        self._update_in_progress = False
-        self._update_preparing = False
         self._update_status = str(message)
+        if action != "quit":
+            self._update_in_progress = False
+            self._update_preparing = False
         self.updateChanged.emit()
         if action == "quit":
             # The normal window-close event hides to the tray.  Updating is
             # different: the external updater cannot replace a running app,
-            # so hand the request to the desktop runtime for a real exit.
-            self.quitRequested.emit()
+            # so allow the final progress state to paint before a real exit.
+            QTimer.singleShot(500, self.quitRequested.emit)
 
     @Slot(int, str)
     def _apply_update_progress(self, progress: int, message: str) -> None:
@@ -1149,12 +1233,12 @@ class WizzBridge(QObject):
         self._update_status = str(message)
         self.updateChanged.emit()
 
-    @Slot()
-    def loadUpdateCompletion(self) -> None:
+    @Slot(result=bool)
+    def loadUpdateCompletion(self) -> bool:
         """Show the result left by the detached updater after the app restarts."""
         result = consume_update_result()
         if result is None:
-            return
+            return False
         outcome, version = result
         if outcome == "succeeded":
             self._update_completion_notice = self._ui(
@@ -1168,6 +1252,7 @@ class WizzBridge(QObject):
             )
         self._update_status = self._update_completion_notice
         self.updateChanged.emit()
+        return True
 
     @Property(str, notify=languageChanged)
     def language(self) -> str:
@@ -1423,6 +1508,22 @@ class WizzBridge(QObject):
 
     @Slot(str)
     def applyQuick(self, action: str) -> None:
+        custom = next((item for item in self._custom_quick_actions if item["key"] == action), None)
+        if custom is not None:
+            kind, value = custom["kind"], custom["value"]
+            if kind == "on":
+                self.controller.turn_on()
+            elif kind == "off":
+                self.controller.turn_off()
+            elif kind == "brightness":
+                self.controller.set_brightness(value)
+            elif kind == "white":
+                self.controller.set_white(value)
+            elif kind == "rgb":
+                self.controller.set_rgb(*(int(value[index:index + 2], 16) for index in (1, 3, 5)))
+            elif kind == "scene":
+                self.controller.set_scene(value)
+            return
         actions = {
             "cinema": lambda: self.controller.set_scene(18),
             "reading": lambda: self.controller.set_white(4000),

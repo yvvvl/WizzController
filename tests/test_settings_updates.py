@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from app_meta import APP_VERSION
 from core.update_checker import ReleaseInfo
 from localization import LocalizationManager
 from ui.components.settings_panel import SettingsPanel
@@ -20,9 +21,11 @@ def _panel() -> SettingsPanel:
 
 def test_available_update_is_exposed_only_with_official_release_link():
     panel = _panel()
+    major, minor, patch = (int(part) for part in APP_VERSION.split("."))
+    next_version = f"{major}.{minor}.{patch + 1}"
     release = ReleaseInfo(
-        version="1.4.2",
-        notes_url="https://github.com/yvvvl/WizzController/releases/tag/v1.4.2",
+        version=next_version,
+        notes_url=f"https://github.com/yvvvl/WizzController/releases/tag/v{next_version}",
     )
 
     panel._apply_update_result(release)
@@ -30,7 +33,7 @@ def test_available_update_is_exposed_only_with_official_release_link():
     assert panel.btn_check_updates.disabled is False
     assert panel.btn_open_release.visible is True
     assert panel._available_release == release
-    assert "1.4.2" in panel.update_status.value
+    assert next_version in panel.update_status.value
 
 
 def test_untrusted_release_link_is_not_exposed_to_the_user():

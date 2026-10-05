@@ -47,7 +47,7 @@ PressSurface {
         text: root.title
         color: root.selected ? Theme.text : Theme.muted
         font.family: Theme.controlFont
-        font.pixelSize: root.compact ? 10 : 11
+        font.pixelSize: root.compact ? 11 : 12
         font.weight: root.selected ? Font.Bold : Font.DemiBold
         Behavior on color { ColorAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
     }

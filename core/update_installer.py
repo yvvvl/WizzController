@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import platform as host_platform
 import re
@@ -12,6 +13,7 @@ import subprocess
 import sys
 import tarfile
 import time
+import zipfile
 from pathlib import Path
 from typing import Callable
 from urllib.request import Request, urlopen
@@ -19,6 +21,7 @@ from urllib.request import Request, urlopen
 from app_meta import APP_ARTIFACT
 from config.paths import config_dir
 from .update_checker import ReleaseInfo
+from .update_progress_viewer import windows_progress_script
 
 
 class UpdateInstallError(RuntimeError):
@@ -169,6 +172,24 @@ def stage_windows_update(
     if actual != expected:
         archive.unlink(missing_ok=True)
         raise UpdateInstallError("La verificación SHA-256 falló; la actualización fue descartada.", "SHA-256 verification failed; the update was discarded.")
+    try:
+        with zipfile.ZipFile(archive) as bundle:
+            names = set(bundle.namelist())
+            if f"{APP_ARTIFACT}.exe" not in names or "BUILD_INFO.json" not in names:
+                raise ValueError("The Windows bundle is missing its launcher or build metadata")
+            metadata = json.loads(bundle.read("BUILD_INFO.json").decode("utf-8-sig"))
+            if (
+                str(metadata.get("artifact") or "") != APP_ARTIFACT
+                or str(metadata.get("version") or "") != release.version
+                or str(metadata.get("architecture") or "").lower() != "x64"
+            ):
+                raise ValueError("The Windows bundle does not match the requested release")
+    except (OSError, ValueError, KeyError, zipfile.BadZipFile, UnicodeError) as exc:
+        archive.unlink(missing_ok=True)
+        raise UpdateInstallError(
+            "El paquete de Windows no corresponde a la versión solicitada o está dañado.",
+            "The Windows package is damaged or does not match the requested version.",
+        ) from exc
     if progress_callback:
         progress_callback("prepare", 1.0)
 
@@ -202,6 +223,7 @@ def stage_windows_update(
         "  }\n"
         "  throw $lastError\n"
         "}\n"
+        "$backupCreated = $false\n"
         "try {\n"
         "  Set-UpdateState 'applying' 'Waiting for WizZ Desktop to close'\n"
         "  try { Wait-Process -Id $ProcessId -ErrorAction SilentlyContinue } catch {}\n"
@@ -213,9 +235,10 @@ def stage_windows_update(
         # Inno Setup owns these files. The portable ZIP deliberately does not
         # contain them, so retain them while swapping the app payload.
         "  Get-ChildItem -LiteralPath $install -Filter 'unins*' -File -ErrorAction SilentlyContinue | Copy-Item -Destination $replacement -Force\n"
-        "  Remove-Item $backup -Recurse -Force -ErrorAction SilentlyContinue\n"
+        "  if (Test-Path -LiteralPath $backup) { throw 'An earlier update backup already exists; it was left untouched.' }\n"
         "  Set-UpdateState 'applying' 'Replacing the previous version'\n"
         "  Move-WithRetry $install $backup\n"
+        "  $backupCreated = $true\n"
         "  try { Move-WithRetry $replacement $install } catch { Move-WithRetry $backup $install; throw }\n"
         "  Set-UpdateState 'restarting' 'Starting the updated app'\n"
         f"  $newProcess = Start-Process -FilePath (Join-Path $install '{APP_ARTIFACT}.exe') -WorkingDirectory $install -PassThru -ErrorAction Stop\n"
@@ -229,7 +252,7 @@ def stage_windows_update(
         "} catch {\n"
         "  $message = ($_ | Out-String).Trim()\n"
         "  Set-Content -LiteralPath $diagnostic -Value $message -Encoding utf8\n"
-        "  if (Test-Path $backup) {\n"
+        "  if ($backupCreated -and (Test-Path -LiteralPath $backup)) {\n"
         "    $failedInstall = $install + '.failed'\n"
         "    Remove-Item $failedInstall -Recurse -Force -ErrorAction SilentlyContinue\n"
         "    if (Test-Path $install) { Move-WithRetry $install $failedInstall }\n"
@@ -240,9 +263,13 @@ def stage_windows_update(
         "    Remove-Item $failedInstall -Recurse -Force -ErrorAction SilentlyContinue\n"
         "  }\n"
         f"  if (Test-Path (Join-Path $install '{APP_ARTIFACT}.exe')) {{ try {{ Start-Process -FilePath (Join-Path $install '{APP_ARTIFACT}.exe') -WorkingDirectory $install -ErrorAction Stop }} catch {{}} }}\n"
-        "  Set-UpdateState 'failed' \"Update to v$targetVersion failed; the previous version was restored.\"\n"
+        "  Set-UpdateState 'failed' \"Update to v$targetVersion failed; the previous installation is available.\"\n"
         "  exit 1\n"
         "}\n",
+        encoding="utf-8",
+    )
+    (stage / "show-update.ps1").write_text(
+        windows_progress_script(state_file, config_dir(), release.version),
         encoding="utf-8",
     )
     _write_update_state("preparing", "Update download verified; waiting for WizZ Desktop to close")
@@ -389,6 +416,16 @@ def stage_linux_update(
 
 def launch_staged_update(script: Path) -> None:
     if sys.platform.startswith("win"):
+        viewer = script.with_name("show-update.ps1")
+        if viewer.is_file():
+            try:
+                subprocess.Popen(
+                    ["powershell.exe", "-NoProfile", "-Sta", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", str(viewer)],
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                    cwd=str(script.parent),
+                )
+            except OSError:
+                logging.exception("[Update] Could not display the optional progress window")
         subprocess.Popen(
             ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script), str(os.getpid())],
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),

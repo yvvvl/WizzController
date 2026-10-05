@@ -4,11 +4,12 @@ import QtQuick.Layouts
 
 Item {
     id: root
-    property string title: "Biblioteca"
+    property string title: root.t("Biblioteca", "Library")
     property string subtitle: ""
     property var entryModel
     property string actionKind: "favorite"
     implicitHeight: libraryContent.implicitHeight
+    function t(spanish, english) { return wizz.language === "en" ? english : spanish }
     Column {
         id: libraryContent
         width: parent.width; spacing: 16
@@ -21,10 +22,10 @@ Item {
             PressSurface {
                 Layout.preferredWidth: 148; Layout.preferredHeight: 38; radius: 19; accentColor: Theme.primary
                 color: "transparent"; border.color: Theme.primary; visible: root.actionKind !== "favorite"; onClicked: wizz.refresh()
-                Row { anchors.centerIn: parent; spacing: 7; AppIcon { anchors.verticalCenter: parent.verticalCenter; width: 14; height: 14; name: root.actionKind === "routine" ? "plus" : "star"; color: Theme.primary } Text { text: root.actionKind === "routine" ? "Nueva" : "Guardar actual"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.DemiBold } }
+                Row { anchors.centerIn: parent; spacing: 7; AppIcon { anchors.verticalCenter: parent.verticalCenter; width: 14; height: 14; name: root.actionKind === "routine" ? "plus" : "star"; color: Theme.primary } Text { text: root.actionKind === "routine" ? root.t("Nueva", "New") : root.t("Guardar actual", "Save current"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.DemiBold } }
             }
         }
-        Rectangle { width: parent.width; height: 48; radius: Theme.radiusMedium; color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.10); border.width: 1; border.color: Theme.stroke; visible: root.actionKind !== "favorite"; Text { anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 16; text: root.actionKind === "routine" ? "Crea secuencias fáciles con acciones, esperas y destinos." : "Explora los modos WiZ y guarda tus combinaciones favoritas."; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 12 } }
+        Rectangle { width: parent.width; height: 48; radius: Theme.radiusMedium; color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.10); border.width: 1; border.color: Theme.stroke; visible: root.actionKind !== "favorite"; Text { anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 16; text: root.actionKind === "routine" ? root.t("Crea secuencias fáciles con acciones, esperas y destinos.", "Build simple sequences with actions, delays, and targets.") : root.t("Explora los modos WiZ y guarda tus combinaciones favoritas.", "Explore WiZ modes and save your favorite combinations."); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 12 } }
         GridLayout {
             width: parent.width; columns: width >= 980 ? 4 : width >= 640 ? 3 : 2; columnSpacing: 12; rowSpacing: 12
             Repeater {

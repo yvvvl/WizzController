@@ -48,7 +48,7 @@ PressSurface {
     Column {
         x: 121; y: 78
         spacing: 4
-        Text { text: root.displayName; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 15; font.weight: Font.DemiBold }
+        Text { width: Math.max(0, root.width - 137); text: root.displayName; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 16; font.weight: Font.Bold; elide: Text.ElideRight }
         Text { text: root.address; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize }
     }
     AppIcon {
@@ -89,5 +89,6 @@ PressSurface {
         color: Theme.muted
         font.family: Theme.uiFont
         font.pixelSize: Theme.labelSize
+        font.weight: Font.DemiBold
     }
 }

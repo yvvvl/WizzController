@@ -27,10 +27,13 @@ PressSurface {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 7
+        width: parent.width - 12
         text: root.title
         color: Theme.text
         font.family: Theme.controlFont
-        font.pixelSize: 12
+        font.pixelSize: Theme.labelSize
         font.weight: Font.Bold
+        horizontalAlignment: Text.AlignHCenter
+        elide: Text.ElideRight
     }
 }

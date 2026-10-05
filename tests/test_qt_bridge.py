@@ -9,8 +9,8 @@ pytest.importorskip("PySide6")
 from PySide6.QtCore import QCoreApplication
 from PySide6.QtTest import QSignalSpy
 
-from core.dev_virtual_lights import VirtualLightController
 import qt_ui.bridge as bridge_module
+from core.dev_virtual_lights import VirtualLightController
 from qt_ui.bridge import WizzBridge
 
 
@@ -40,6 +40,61 @@ def test_qt_bridge_exposes_virtual_lights(bridge):
     assert bridge.statusLine.endswith("RGB + Blancos")
     assert len(bridge.routineBulbs) == 3
     assert bridge.routineBulbs[0]["value"].startswith("mac:")
+
+
+def test_custom_quick_actions_create_edit_apply_delete_and_persist(qt_application, tmp_path, monkeypatch):
+    monkeypatch.setenv("WIZZ_CONFIG_DIR", str(tmp_path))
+    controller = VirtualLightController(3)
+    controller.start()
+    view_model = WizzBridge(controller)
+    try:
+        key = view_model.upsertQuickAction("", "Desk light", "rgb", "#1234AB")
+        assert key.startswith("custom:")
+        assert view_model.quickActionCatalog[0]["key"] == key
+        assert key in [item["key"] for item in view_model.quickActionCatalog]
+        view_model.setQuickActions([item["key"] for item in view_model.quickActions[:5]] + [key])
+        assert key in [item["key"] for item in view_model.quickActions]
+        assert view_model.customQuickActions[0]["color"] == "#1234AB"
+        view_model.applyQuick(key)
+        state = controller.get_state()
+        assert (state["r"], state["g"], state["b"]) == (18, 52, 171)
+
+        assert view_model.upsertQuickAction(key, "Desk dim", "brightness", "35") == key
+        assert view_model.customQuickActions[0]["title"] == "Desk dim"
+        view_model.applyQuick(key)
+        assert controller.get_state()["dimming"] == 35
+        assert view_model.upsertQuickAction("", "Bad", "rgb", "oops") == ""
+
+        restored = WizzBridge(controller)
+        try:
+            assert restored.customQuickActions[0]["title"] == "Desk dim"
+            assert key in [item["key"] for item in restored.quickActions]
+        finally:
+            restored.shutdown()
+
+        assert view_model.deleteQuickAction(key)
+        assert view_model.customQuickActions == []
+        assert key not in [item["key"] for item in view_model.quickActions]
+        assert not view_model.deleteQuickAction(key)
+        view_model.setQuickActions([])
+        assert view_model.quickActions == []
+        view_model.setQuickActions(["warm"] * 8 + ["reading", "off"])
+        assert [item["key"] for item in view_model.quickActions] == ["warm", "reading", "off"]
+    finally:
+        view_model.shutdown()
+        controller.stop()
+
+
+def test_builtin_scene_library_updates_with_language(bridge):
+    scene = next(item for item in bridge.scenes._items if item["uid"].startswith("wiz:"))
+    scene_id = int(scene["uid"].split(":", 1)[1])
+    assert scene["title"] == bridge.sceneName(scene_id)
+    assert scene["subtitle"].endswith(("dinámica", "estática"))
+
+    bridge.setPreviewLanguage("en")
+    translated = next(item for item in bridge.scenes._items if item["uid"] == scene["uid"])
+    assert translated["title"] == bridge.sceneName(scene_id)
+    assert translated["subtitle"].endswith(("dynamic", "static"))
 
 
 def test_qt_bridge_saves_named_light_group_for_routines(qt_application, tmp_path, monkeypatch):
@@ -135,11 +190,14 @@ def test_qt_release_candidate_can_opt_into_preview_channel(bridge):
 def test_qt_update_requests_a_real_runtime_exit(bridge):
     signal = QSignalSpy(bridge.quitRequested)
 
+    bridge._update_in_progress = True
     bridge._update_preparing = True
     bridge._apply_update_install_result("Ready", "quit")
 
+    assert bridge.updatePreparing is True
+    assert bridge.updateInProgress is True
+    assert signal.wait(2000)
     assert signal.count() == 1
-    assert bridge.updatePreparing is False
 
 
 def test_qt_update_preparing_state_is_separate_from_checking(bridge):
@@ -165,7 +223,7 @@ def test_qt_bridge_shows_update_completion_after_restart(bridge, monkeypatch):
     monkeypatch.setattr(bridge_module, "consume_update_result", lambda: ("succeeded", "1.4.1"))
     bridge.setPreviewLanguage("en")
 
-    bridge.loadUpdateCompletion()
+    assert bridge.loadUpdateCompletion() is True
 
     assert bridge.updateCompletionNotice == "Update complete: v1.4.1"
     assert bridge.updateStatus == bridge.updateCompletionNotice

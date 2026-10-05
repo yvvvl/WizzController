@@ -17,8 +17,8 @@ QtObject {
     property color warning: "#fbbf24"
     property color error: "#f87171"
     property color text: "#f4f7ff"
-    property color muted: "#a4b0ca"
-    property color faint: "#697899"
+    property color muted: "#b2bed7"
+    property color faint: "#8796b5"
     readonly property color highlight: "#ffffff"
     readonly property color shadow: "#02040b"
     readonly property int radiusSmall: 10
@@ -37,9 +37,9 @@ QtObject {
     readonly property string uiFont: "Inter Variable"
     readonly property string controlFont: "Inter Variable"
     readonly property int pageTitleSize: 28
-    readonly property int bodySize: 13
-    readonly property int labelSize: 12
-    readonly property int captionSize: 11
+    readonly property int bodySize: 14
+    readonly property int labelSize: 13
+    readonly property int captionSize: 12
     readonly property string monoFont: "Cascadia Code"
     function setMode(name) {
         var n = String(name || "midnight").toLowerCase()
@@ -58,6 +58,6 @@ QtObject {
         else if (n === "cobalt") { bg="#070d24"; surface="#0c1640"; card="#12215d"; cardHi="#193077"; stroke="#3353a4"; primary="#5f8fff"; primaryDark="#416fe1"; accent="#79d8ff"; text="#f2f6ff"; muted="#b8c8ef"; faint="#788ab8" }
         else if (n === "sunset") { bg="#1d0d08"; surface="#2f160f"; card="#452017"; cardHi="#592b1e"; stroke="#7c4830"; primary="#ff9d5c"; primaryDark="#db6b37"; accent="#f8d05d"; text="#fff8f1"; muted="#e7c2aa"; faint="#aa8068" }
         else if (n === "light") { bg="#f6f8fc"; surface="#ffffff"; card="#ffffff"; cardHi="#eef3ff"; stroke="#d8e0ee"; primary="#2667da"; primaryDark="#1f56bd"; accent="#7057da"; text="#14213a"; muted="#60708c"; faint="#8290a8" }
-        else { mode="midnight"; bg="#070a14"; surface="#0d1427"; card="#121c33"; cardHi="#182542"; stroke="#293958"; primary="#6697ff"; primaryDark="#4978ec"; accent="#b392ff"; text="#f4f7ff"; muted="#a4b0ca"; faint="#697899" }
+        else { mode="midnight"; bg="#070a14"; surface="#0d1427"; card="#121c33"; cardHi="#182542"; stroke="#293958"; primary="#6697ff"; primaryDark="#4978ec"; accent="#b392ff"; text="#f4f7ff"; muted="#b2bed7"; faint="#8796b5" }
     }
 }

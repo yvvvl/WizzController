@@ -102,21 +102,23 @@ Use real WiZ lights on the same LAN where possible. For every test, note
   and an FPS loop. Do not report these as failures;
   mark them **N/A**.
 
-### Optional source-run commands (contributors only)
+### Run the current source (contributors only)
 
-Do not use these when validating the downloaded build. They are for a tester
-who was explicitly given access to the source repository:
+Do not use these commands to validate a downloaded release. They run the
+current development source, which may differ from the public release. In
+PowerShell:
 
 ```powershell
-git clone https://github.com/yvvvl/WizzController-Beta.git
-Set-Location .\WizzController-Beta
-git switch release/v1.4.0-public
-py -3.13 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt -r requirements-dev.txt
-python -m qt_ui.run
-python -m pytest -q
+git clone https://github.com/yvvvl/WizzController.git
+Set-Location .\WizzController
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m qt_ui.run
+.\.venv\Scripts\python.exe -m pytest -q
 ```
+
+For UI testing without physical lights, set `WIZZ_DEV_VIRTUAL_BULBS=3` only
+for that launch. Do not set it when testing your real light.
 
 ### Send a useful report
 
@@ -410,14 +412,21 @@ tests/        Core, UI, runtime, and packaging tests
 
 ## Project status
 
-Version `v1.2.0` is publicly available as a stable portable Windows x64 build
-and a native Linux x64 beta. The next cycle, `v1.3.0`, focuses on an elegant,
-minimal, responsive UI refactor while preserving the current control path and
-resource efficiency.
+The published release guide above documents v1.4.0. Current development
+source identifies itself as v1.4.2; it is not a published-release test. The
+experimental local Govee work is on a separate feature branch and is not part
+of the current Qt user interface.
+
+In this development branch, **Settings → Quick Actions** lets you create, edit,
+show/hide, and delete custom controls for power, brightness, Kelvin white, RGB,
+and WiZ scenes. Up to six selected actions appear in both Home and the Quick
+Panel. These controls operate on the currently selected lights.
 
 The Qt/PySide6 shell is the only supported desktop interface. The retired Flet
 source remains isolated for data-migration and historical test coverage; it is
-not launched or packaged for users.
+not launched or packaged for users. Flet is an optional `legacy-flet` dependency,
+not a default runtime dependency; the development requirements still include it
+to run the historical tests.
 
 ## Author
 

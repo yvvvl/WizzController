@@ -34,7 +34,7 @@ Item {
             ColumnLayout {
                 Layout.fillWidth: true; spacing: 2
                 Text { text: root.t("Ajustes", "Settings"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Font.Bold }
-                Text { text: root.t("Destino, búsqueda y comportamiento de WizZ Desktop", "Target, discovery, and WizZ Desktop behavior"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
+                Text { text: root.t("Destino, búsqueda y comportamiento de WizZ Desktop", "Target, discovery, and WizZ Desktop behavior"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.bodySize }
             }
             PressSurface {
                 Layout.preferredWidth: 122; Layout.preferredHeight: 38; radius: 19
@@ -119,6 +119,8 @@ Item {
                 }
             }
         }
+
+        QuickActionsEditor { Layout.fillWidth: true }
 
         Rectangle {
             Layout.fillWidth: true; Layout.preferredHeight: appearanceContent.implicitHeight + 36

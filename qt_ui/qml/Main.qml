@@ -14,6 +14,7 @@ ApplicationWindow {
     flags: Qt.Window | Qt.FramelessWindowHint
     title: "WizZ Desktop"
     font.family: Theme.uiFont
+    font.weight: 650
 
     property int currentPage: 0
     property int pendingPage: -1
@@ -239,7 +240,7 @@ ApplicationWindow {
                         ColumnLayout {
                             spacing: 2
                             Text { text: wizz.language === "en" ? "Home" : "Inicio"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Font.Bold }
-                            Text { text: wizz.language === "en" ? "Main lighting control" : "Control principal de iluminación"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
+                            Text { text: wizz.language === "en" ? "Main lighting control" : "Control principal de iluminación"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.bodySize }
                         }
                         Item { Layout.fillWidth: true }
                         PressSurface {
@@ -304,7 +305,7 @@ ApplicationWindow {
                             }
                             ColumnLayout {
                                 spacing: 2
-                                Text { text: wizz.language === "en" ? "Master control" : "Control maestro"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 12 }
+                                Text { text: wizz.language === "en" ? "Master control" : "Control maestro"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.bodySize }
                                 Text { text: wizz.powerOn ? (wizz.language === "en" ? "ON" : "ENCENDIDO") : (wizz.language === "en" ? "OFF" : "APAGADO"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 19; font.weight: Font.Bold }
                                 Text { text: wizz.language === "en" ? "Click to toggle the active target" : "Toca para alternar el target activo"; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize }
                             }
@@ -343,7 +344,18 @@ ApplicationWindow {
                         }
                     }
 
-                    Text { text: wizz.language === "en" ? "QUICK ACTIONS" : "ACCESOS RÁPIDOS"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
+                    RowLayout {
+                        width: parent.width
+                        Text { text: wizz.language === "en" ? "QUICK ACTIONS" : "ACCESOS RÁPIDOS"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
+                        Item { Layout.fillWidth: true }
+                        PressSurface {
+                            Layout.preferredWidth: 112; Layout.preferredHeight: 30; radius: 15
+                            color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.primary
+                            onClicked: window.navigateTo(5)
+                            Text { anchors.centerIn: parent; text: wizz.language === "en" ? "Manage →" : "Administrar →"; color: Theme.primary; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
+                        }
+                    }
+                    Text { visible: wizz.quickActions.length === 0; text: wizz.language === "en" ? "No quick actions selected. Add them in Settings." : "No hay acciones rápidas visibles. Agrégalas en Ajustes."; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize }
                     GridLayout {
                         width: parent.width
                         columns: width >= 1080 ? 8 : width >= 700 ? 4 : 2
@@ -403,6 +415,81 @@ ApplicationWindow {
                     onLoaded: revealPage.restart()
                     Timer { id: revealPage; interval: 16; onTriggered: { window.pageVisible = true; pageLoader.opacity = 1; pageLoader.y = window.pageGutter; pageLoader.scale = 1 } }
                     sourceComponent: window.currentPage === 1 ? colorPage : window.currentPage === 2 ? scenesPage : window.currentPage === 3 ? favoritesPage : window.currentPage === 4 ? routinesPage : window.currentPage === 5 ? settingsPage : hotkeysPage
+                }
+            }
+        }
+    }
+
+    Rectangle {
+        id: updatePreparationOverlay
+        z: 990
+        anchors.fill: parent
+        visible: wizz.updatePreparing
+        color: "#B8000612"
+
+        MouseArea { anchors.fill: parent }
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: Math.min(parent.width - 40, 470)
+            height: 208
+            radius: 20
+            color: Theme.cardHi
+            border.width: 1
+            border.color: Theme.stroke
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 26
+                spacing: 12
+
+                Text {
+                    Layout.fillWidth: true
+                    text: wizz.language === "es" ? "Actualizando WizZ Desktop" : "Updating WizZ Desktop"
+                    color: Theme.text
+                    font.family: Theme.controlFont
+                    font.pixelSize: 20
+                    font.weight: Font.Bold
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: wizz.updateStatus
+                    color: Theme.muted
+                    font.family: Theme.uiFont
+                    font.pixelSize: 13
+                    wrapMode: Text.WordWrap
+                }
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 9
+                    radius: 5
+                    color: Theme.stroke
+                    Rectangle {
+                        width: parent.width * Math.max(0, Math.min(100, wizz.updateProgress)) / 100
+                        height: parent.height
+                        radius: 5
+                        color: Theme.primary
+                        Behavior on width { NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic } }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: (wizz.language === "es" ? "Preparación: " : "Preparation: ") + wizz.updateProgress + "%"
+                    horizontalAlignment: Text.AlignRight
+                    color: Theme.primary
+                    font.family: Theme.controlFont
+                    font.pixelSize: 13
+                    font.weight: Font.Bold
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: wizz.language === "es"
+                          ? "Al cerrar la app, una ventana pequeña mostrará la instalación y el reinicio."
+                          : "After the app closes, a small window will show installation and restart progress."
+                    color: Theme.faint
+                    font.family: Theme.uiFont
+                    font.pixelSize: 11
+                    wrapMode: Text.WordWrap
                 }
             }
         }

@@ -1,6 +1,6 @@
 [project]
 name = "wizz-controller"
-version = "1.4.1"
+version = "1.4.2"
 description = "Control local de ampolletas WiZ por LAN."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
@@ -10,7 +10,6 @@ authors = [
 dependencies = [
   # Used by the Qt controller for WiZ discovery, capability probing and
   # color conversion; its MIT notice is bundled with release artifacts.
-  "flet==0.85.2",
   "pywizlight==0.6.3",
   "psutil>=5.9",
   "keyboard>=0.13.5",

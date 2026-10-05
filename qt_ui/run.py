@@ -14,7 +14,10 @@ from PySide6.QtWidgets import QApplication
 
 from app_meta import APP_ID, APP_NAME
 from config.app_runtime_manager import AppRuntimeManager
-from core.dev_virtual_lights import VirtualLightController, virtual_bulb_count_from_environment
+from core.dev_virtual_lights import (
+    VirtualLightController,
+    virtual_bulb_count_from_environment,
+)
 from core.light_controller import LightController
 from core.single_instance import SingleInstanceGuard
 from core.update_installer import update_is_applying
@@ -28,6 +31,23 @@ def create_controller() -> LightController:
     if virtual_count:
         return VirtualLightController(virtual_count)
     return LightController()
+
+
+def _watch_update_completion(app: QApplication, bridge: WizzBridge) -> QTimer:
+    """Wait for the detached helper's health check without racing its result."""
+    timer = QTimer(app)
+    timer.setInterval(1000)
+    checks = 0
+
+    def check() -> None:
+        nonlocal checks
+        checks += 1
+        if bridge.loadUpdateCompletion() or checks >= 120:
+            timer.stop()
+
+    timer.timeout.connect(check)
+    timer.start()
+    return timer
 
 
 def _prefer_xcb_for_wayland() -> bool:
@@ -183,7 +203,11 @@ def main() -> int:
     font_id = QFontDatabase.addApplicationFont(str(font_path))
     families = QFontDatabase.applicationFontFamilies(font_id) if font_id >= 0 else []
     if families:
-        app.setFont(QFont(families[0], 10))
+        ui_font = QFont(families[0], 11)
+        # Variable Inter can sit between semibold and bold: compact labels
+        # gain presence without flattening the hierarchy of bold headings.
+        ui_font.setWeight(QFont.Weight(650))
+        app.setFont(ui_font)
     else:
         print(f"[QT] Could not load bundled UI font: {font_path}")
 
@@ -197,9 +221,14 @@ def main() -> int:
             print("[QT] Real WiZ LAN control enabled.")
         controller.start()
         bridge = WizzBridge(controller)
-        # The detached updater writes its final health-check result shortly
-        # after relaunch. Delay consumption until that helper has completed.
-        QTimer.singleShot(5000, bridge.loadUpdateCompletion)
+        if screenshot_path and os.environ.get("WIZZ_QT_UPDATE_PREVIEW") == "1":
+            bridge._update_in_progress = True
+            bridge._update_preparing = True
+            bridge._update_progress = 68
+            bridge._update_status = "Downloading v1.4.2… 96%"
+        # Extraction and startup verification vary with disk speed. Keep
+        # checking until the detached helper publishes a terminal result.
+        _watch_update_completion(app, bridge)
         # Test captures can validate either language without changing the
         # user's saved preference.
         if language := os.environ.get("WIZZ_QT_LANGUAGE"):

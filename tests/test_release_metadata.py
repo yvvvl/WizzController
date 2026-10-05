@@ -54,6 +54,9 @@ def test_flet_is_not_a_release_configuration():
     data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     assert "flet" not in data.get("tool", {})
     assert "legacy-flet" in data["project"]["optional-dependencies"]
+    assert all("flet" not in dependency.casefold() for dependency in data["project"]["dependencies"])
+    requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8").casefold()
+    assert "flet==" not in requirements
 
 
 def test_windows_build_and_smoke_scripts_are_present():
@@ -106,6 +109,18 @@ def test_windows_workflow_uses_stable_runner_and_keeps_failure_logs():
     assert 'python-version: "3.13"' in workflow
     assert "Upload build diagnostics" in workflow
     assert "build-windows.log" in workflow
+
+
+def test_release_workflow_only_publishes_from_stable_version_tags():
+    workflow = (ROOT / ".github" / "workflows" / "build-windows.yml").read_text(
+        encoding="utf-8"
+    )
+    publish_job = workflow.split("\n  publish:\n", 1)[1]
+
+    assert "github.ref_type == 'tag'" in publish_job
+    assert "startsWith(github.ref_name, 'v')" in publish_job
+    assert "!contains(github.ref_name, 'beta')" in publish_job
+    assert "tag_name: ${{ github.ref_name }}" in publish_job
 
 
 def test_qt_build_does_not_bundle_legacy_flet_ui():

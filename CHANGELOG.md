@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.4.2 (unreleased)
+
+### Improved
+
+- Create, edit, show or hide, and remove custom Quick Actions for power,
+  brightness, white temperature, RGB color, and WiZ scenes. Up to six selected
+  actions appear on Home and in the Quick Panel for the selected lights.
+- Keep update progress visible while WizZ Desktop closes, replaces its files,
+  and restarts on Windows. The separate progress window closes automatically
+  after success and never blocks the update if it cannot be displayed.
+- Keep checking for the detached updater's final result after restart, so a
+  slower extraction or startup check cannot silently skip the completion
+  notice inside WizZ Desktop.
+- Make interface text easier to read with stronger Inter weights, larger labels
+  and captions, and clearer secondary text in the Midnight theme. Navigation,
+  light cards, Quick Actions, Settings, and the Quick Panel use the revised
+  typography without clipping at the minimum window size.
+- Keep the retired Flet interface out of normal runtime dependencies while
+  retaining its optional development and migration support.
+
 ## v1.4.1
 
 ### Improved

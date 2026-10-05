@@ -1,6 +1,3 @@
-# Legacy compatibility dependency. The official UI is Qt, not Flet.
-flet==0.85.2
-
 # WiZ LAN / discovery híbrido
 pywizlight==0.6.3
 psutil>=5.9

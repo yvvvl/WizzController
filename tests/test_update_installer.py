@@ -4,15 +4,18 @@ import json
 import os
 import platform as host_platform
 import hashlib
+import re
 from pathlib import Path
 import subprocess
 import sys
 import tarfile
 import time
 import zipfile
+import pytest
 
 from core.update_checker import ReleaseInfo
 from core import update_installer
+from core.update_progress_viewer import windows_progress_script
 
 
 def test_update_download_reports_real_byte_progress(monkeypatch, tmp_path):
@@ -70,7 +73,11 @@ def test_windows_update_is_staged_with_verified_release_assets(monkeypatch, tmp_
     (install / "BUILD_INFO.json").write_text("{}", encoding="utf-8")
 
     def fake_download(_url: str, target: Path, *, progress_callback=None) -> str:
-        target.write_bytes(b"verified archive")
+        with zipfile.ZipFile(target, "w") as archive:
+            archive.writestr("WizZDesktop.exe", b"test launcher")
+            archive.writestr("BUILD_INFO.json", json.dumps({
+                "artifact": "WizZDesktop", "version": "1.3.1-beta.2", "architecture": "x64",
+            }))
         if progress_callback:
             progress_callback(0.0)
             progress_callback(1.0)
@@ -93,6 +100,7 @@ def test_windows_update_is_staged_with_verified_release_assets(monkeypatch, tmp_
     )
 
     content = script.read_text(encoding="utf-8")
+    viewer = (script.parent / "show-update.ps1").read_text(encoding="utf-8")
     assert script.name == "apply-update.ps1"
     assert "Expand-Archive" in content
     assert "Wait-Process" in content
@@ -104,13 +112,127 @@ def test_windows_update_is_staged_with_verified_release_assets(monkeypatch, tmp_
     assert "unins*" in content
     assert "$newProcess = Start-Process" in content
     assert "Updated app exited during startup" in content
+    assert "$backupCreated = $false" in content
+    assert "An earlier update backup already exists" in content
     assert "Set-UpdateState 'succeeded'" in content
     assert "$targetVersion = '1.3.1-beta.2'" in content
+    assert "IsIndeterminate=\"True\"" in viewer
+    assert "Update to v$targetVersion complete." in viewer
+    assert "Actualización a v$targetVersion completada." in viewer
     assert progress[0] == ("download", None)
     assert ("verify", 0.0) in progress
     assert progress[-1] == ("prepare", 1.0)
     state = json.loads(update_installer.update_state_path().read_text(encoding="utf-8"))
     assert state["state"] == "preparing"
+
+
+def test_windows_update_launches_progress_window_before_helper(monkeypatch, tmp_path):
+    script = tmp_path / "apply-update.ps1"
+    script.write_text("", encoding="utf-8")
+    (tmp_path / "show-update.ps1").write_text("", encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(update_installer.sys, "platform", "win32")
+    monkeypatch.setattr(update_installer.subprocess, "Popen", lambda args, **kwargs: calls.append((args, kwargs)))
+
+    update_installer.launch_staged_update(script)
+
+    assert len(calls) == 2
+    assert calls[0][0][-1] == str(tmp_path / "show-update.ps1")
+    assert "-Sta" in calls[0][0]
+    assert calls[1][0][-2] == str(script)
+
+
+def test_windows_update_still_launches_helper_if_progress_window_fails(monkeypatch, tmp_path):
+    script = tmp_path / "apply-update.ps1"
+    script.write_text("", encoding="utf-8")
+    (tmp_path / "show-update.ps1").write_text("", encoding="utf-8")
+    calls = []
+
+    def launch(args, **kwargs):
+        calls.append(args)
+        if "show-update.ps1" in str(args):
+            raise OSError("visual helper unavailable")
+
+    monkeypatch.setattr(update_installer.sys, "platform", "win32")
+    monkeypatch.setattr(update_installer.subprocess, "Popen", launch)
+
+    update_installer.launch_staged_update(script)
+
+    assert len(calls) == 2
+    assert calls[1][-2] == str(script)
+
+
+def test_windows_progress_window_markup_loads(tmp_path):
+    if not sys.platform.startswith("win"):
+        return
+
+    viewer = windows_progress_script(tmp_path / "state.json", tmp_path / "config", "1.4.2")
+    match = re.search(r"\[xml\]\$layout = @'\n(.*?)\n'@", viewer, re.DOTALL)
+    assert match is not None
+    xaml = match.group(1)
+    command = (
+        "Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase\n"
+        "[xml]$layout = @'\n" + xaml + "\n'@\n"
+        "$reader = New-Object System.Xml.XmlNodeReader($layout)\n"
+        "$window = [System.Windows.Markup.XamlReader]::Load($reader)\n"
+        "Write-Output $window.Title"
+    )
+    powershell = Path(os.environ["WINDIR"]) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+    result = subprocess.run(
+        [str(powershell), "-NoProfile", "-Sta", "-Command", command],
+        capture_output=True, text=True, timeout=15, check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "WizZ Desktop updater"
+
+
+def test_windows_update_rejects_bundle_with_wrong_version(monkeypatch, tmp_path):
+    install = tmp_path / "WizZDesktop"
+    install.mkdir()
+
+    def fake_download(_url: str, target: Path, *, progress_callback=None) -> str:
+        with zipfile.ZipFile(target, "w") as archive:
+            archive.writestr("WizZDesktop.exe", b"test launcher")
+            archive.writestr("BUILD_INFO.json", json.dumps({
+                "artifact": "WizZDesktop", "version": "wrong", "architecture": "x64",
+            }))
+        return "a" * 64
+
+    monkeypatch.setattr(update_installer, "can_self_update", lambda: True)
+    monkeypatch.setattr(update_installer, "packaged_install_dir", lambda: install)
+    monkeypatch.setattr(update_installer, "config_dir", lambda: tmp_path / "data")
+    monkeypatch.setattr(update_installer, "_read_sha256", lambda _url: "a" * 64)
+    monkeypatch.setattr(update_installer, "_download", fake_download)
+
+    with pytest.raises(update_installer.UpdateInstallError, match="versión solicitada"):
+        update_installer.stage_windows_update(ReleaseInfo(
+            version="1.4.1", download_url="https://example.test/update.zip",
+            checksum_url="https://example.test/update.zip.sha256",
+        ))
+    assert not list((tmp_path / "updates").rglob("apply-update.ps1"))
+
+
+def test_windows_update_rejects_corrupt_zip_even_with_matching_checksum(monkeypatch, tmp_path):
+    install = tmp_path / "WizZDesktop"
+    install.mkdir()
+
+    def fake_download(_url: str, target: Path, *, progress_callback=None) -> str:
+        target.write_bytes(b"not a zip")
+        return "a" * 64
+
+    monkeypatch.setattr(update_installer, "can_self_update", lambda: True)
+    monkeypatch.setattr(update_installer, "packaged_install_dir", lambda: install)
+    monkeypatch.setattr(update_installer, "config_dir", lambda: tmp_path / "data")
+    monkeypatch.setattr(update_installer, "_read_sha256", lambda _url: "a" * 64)
+    monkeypatch.setattr(update_installer, "_download", fake_download)
+
+    with pytest.raises(update_installer.UpdateInstallError, match="está dañado"):
+        update_installer.stage_windows_update(ReleaseInfo(
+            version="1.4.1", download_url="https://example.test/update.zip",
+            checksum_url="https://example.test/update.zip.sha256",
+        ))
+    assert not list((tmp_path / "updates").rglob("apply-update.ps1"))
 
 
 def test_pending_update_marker_expires_safely(monkeypatch, tmp_path):
@@ -146,7 +268,9 @@ def test_windows_helper_replaces_app_when_launched_from_install_directory(monkey
     def fake_download(_url: str, target: Path, *, progress_callback=None) -> str:
         with zipfile.ZipFile(target, "w") as archive:
             archive.writestr("WizZDesktop.exe", b"not-a-real-executable")
-            archive.writestr("BUILD_INFO.json", '{"version":"new"}')
+            archive.writestr("BUILD_INFO.json", json.dumps({
+                "artifact": "WizZDesktop", "version": "test-update", "architecture": "x64",
+            }))
         if progress_callback:
             progress_callback(0.0)
             progress_callback(1.0)
@@ -180,6 +304,100 @@ def test_windows_helper_replaces_app_when_launched_from_install_directory(monkey
     assert result.returncode != 0
     assert (install / "BUILD_INFO.json").read_text(encoding="utf-8") == '{"version":"old"}'
     assert (script.parent / "update-error.log").is_file()
+
+
+def test_windows_helper_preserves_preexisting_backup(monkeypatch, tmp_path):
+    if not sys.platform.startswith("win"):
+        return
+
+    install = tmp_path / "WizZDesktop"
+    install.mkdir()
+    (install / "BUILD_INFO.json").write_text('{"version":"old"}', encoding="utf-8")
+    backup = tmp_path / "WizZDesktop.backup"
+    backup.mkdir()
+    (backup / "important.txt").write_text("keep me", encoding="utf-8")
+
+    def fake_download(_url: str, target: Path, *, progress_callback=None) -> str:
+        with zipfile.ZipFile(target, "w") as archive:
+            archive.writestr("WizZDesktop.exe", b"test launcher")
+            archive.writestr("BUILD_INFO.json", json.dumps({
+                "artifact": "WizZDesktop", "version": "1.4.1", "architecture": "x64",
+            }))
+        return "a" * 64
+
+    monkeypatch.setattr(update_installer, "can_self_update", lambda: True)
+    monkeypatch.setattr(update_installer, "packaged_install_dir", lambda: install)
+    monkeypatch.setattr(update_installer, "config_dir", lambda: tmp_path / "data")
+    monkeypatch.setattr(update_installer, "_read_sha256", lambda _url: "a" * 64)
+    monkeypatch.setattr(update_installer, "_download", fake_download)
+    script = update_installer.stage_windows_update(ReleaseInfo(
+        version="1.4.1", download_url="https://example.test/update.zip",
+        checksum_url="https://example.test/update.zip.sha256",
+    ))
+
+    powershell = Path(os.environ["WINDIR"]) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+    result = subprocess.run(
+        [str(powershell), "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script), "2147483647"],
+        cwd=install, capture_output=True, text=True, timeout=60, check=False,
+    )
+
+    assert result.returncode != 0
+    assert (backup / "important.txt").read_text(encoding="utf-8") == "keep me"
+    assert (install / "BUILD_INFO.json").read_text(encoding="utf-8") == '{"version":"old"}'
+    state = json.loads(update_installer.update_state_path().read_text(encoding="utf-8-sig"))
+    assert state["state"] == "failed"
+
+
+def test_windows_helper_installs_update_and_preserves_user_data(monkeypatch, tmp_path):
+    if not sys.platform.startswith("win"):
+        return
+
+    install = tmp_path / "WizZDesktop"
+    install.mkdir()
+    (install / "BUILD_INFO.json").write_text('{"version":"old"}', encoding="utf-8")
+    data = tmp_path / "data"
+    (data / "config").mkdir(parents=True)
+    user_settings = data / "config" / "settings.json"
+    user_settings.write_text('{"theme":"ocean"}', encoding="utf-8")
+
+    def fake_download(_url: str, target: Path, *, progress_callback=None) -> str:
+        with zipfile.ZipFile(target, "w") as archive:
+            archive.writestr("WizZDesktop.exe", b"test launcher")
+            archive.writestr("BUILD_INFO.json", json.dumps({
+                "artifact": "WizZDesktop", "version": "1.4.1", "architecture": "x64",
+            }))
+        return "a" * 64
+
+    monkeypatch.setattr(update_installer, "can_self_update", lambda: True)
+    monkeypatch.setattr(update_installer, "packaged_install_dir", lambda: install)
+    monkeypatch.setattr(update_installer, "config_dir", lambda: data / "config")
+    monkeypatch.setattr(update_installer, "_read_sha256", lambda _url: "a" * 64)
+    monkeypatch.setattr(update_installer, "_download", fake_download)
+    script = update_installer.stage_windows_update(ReleaseInfo(
+        version="1.4.1", download_url="https://example.test/update.zip",
+        checksum_url="https://example.test/update.zip.sha256",
+    ))
+
+    # Simulate a healthy new process without launching an invalid test EXE.
+    command = (
+        "function Start-Process { param($FilePath, $WorkingDirectory, [switch]$PassThru, $ErrorAction) "
+        "$process = [pscustomobject]@{ HasExited = $false }; "
+        "$process | Add-Member -MemberType ScriptMethod -Name Refresh -Value {}; "
+        "return $process }; "
+        f"& '{str(script).replace(chr(39), chr(39) * 2)}' 2147483647"
+    )
+    powershell = Path(os.environ["WINDIR"]) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+    result = subprocess.run(
+        [str(powershell), "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command],
+        cwd=script.parent, capture_output=True, text=True, timeout=60, check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads((install / "BUILD_INFO.json").read_text(encoding="utf-8"))["version"] == "1.4.1"
+    assert user_settings.read_text(encoding="utf-8") == '{"theme":"ocean"}'
+    assert not (tmp_path / "WizZDesktop.backup").exists()
+    state = json.loads(update_installer.update_state_path().read_text(encoding="utf-8-sig"))
+    assert state["state"] == "succeeded"
 
 
 def _make_linux_bundle(directory: Path, version: str, executable_body: str = "#!/bin/sh\nexit 0\n") -> Path:

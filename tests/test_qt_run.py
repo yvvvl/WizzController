@@ -7,6 +7,7 @@ pytest.importorskip("PySide6")
 from qt_ui import run
 from core import dev_virtual_lights
 from core.dev_virtual_lights import ENV_NAME, VirtualLightController
+from PySide6.QtCore import QCoreApplication
 
 
 def test_wayland_runtime_prefers_xwayland_when_xcb_libraries_exist(monkeypatch):
@@ -90,3 +91,49 @@ def test_packaged_qt_build_ignores_virtual_light_request(monkeypatch):
     monkeypatch.setattr(run, "LightController", lambda: sentinel)
 
     assert run.create_controller() is sentinel
+
+
+def test_restarted_app_keeps_waiting_for_detached_update_result():
+    app = QCoreApplication.instance() or QCoreApplication([])
+
+    class Bridge:
+        def __init__(self):
+            self.checks = 0
+
+        def loadUpdateCompletion(self):
+            self.checks += 1
+            return self.checks == 7
+
+    bridge = Bridge()
+    timer = run._watch_update_completion(app, bridge)
+    try:
+        for _ in range(6):
+            timer.timeout.emit()
+            assert timer.isActive()
+        timer.timeout.emit()
+        assert bridge.checks == 7
+        assert not timer.isActive()
+    finally:
+        timer.stop()
+
+
+def test_update_completion_wait_is_bounded():
+    app = QCoreApplication.instance() or QCoreApplication([])
+
+    class Bridge:
+        def __init__(self):
+            self.checks = 0
+
+        def loadUpdateCompletion(self):
+            self.checks += 1
+            return False
+
+    bridge = Bridge()
+    timer = run._watch_update_completion(app, bridge)
+    try:
+        for _ in range(120):
+            timer.timeout.emit()
+        assert bridge.checks == 120
+        assert not timer.isActive()
+    finally:
+        timer.stop()

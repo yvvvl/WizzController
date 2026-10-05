@@ -49,8 +49,6 @@ Window {
         const selected = selectedQuickActionKeys()
         const index = selected.indexOf(key)
         if (index !== -1) {
-            if (selected.length === 1)
-                return
             selected.splice(index, 1)
         } else {
             if (selected.length === 6)
@@ -376,6 +374,7 @@ Window {
             }
 
             Text { text: wizz.language === "en" ? "QUICK ACTIONS" : "ACCESOS RÁPIDOS"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.DemiBold }
+            Text { visible: wizz.quickActions.length === 0; text: wizz.language === "en" ? "Choose actions from the menu above." : "Elige acciones en el menú superior."; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize }
             GridLayout {
                 Layout.fillWidth: true
                 columns: 3
@@ -442,23 +441,48 @@ Window {
             spacing: 8
             Text { text: wizz.language === "en" ? "QUICK ACTIONS" : "ACCESOS RÁPIDOS"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 13; font.weight: Font.Bold }
             Text { text: wizz.language === "en" ? "Choose up to 6. They also appear on Home." : "Elige hasta 6. Se actualizarán también en Inicio."; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; wrapMode: Text.WordWrap; width: parent.width }
-            Grid {
-                width: parent.width; columns: 2; spacing: 6
-                Repeater {
-                    model: wizz.quickActionCatalog
-                    delegate: PressSurface {
-                        required property var modelData
-                        width: (parent.width - 6) / 2; height: 38; radius: 10
-                        selected: panel.quickActionIsSelected(modelData.key)
-                        accentColor: modelData.color
-                        onClicked: panel.toggleQuickAction(modelData.key)
-                        Row {
-                            anchors.centerIn: parent; spacing: 6
-                            AppIcon { width: 14; height: 14; glyph: modelData.glyph; color: modelData.color }
-                            Text { text: modelData.title; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold }
+            Flickable {
+                id: quickCatalogScroll
+                width: parent.width
+                height: Math.min(282, quickCatalogGrid.implicitHeight)
+                contentWidth: width; contentHeight: quickCatalogGrid.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar {
+                    policy: ScrollBar.AsNeeded
+                    width: 5
+                    contentItem: Rectangle { radius: 3; color: Theme.muted; opacity: 0.55 }
+                    background: Item {}
+                }
+                Grid {
+                    id: quickCatalogGrid
+                    width: quickCatalogScroll.width; columns: 2; spacing: 6
+                    Repeater {
+                        model: wizz.quickActionCatalog
+                        delegate: PressSurface {
+                            required property var modelData
+                            width: (quickCatalogGrid.width - 6) / 2; height: 38; radius: 10
+                            selected: panel.quickActionIsSelected(modelData.key)
+                            accentColor: modelData.color
+                            onClicked: panel.toggleQuickAction(modelData.key)
+                            Row {
+                                anchors.centerIn: parent; spacing: 6
+                                AppIcon { width: 14; height: 14; glyph: modelData.glyph; color: modelData.color }
+                                Text { text: modelData.title; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold; width: 116; elide: Text.ElideRight }
+                            }
                         }
                     }
                 }
+            }
+            PressSurface {
+                width: parent.width; height: 35; radius: 10
+                color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.primary
+                onClicked: {
+                    quickActionsPopup.close()
+                    panel.showMainApp()
+                    if (panel.ownerWindow) panel.ownerWindow.navigateTo(5)
+                }
+                Text { anchors.centerIn: parent; text: wizz.language === "en" ? "+ Create / edit custom actions" : "+ Crear / editar acciones propias"; color: Theme.primary; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold }
             }
         }
     }
