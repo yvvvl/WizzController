@@ -42,6 +42,31 @@ def test_qt_bridge_exposes_virtual_lights(bridge):
     assert bridge.routineBulbs[0]["value"].startswith("mac:")
 
 
+def test_qt_bridge_windows_startup_requires_packaged_executable(bridge, monkeypatch, tmp_path):
+    monkeypatch.setattr(bridge_module.sys, "platform", "win32")
+    monkeypatch.setattr(bridge_module, "resolve_packaged_executable", lambda: None)
+    calls = []
+    monkeypatch.setattr(bridge._runtime, "set_startup_with_windows", lambda value: calls.append(value))
+
+    assert bridge.startupSupported is True
+    assert bridge.startupCanEnable is False
+    assert bridge.setStartupEnabled(True) is False
+    assert calls == []
+    assert bridge.startupMessage
+
+    executable = tmp_path / "WizZDesktop.exe"
+    executable.write_bytes(b"test")
+    monkeypatch.setattr(bridge_module, "resolve_packaged_executable", lambda: executable)
+    monkeypatch.setattr(bridge._runtime, "set_startup_with_windows", lambda value: (calls.append(value) or True, ""))
+    spy = QSignalSpy(bridge.startupChanged)
+
+    assert bridge.startupCanEnable is True
+    assert bridge.setStartupEnabled(True) is True
+    assert calls == [True]
+    assert spy.count() == 1
+    assert bridge.startupMessage == ""
+
+
 def test_custom_quick_actions_create_edit_apply_delete_and_persist(qt_application, tmp_path, monkeypatch):
     monkeypatch.setenv("WIZZ_CONFIG_DIR", str(tmp_path))
     controller = VirtualLightController(3)

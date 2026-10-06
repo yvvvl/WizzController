@@ -21,6 +21,9 @@
   and align the Windows hotkey-status badge to the right edge of its header.
 - Bundle a dedicated static ExtraBold Inter face for headings, light names,
   and power states so their visual weight is reliable across platforms.
+- Restore the Windows sign-in startup switch in Qt Settings. It registers the
+  packaged executable and prevents a development checkout from replacing the
+  user's startup entry with the legacy launcher.
 - Keep the retired Flet interface out of normal runtime dependencies while
   retaining its optional development and migration support.
 

@@ -67,3 +67,31 @@ def test_startup_flag_is_not_enabled_when_registry_write_fails(monkeypatch, tmp_
     assert ok is False
     assert "registro bloqueado" in message
     assert manager.data["startup_with_windows"] is False
+
+
+def test_source_checkout_does_not_replace_packaged_startup_entry(monkeypatch, tmp_path):
+    manager = _runtime_manager_for_test(tmp_path)
+    manager.data["startup_with_windows"] = True
+    monkeypatch.setattr(runtime_module.sys, "platform", "win32")
+    monkeypatch.setattr(runtime_module, "resolve_packaged_executable", lambda: None)
+    monkeypatch.setattr(runtime_module, "_read_startup_value", lambda: '"C:\\Apps\\WizZDesktop.exe"')
+    written = []
+    monkeypatch.setattr(runtime_module, "_write_startup_value", written.append)
+
+    manager._sync_startup_registration()
+
+    assert written == []
+
+
+def test_disabling_windows_startup_removes_registration(monkeypatch, tmp_path):
+    manager = _runtime_manager_for_test(tmp_path)
+    manager.data["startup_with_windows"] = True
+    monkeypatch.setattr(runtime_module.sys, "platform", "win32")
+    removed = []
+    monkeypatch.setattr(runtime_module, "_delete_startup_value", lambda: removed.append(True))
+
+    ok, _message = manager.set_startup_with_windows(False)
+
+    assert ok is True
+    assert removed == [True]
+    assert manager.data["startup_with_windows"] is False

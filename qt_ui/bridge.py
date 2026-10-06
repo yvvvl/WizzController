@@ -22,7 +22,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QGuiApplication
 
 from app_meta import APP_PRODUCT, APP_VERSION, display_version
-from config.app_runtime_manager import AppRuntimeManager
+from config.app_runtime_manager import AppRuntimeManager, resolve_packaged_executable
 from config.custom_scenes_manager import CustomScenesManager
 from config.favorites_manager import FavoritesManager
 from config.hotkeys_manager import HotkeysManager
@@ -209,6 +209,7 @@ class WizzBridge(QObject):
     controllerStateReceived = Signal(dict)
     languageChanged = Signal()
     routineGroupsChanged = Signal()
+    startupChanged = Signal()
 
     def __init__(self, controller) -> None:
         super().__init__()
@@ -224,6 +225,8 @@ class WizzBridge(QObject):
         self._runtime = AppRuntimeManager()
         self._i18n = get_manager()
         self._i18n.set_preference(RuntimeLanguagePreference(self._runtime).load())
+        self._runtime.i18n = self._i18n
+        self._startup_message = ""
         self._favorites_manager = FavoritesManager()
         self._scenes_manager = CustomScenesManager()
         self._routines_manager = RoutinesManager()
@@ -894,6 +897,39 @@ class WizzBridge(QObject):
         self._live_brand_accent = value
         self._runtime.update(live_brand_accent=value)
         self.themeChanged.emit()
+
+    @Property(bool, constant=True)
+    def startupSupported(self) -> bool:
+        return sys.platform.startswith("win")
+
+    @Property(bool, constant=True)
+    def startupCanEnable(self) -> bool:
+        executable = resolve_packaged_executable()
+        return self.startupSupported and executable is not None and executable.is_file()
+
+    @Property(bool, notify=startupChanged)
+    def startupEnabled(self) -> bool:
+        return bool(self._runtime.get("startup_with_windows", False))
+
+    @Property(str, notify=startupChanged)
+    def startupMessage(self) -> str:
+        return self._startup_message
+
+    @Slot(bool, result=bool)
+    def setStartupEnabled(self, enabled: bool) -> bool:
+        if not self.startupSupported:
+            return False
+        if enabled and not self.startupCanEnable:
+            self._startup_message = self._ui(
+                "Disponible al ejecutar la versión empaquetada de WizZ Desktop.",
+                "Available when running the packaged WizZ Desktop app.",
+            )
+            self.startupChanged.emit()
+            return False
+        ok, message = self._runtime.set_startup_with_windows(bool(enabled))
+        self._startup_message = "" if ok else message
+        self.startupChanged.emit()
+        return ok
 
     @Property(str, notify=themeChanged)
     def quickPanelPlacement(self) -> str:

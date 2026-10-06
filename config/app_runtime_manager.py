@@ -162,6 +162,11 @@ class AppRuntimeManager:
         if not bool(self.data.get("startup_with_windows")):
             return
 
+        # Opening the source checkout must not replace a user's packaged
+        # autostart entry with the legacy main.py launcher.
+        if resolve_packaged_executable() is None:
+            return
+
         try:
             current = _read_startup_value()
             desired = self._startup_command()

@@ -225,6 +225,48 @@ Item {
         }
 
         Rectangle {
+            Layout.fillWidth: true; Layout.preferredHeight: startupContent.implicitHeight + 36
+            visible: wizz.startupSupported
+            radius: Theme.radiusMedium; color: Theme.card; border.width: 1; border.color: Theme.stroke
+            ColumnLayout {
+                id: startupContent
+                anchors.fill: parent; anchors.margins: 18; spacing: 12
+                Text { text: root.t("INICIO", "STARTUP"); color: Theme.muted; font.pixelSize: Theme.labelSize; font.weight: Font.Bold; font.letterSpacing: 0.7 }
+                RowLayout {
+                    Layout.fillWidth: true; spacing: 12
+                    ColumnLayout {
+                        Layout.fillWidth: true; spacing: 3
+                        Text { text: root.t("Iniciar con Windows", "Start with Windows"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.bodySize; font.weight: Font.Bold }
+                        Text {
+                            Layout.fillWidth: true
+                            text: wizz.startupCanEnable
+                                ? root.t("Abre WizZ Desktop al iniciar sesión. Mantén el ejecutable en su carpeta definitiva.", "Opens WizZ Desktop when you sign in. Keep the executable in its permanent folder.")
+                                : root.t("Disponible en la versión empaquetada (.exe).", "Available in the packaged app (.exe).")
+                            color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; wrapMode: Text.WordWrap
+                        }
+                    }
+                    PressSurface {
+                        Layout.preferredWidth: 48; Layout.preferredHeight: 28; radius: 14
+                        enabled: wizz.startupEnabled || wizz.startupCanEnable
+                        color: wizz.startupEnabled ? Theme.primary : Theme.stroke; accentColor: Theme.primary
+                        onClicked: wizz.setStartupEnabled(!wizz.startupEnabled)
+                        Rectangle {
+                            width: 20; height: 20; radius: 10; anchors.verticalCenter: parent.verticalCenter
+                            x: wizz.startupEnabled ? parent.width - width - 4 : 4
+                            color: Theme.text
+                            Behavior on x { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
+                        }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true; visible: wizz.startupMessage.length > 0
+                    text: wizz.startupMessage; color: Theme.error; font.family: Theme.uiFont
+                    font.pixelSize: Theme.captionSize; wrapMode: Text.WordWrap
+                }
+            }
+        }
+
+        Rectangle {
             Layout.fillWidth: true; Layout.preferredHeight: wizz.updateInProgress ? 112 : 86; radius: Theme.radiusMedium
             color: Theme.card; border.width: 1; border.color: Theme.stroke
             RowLayout {
