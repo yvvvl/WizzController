@@ -2,6 +2,18 @@ from pathlib import Path
 
 
 QML = Path(__file__).resolve().parents[1] / "qt_ui" / "qml"
+ROOT = QML.parents[1]
+
+
+def test_static_strong_inter_face_is_bundled_for_headings_and_states():
+    font = ROOT / "assets" / "fonts" / "WizZInterStrong.ttf"
+    assert font.is_file() and font.stat().st_size > 100_000
+    theme = (QML / "Theme.qml").read_text(encoding="utf-8")
+    startup = (ROOT / "qt_ui" / "run.py").read_text(encoding="utf-8")
+    assert 'displayFont: "WizZ Inter Strong"' in theme
+    assert '"WizZInterStrong.ttf"' in startup
+    for name in ("Main.qml", "LightCard.qml", "QuickPanel.qml"):
+        assert "font.family: Theme.displayFont" in (QML / name).read_text(encoding="utf-8")
 
 
 def test_page_titles_share_a_stronger_weight():

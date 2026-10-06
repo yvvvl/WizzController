@@ -200,8 +200,11 @@ def main() -> int:
     root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
     app.setWindowIcon(QIcon(str(root / "assets" / "icon_windows.png")))
     font_path = root / "assets" / "fonts" / "InterVariable.ttf"
+    strong_font_path = root / "assets" / "fonts" / "WizZInterStrong.ttf"
     font_id = QFontDatabase.addApplicationFont(str(font_path))
+    strong_font_id = QFontDatabase.addApplicationFont(str(strong_font_path))
     families = QFontDatabase.applicationFontFamilies(font_id) if font_id >= 0 else []
+    strong_families = QFontDatabase.applicationFontFamilies(strong_font_id) if strong_font_id >= 0 else []
     if families:
         ui_font = QFont(families[0], 11)
         # Variable Inter can sit between semibold and bold: compact labels
@@ -210,6 +213,8 @@ def main() -> int:
         app.setFont(ui_font)
     else:
         print(f"[QT] Could not load bundled UI font: {font_path}")
+    if "WizZ Inter Strong" not in strong_families:
+        print(f"[QT] Could not load bundled heading font: {strong_font_path}")
 
     controller = create_controller()
     bridge: WizzBridge | None = None

@@ -19,6 +19,8 @@
   typography without clipping at the minimum window size.
 - Strengthen page titles, connection status, and ON/OFF labels consistently,
   and align the Windows hotkey-status badge to the right edge of its header.
+- Bundle a dedicated static ExtraBold Inter face for headings, light names,
+  and power states so their visual weight is reliable across platforms.
 - Keep the retired Flet interface out of normal runtime dependencies while
   retaining its optional development and migration support.
 

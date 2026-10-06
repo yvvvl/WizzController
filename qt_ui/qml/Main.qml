@@ -252,7 +252,7 @@ ApplicationWindow {
                                 ColumnLayout {
                                      Layout.fillWidth: true
                                     spacing: 0
-                                     Text { Layout.fillWidth: true; text: wizz.statusLine; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold; elide: Text.ElideRight }
+                                     Text { Layout.fillWidth: true; text: wizz.statusLine; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold; elide: Text.ElideRight }
                                      Text { Layout.fillWidth: true; text: wizz.targetLine; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; elide: Text.ElideRight }
                                 }
                                 AppIcon { Layout.preferredWidth: 16; Layout.preferredHeight: 16; name: "arrowRight"; color: Theme.muted }
@@ -262,7 +262,7 @@ ApplicationWindow {
 
                     RowLayout {
                         width: parent.width
-                        Text { text: wizz.language === "en" ? "LINKED LIGHTS" : "LUCES VINCULADAS"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 15; font.weight: Font.Bold }
+                        Text { text: wizz.language === "en" ? "LINKED LIGHTS" : "LUCES VINCULADAS"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 15; font.weight: Font.Bold }
                         Item { Layout.fillWidth: true }
                         Text { text: wizz.language === "en" ? wizz.selectedCount + " of " + wizz.totalCount + " selected" : wizz.selectedCount + " de " + wizz.totalCount + " seleccionadas"; color: Theme.accent; font.family: Theme.uiFont; font.pixelSize: 12 }
                         PressSurface {
@@ -306,7 +306,7 @@ ApplicationWindow {
                             ColumnLayout {
                                 spacing: 2
                                 Text { text: wizz.language === "en" ? "Master control" : "Control maestro"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.bodySize }
-                                Text { text: wizz.powerOn ? (wizz.language === "en" ? "ON" : "ENCENDIDO") : (wizz.language === "en" ? "OFF" : "APAGADO"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 19; font.weight: Theme.stateWeight }
+                                Text { text: wizz.powerOn ? (wizz.language === "en" ? "ON" : "ENCENDIDO") : (wizz.language === "en" ? "OFF" : "APAGADO"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 19; font.weight: Theme.stateWeight }
                                 Text { text: wizz.language === "en" ? "Click to toggle the active target" : "Toca para alternar el target activo"; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize }
                             }
                             Item { Layout.fillWidth: true }
@@ -346,7 +346,7 @@ ApplicationWindow {
 
                     RowLayout {
                         width: parent.width
-                        Text { text: wizz.language === "en" ? "QUICK ACTIONS" : "ACCESOS RÁPIDOS"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
+                        Text { text: wizz.language === "en" ? "QUICK ACTIONS" : "ACCESOS RÁPIDOS"; color: Theme.muted; font.family: Theme.displayFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
                         Item { Layout.fillWidth: true }
                         PressSurface {
                             Layout.preferredWidth: 112; Layout.preferredHeight: 30; radius: 15
@@ -372,7 +372,7 @@ ApplicationWindow {
                     }
                     RowLayout {
                         width: parent.width
-                    Text { text: wizz.language === "en" ? "FAVORITES" : "FAVORITOS"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
+                    Text { text: wizz.language === "en" ? "FAVORITES" : "FAVORITOS"; color: Theme.muted; font.family: Theme.displayFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
                         Item { Layout.fillWidth: true }
                         PressSurface {
                             Layout.preferredWidth: 112; Layout.preferredHeight: 30; radius: 15

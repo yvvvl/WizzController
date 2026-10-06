@@ -189,7 +189,7 @@ Window {
                 }
                 ColumnLayout {
                     spacing: 1
-                    Text { text: wizz.language === "en" ? "Quick control" : "Control rápido"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 18; font.weight: Font.Bold }
+                    Text { text: wizz.language === "en" ? "Quick control" : "Control rápido"; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 18; font.weight: Font.Bold }
                     Text { text: wizz.language === "en" ? wizz.selectedCount + " lights selected" : wizz.selectedCount + " luces seleccionadas"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize }
                 }
                 Item {
@@ -291,7 +291,7 @@ Window {
                         Text {
                             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                             anchors.leftMargin: 6; anchors.rightMargin: 6; anchors.bottomMargin: 4
-                            text: displayName; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold
+                            text: displayName; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold
                             horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
                         }
                     }
@@ -331,7 +331,7 @@ Window {
                     ColumnLayout {
                         spacing: 2
                         Text { text: wizz.language === "en" ? "Master control" : "Control maestro"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize }
-                        Text { text: wizz.powerOn ? (wizz.language === "en" ? "ON" : "ENCENDIDO") : (wizz.language === "en" ? "OFF" : "APAGADO"); color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 15; font.weight: Theme.stateWeight }
+                        Text { text: wizz.powerOn ? (wizz.language === "en" ? "ON" : "ENCENDIDO") : (wizz.language === "en" ? "OFF" : "APAGADO"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 15; font.weight: Theme.stateWeight }
                     }
                     Item { Layout.fillWidth: true }
                     AppIcon { Layout.preferredWidth: 18; Layout.preferredHeight: 18; name: "arrowRight"; color: Theme.accent }

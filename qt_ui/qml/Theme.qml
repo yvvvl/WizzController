@@ -33,7 +33,7 @@ QtObject {
     property int motionPage: reduceMotion ? 0 : 280
     // This font is registered before the QML engine starts. Bundling one
     // family keeps line breaks and weight consistent across desktop systems.
-    readonly property string displayFont: "Inter Variable"
+    readonly property string displayFont: "WizZ Inter Strong"
     readonly property string uiFont: "Inter Variable"
     readonly property string controlFont: "Inter Variable"
     readonly property int pageTitleSize: 28
