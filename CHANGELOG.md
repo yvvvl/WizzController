@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.4.2 (unreleased)
+## v1.4.2
 
 ### Improved
 
@@ -24,6 +24,9 @@
 - Restore the Windows sign-in startup switch in Qt Settings. It registers the
   packaged executable and prevents a development checkout from replacing the
   user's startup entry with the legacy launcher.
+- Add the matching Linux start-at-login switch. The packaged build writes a
+  per-user XDG autostart entry for its real executable, handles paths with
+  spaces, and removes the entry when disabled or uninstalled.
 - Size the offline-light cleanup button to its translated label so the Spanish
   text no longer clips inside the rounded control.
 - Keep the retired Flet interface out of normal runtime dependencies while

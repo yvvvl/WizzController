@@ -292,6 +292,7 @@ CATALOG.update({
     "bulbs.ip_example": "192.168.1.20",
     "runtime.startup.windows_only": "Inicio con Windows solo está disponible en Windows.",
     "runtime.startup.linux_unavailable": "El inicio automático no está disponible en este escritorio Linux.",
+    "runtime.startup.packaged_only": "El inicio automático solo está disponible en la app empaquetada.",
     "runtime.startup.update_error": "No se pudo modificar el inicio automático: {error}",
     "runtime.startup.updated": "Inicio automático actualizado.",
     "runtime.startup.disabled": "Inicio automático desactivado.",

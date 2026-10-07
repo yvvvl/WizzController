@@ -900,7 +900,11 @@ class WizzBridge(QObject):
 
     @Property(bool, constant=True)
     def startupSupported(self) -> bool:
-        return sys.platform.startswith("win")
+        return sys.platform.startswith(("win", "linux"))
+
+    @Property(bool, constant=True)
+    def startupOnLinux(self) -> bool:
+        return sys.platform.startswith("linux")
 
     @Property(bool, constant=True)
     def startupCanEnable(self) -> bool:

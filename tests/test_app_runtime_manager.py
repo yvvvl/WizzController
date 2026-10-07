@@ -49,6 +49,9 @@ def test_linux_startup_uses_xdg_service_and_preserves_legacy_preference(monkeypa
 
     manager = _runtime_manager_for_test(tmp_path)
     monkeypatch.setattr(runtime_module.sys, "platform", "linux")
+    executable = tmp_path / "WizZDesktop"
+    executable.write_bytes(b"test")
+    monkeypatch.setattr(runtime_module, "resolve_packaged_executable", lambda: executable)
 
     calls = []
 
@@ -71,6 +74,9 @@ def test_linux_startup_does_not_claim_enabled_when_xdg_entry_fails(monkeypatch, 
 
     manager = _runtime_manager_for_test(tmp_path)
     monkeypatch.setattr(runtime_module.sys, "platform", "linux")
+    executable = tmp_path / "WizZDesktop"
+    executable.write_bytes(b"test")
+    monkeypatch.setattr(runtime_module, "resolve_packaged_executable", lambda: executable)
 
     class _UnavailableAutostart:
         def set_enabled(self, enabled):
@@ -82,3 +88,25 @@ def test_linux_startup_does_not_claim_enabled_when_xdg_entry_fails(monkeypatch, 
 
     assert ok is False
     assert manager.data["startup_with_windows"] is False
+
+
+def test_linux_startup_creates_and_removes_user_autostart_entry(monkeypatch, tmp_path):
+    import config.app_runtime_manager as runtime_module
+
+    executable = tmp_path / "WizZDesktop"
+    executable.write_bytes(b"test")
+    manager = _runtime_manager_for_test(tmp_path)
+    monkeypatch.setattr(runtime_module.sys, "platform", "linux")
+    monkeypatch.setattr(runtime_module, "resolve_packaged_executable", lambda: executable)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
+    entry = tmp_path / "xdg" / "autostart" / "wizz-desktop.desktop"
+
+    ok, _message = manager.set_startup_with_windows(True)
+    assert ok is True
+    assert manager.data["startup_with_windows"] is True
+    assert f"Exec={manager._startup_command()}" in entry.read_text(encoding="utf-8")
+
+    ok, _message = manager.set_startup_with_windows(False)
+    assert ok is True
+    assert manager.data["startup_with_windows"] is False
+    assert not entry.exists()

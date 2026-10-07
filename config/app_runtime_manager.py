@@ -10,7 +10,7 @@ import threading
 from pathlib import Path
 from typing import Any, Iterable
 
-from app_meta import APP_PRODUCT, APP_REGISTRY_NAME
+from app_meta import APP_ARTIFACT, APP_PRODUCT, APP_REGISTRY_NAME
 from config.paths import config_dir, project_root
 from localization import LocalizationManager
 
@@ -129,6 +129,8 @@ class AppRuntimeManager:
         if packaged is not None:
             if sys.platform.startswith("win"):
                 return subprocess.list2cmdline([str(packaged)])
+            if sys.platform.startswith("linux"):
+                return _desktop_exec_path(packaged)
             return shlex.join([str(packaged)])
 
         main_py = project_root() / "main.py"
@@ -149,6 +151,8 @@ class AppRuntimeManager:
 
         if sys.platform.startswith("linux"):
             if not bool(self.data.get("startup_with_windows")):
+                return
+            if resolve_packaged_executable() is None:
                 return
             try:
                 self._linux_autostart_service().set_enabled(True)
@@ -183,6 +187,8 @@ class AppRuntimeManager:
         Its user-facing meaning is now "start at login" on supported desktops.
         """
         if sys.platform.startswith("linux"):
+            if enabled and resolve_packaged_executable() is None:
+                return False, self._t("runtime.startup.packaged_only")
             try:
                 ok = self._linux_autostart_service().set_enabled(enabled)
             except Exception as exc:
@@ -282,6 +288,14 @@ def _normalize_command(command: str | None) -> str:
     return " ".join(str(command or "").strip().split()).casefold()
 
 
+def _desktop_exec_path(path: Path) -> str:
+    """Quote one executable for a freedesktop Exec field, not for a shell."""
+    value = str(path).replace("\\", "\\\\\\\\").replace("%", "%%")
+    for character in ('"', "`", "$"):
+        value = value.replace(character, "\\\\" + character)
+    return f'"{value}"'
+
+
 def resolve_packaged_executable() -> Path | None:
     """Resuelve el launcher de producción, no el Python embebido.
 
@@ -293,7 +307,15 @@ def resolve_packaged_executable() -> Path | None:
     explicit = str(os.environ.get("WIZZ_EXECUTABLE") or "").strip()
     if explicit:
         candidate = Path(explicit).expanduser().resolve()
+        if sys.platform.startswith("linux"):
+            return candidate if candidate.is_file() else None
         return candidate if candidate.suffix.lower() == ".exe" else None
+
+    if sys.platform.startswith("linux"):
+        if not bool(getattr(sys, "frozen", False)):
+            return None
+        candidate = Path(sys.executable).expanduser().resolve()
+        return candidate if candidate.is_file() and candidate.name.casefold() == APP_ARTIFACT.casefold() else None
 
     packaged = bool(os.environ.get("FLET_APP_STORAGE_DATA")) or bool(
         getattr(sys, "frozen", False)

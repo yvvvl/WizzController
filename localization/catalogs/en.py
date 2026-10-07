@@ -293,6 +293,7 @@ CATALOG.update({
     "bulbs.ip_example": "192.168.1.20",
     "runtime.startup.windows_only": "Start with Windows is only available on Windows.",
     "runtime.startup.linux_unavailable": "Automatic startup is unavailable on this Linux desktop.",
+    "runtime.startup.packaged_only": "Automatic startup is available only in the packaged app.",
     "runtime.startup.update_error": "Could not update automatic startup: {error}",
     "runtime.startup.updated": "Automatic startup updated.",
     "runtime.startup.disabled": "Automatic startup disabled.",

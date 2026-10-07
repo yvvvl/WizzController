@@ -7,6 +7,8 @@ DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 INSTALL_DIR="$DATA_HOME/WizZDesktop"
 APPLICATIONS_DIR="$DATA_HOME/applications"
 DESKTOP_FILE="$APPLICATIONS_DIR/io.github.yvvvl.wizz-controller.desktop"
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+AUTOSTART_FILE="$CONFIG_HOME/autostart/wizz-desktop.desktop"
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   cat <<'EOF'
@@ -19,6 +21,7 @@ EOF
 fi
 
 rm -f -- "$DESKTOP_FILE"
+rm -f -- "$AUTOSTART_FILE"
 if [[ -d "$INSTALL_DIR" ]]; then
   rm -rf -- "$INSTALL_DIR"
 fi

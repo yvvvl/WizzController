@@ -58,6 +58,9 @@ if [[ "$SKIP_TESTS" != true ]]; then
   "$PYTHON" -m pytest -q \
     tests/test_qt_runtime.py \
     tests/test_qt_bridge.py \
+    tests/test_app_runtime_manager.py \
+    tests/test_packaged_startup.py \
+    tests/test_platform_linux.py \
     tests/test_update_installer.py \
     tests/test_app_paths.py \
     tests/test_release_metadata.py

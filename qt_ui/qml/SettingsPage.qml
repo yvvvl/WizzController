@@ -250,12 +250,20 @@ Item {
                     Layout.fillWidth: true; spacing: 12
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 3
-                        Text { text: root.t("Iniciar con Windows", "Start with Windows"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.bodySize; font.weight: Font.Bold }
+                        Text {
+                            text: wizz.startupOnLinux
+                                ? root.t("Iniciar al abrir sesión", "Start at login")
+                                : root.t("Iniciar con Windows", "Start with Windows")
+                            color: Theme.text; font.family: Theme.controlFont
+                            font.pixelSize: Theme.bodySize; font.weight: Font.Bold
+                        }
                         Text {
                             Layout.fillWidth: true
                             text: wizz.startupCanEnable
                                 ? root.t("Abre WizZ Desktop al iniciar sesión. Mantén el ejecutable en su carpeta definitiva.", "Opens WizZ Desktop when you sign in. Keep the executable in its permanent folder.")
-                                : root.t("Disponible en la versión empaquetada (.exe).", "Available in the packaged app (.exe).")
+                                : wizz.startupOnLinux
+                                    ? root.t("Disponible en la versión empaquetada de Linux.", "Available in the packaged Linux app.")
+                                    : root.t("Disponible en la versión empaquetada (.exe).", "Available in the packaged app (.exe).")
                             color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; wrapMode: Text.WordWrap
                         }
                     }

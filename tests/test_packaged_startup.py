@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import config.app_runtime_manager as runtime_module
 from config.app_runtime_manager import AppRuntimeManager, resolve_packaged_executable
@@ -11,6 +11,28 @@ def test_explicit_packaged_executable_override(monkeypatch, tmp_path):
     monkeypatch.setenv("WIZZ_EXECUTABLE", str(executable))
 
     assert resolve_packaged_executable() == executable.resolve()
+
+
+def test_linux_packaged_executable_is_the_frozen_launcher(monkeypatch, tmp_path):
+    executable = tmp_path / "WizZDesktop"
+    executable.write_bytes(b"test")
+    monkeypatch.delenv("WIZZ_EXECUTABLE", raising=False)
+    monkeypatch.setattr(runtime_module.sys, "platform", "linux")
+    monkeypatch.setattr(runtime_module.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(runtime_module.sys, "executable", str(executable))
+
+    assert resolve_packaged_executable() == executable.resolve()
+    monkeypatch.setattr(runtime_module.sys, "frozen", False)
+    assert resolve_packaged_executable() is None
+
+
+def test_linux_autostart_uses_desktop_exec_quoting(monkeypatch):
+    executable = PurePosixPath("/home/yvl/WizZ Desktop 100%/WizZDesktop")
+    monkeypatch.setattr(runtime_module.sys, "platform", "linux")
+    monkeypatch.setattr(runtime_module, "resolve_packaged_executable", lambda: executable)
+
+    manager = AppRuntimeManager.__new__(AppRuntimeManager)
+    assert manager._startup_command() == '"/home/yvl/WizZ Desktop 100%%/WizZDesktop"'
 
 
 def test_startup_command_prefers_packaged_launcher(monkeypatch, tmp_path):
@@ -95,3 +117,16 @@ def test_disabling_windows_startup_removes_registration(monkeypatch, tmp_path):
     assert ok is True
     assert removed == [True]
     assert manager.data["startup_with_windows"] is False
+
+
+def test_linux_source_checkout_does_not_replace_autostart_entry(monkeypatch, tmp_path):
+    manager = _runtime_manager_for_test(tmp_path)
+    manager.data["startup_with_windows"] = True
+    monkeypatch.setattr(runtime_module.sys, "platform", "linux")
+    monkeypatch.setattr(runtime_module, "resolve_packaged_executable", lambda: None)
+    calls = []
+    monkeypatch.setattr(manager, "_linux_autostart_service", lambda: calls.append(True))
+
+    manager._sync_startup_registration()
+
+    assert calls == []
