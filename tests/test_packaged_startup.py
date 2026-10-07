@@ -8,6 +8,7 @@ from config.app_runtime_manager import AppRuntimeManager, resolve_packaged_execu
 
 def test_explicit_packaged_executable_override(monkeypatch, tmp_path):
     executable = tmp_path / "WizZDesktop.exe"
+    executable.write_bytes(b"test")
     monkeypatch.setenv("WIZZ_EXECUTABLE", str(executable))
 
     assert resolve_packaged_executable() == executable.resolve()
