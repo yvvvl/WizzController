@@ -80,7 +80,6 @@ class _WindowSpy:
 def test_initial_visibility_respects_window_taskbar_and_tray_modes():
     for mode, tray_active, expected in (
         ("window", True, []),
-        ("minimized", True, [("startupMinimizing", True), "minimize"]),
         ("tray", True, ["hide"]),
         ("tray", False, [("startupMinimizing", True), "minimize"]),
     ):

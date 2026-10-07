@@ -336,16 +336,16 @@ Item {
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 2
                         Text { text: root.t("Al abrir la aplicación", "When the app opens"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
-                        Text { Layout.fillWidth: true; text: root.t("Elige ventana, barra de tareas o bandeja. Si no hay bandeja, inicia minimizada.", "Choose window, taskbar, or tray. Without a tray, it starts minimized."); color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; wrapMode: Text.WordWrap }
+                        Text { Layout.fillWidth: true; text: root.t("Abre la ventana o inicia en bandeja. Si no hay bandeja, queda minimizada en la barra de tareas.", "Open the window or start in the tray. Without a tray, it stays minimized in the taskbar."); color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; wrapMode: Text.WordWrap }
                     }
                     WizComboBox {
                         id: startupModeBox
                         Layout.preferredWidth: 182; Layout.preferredHeight: 40
                         model: wizz.language === "en"
-                            ? ["Open window", "Start minimized", "Start in tray"]
-                            : ["Abrir ventana", "Iniciar minimizada", "Iniciar en bandeja"]
-                        currentIndex: wizz.startupMode === "tray" ? 2 : wizz.startupMode === "minimized" ? 1 : 0
-                        onActivated: wizz.setStartupMode(["window", "minimized", "tray"][currentIndex])
+                            ? ["Open window", "Start in tray"]
+                            : ["Abrir ventana", "Iniciar en bandeja"]
+                        currentIndex: wizz.startupMode === "tray" ? 1 : 0
+                        onActivated: wizz.setStartupMode(["window", "tray"][currentIndex])
                         contentItem: Text { leftPadding: 13; text: startupModeBox.displayText; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: Theme.labelSize; elide: Text.ElideRight }
                         background: Rectangle { color: Theme.bg; radius: 11; border.width: 1; border.color: startupModeBox.activeFocus ? Theme.primary : Theme.stroke }
                     }

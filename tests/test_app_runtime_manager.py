@@ -44,6 +44,16 @@ def test_runtime_rejects_unknown_startup_mode(tmp_path):
     assert manager._load()["startup_mode"] == "window"
 
 
+def test_runtime_migrates_removed_minimized_mode_to_tray(tmp_path):
+    manager = AppRuntimeManager.__new__(AppRuntimeManager)
+    manager.base_dir = Path(tmp_path)
+    manager.json_dir = Path(tmp_path)
+    manager.path = Path(tmp_path) / "app_runtime.json"
+    manager.path.write_text('{"startup_mode":"minimized"}', encoding="utf-8")
+
+    assert manager._load()["startup_mode"] == "tray"
+
+
 def _runtime_manager_for_test(tmp_path):
     import threading
 

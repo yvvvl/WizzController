@@ -94,19 +94,19 @@ def test_tray_behavior_settings_are_independent_and_persist(qt_application, tmp_
         assert view_model.shouldCloseToTray() is True
         view_model.setCloseToTray(False)
         view_model.setMinimizeToTray(True)
-        view_model.setStartupMode("minimized")
+        view_model.setStartupMode("tray")
         assert view_model.shouldCloseToTray() is False
         assert view_model.shouldMinimizeToTray() is True
-        assert view_model.startupMode == "minimized"
-        view_model.setStartupMode("unsupported")
-        assert view_model.startupMode == "minimized"
+        assert view_model.startupMode == "tray"
+        view_model.setStartupMode("minimized")
+        assert view_model.startupMode == "tray"
 
         restored = WizzBridge(controller)
         try:
             restored.setTrayAvailable(True)
             assert restored.closeToTray is False
             assert restored.minimizeToTray is True
-            assert restored.startupMode == "minimized"
+            assert restored.startupMode == "tray"
             restored.setStartupMode("tray")
             assert restored._runtime.get("open_minimized") is True
         finally:

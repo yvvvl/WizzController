@@ -417,7 +417,7 @@ class WizzBridge(QObject):
 
     @Slot(str)
     def setStartupMode(self, mode: str) -> None:
-        if mode not in {"window", "minimized", "tray"}:
+        if mode not in {"window", "tray"}:
             return
         self._runtime.update(startup_mode=mode, open_minimized=mode == "tray")
         self.trayBehaviorChanged.emit()

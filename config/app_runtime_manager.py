@@ -83,7 +83,11 @@ class AppRuntimeManager:
         if "startup_mode" not in loaded:
             # Previous Qt builds used open_minimized to mean start in tray.
             data["startup_mode"] = "tray" if bool(data["open_minimized"]) else "window"
-        if data["startup_mode"] not in {"window", "minimized", "tray"}:
+        if data["startup_mode"] == "minimized":
+            # The separate taskbar mode was confusing on desktops where it
+            # behaved like the tray option. Keep the user's hidden start.
+            data["startup_mode"] = "tray"
+        if data["startup_mode"] not in {"window", "tray"}:
             data["startup_mode"] = "window"
         # Early desktop builds stored ``system`` as their implicit language.
         # That made a closed beta downloaded by an English-speaking tester

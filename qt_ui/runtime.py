@@ -186,9 +186,9 @@ class QtDesktopRuntime(QObject):
         mode = str(self.settings.get("startup_mode", "window") or "window")
         if mode == "tray" and self.tray_active:
             self.window.hide()
-        elif mode in {"tray", "minimized"}:
-            # Startup mode is independent of the user's later minimize-button
-            # preference, so a requested taskbar launch must remain visible.
+        elif mode == "tray":
+            # Without a tray, remain reachable in the taskbar. This fallback
+            # ignores the later minimize-button preference.
             self.window.setProperty("startupMinimizing", True)
             self.window.showMinimized()
 
