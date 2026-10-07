@@ -29,26 +29,38 @@ Internet access is unavailable.
 
 Windows and Linux (x64 and ARM64) are supported desktop platforms. Linux
 packages target Ubuntu-compatible desktops and install per user without `sudo`.
+There is no supported macOS download in this release yet.
 
-> Prepared public release: **v1.4.0 · build 1**
+> Latest stable release: **[v1.4.3](https://github.com/yvvvl/WizzController/releases/tag/v1.4.3) · build 3**
 
-## v1.4.0 release validation guide
+### New in v1.4.3
 
-This guide applies to the native **Qt desktop** release candidate. It is a
-portable Windows build: do not run it from inside the ZIP and keep `_internal`
-next to `WizZDesktop.exe`.
+- Decide independently whether the **X** and **minimize** button hide the app
+  in the system tray. Normal closing and taskbar minimization remain available.
+- Choose **Open window** or **Start in tray** at launch. If the desktop has no
+  tray, the app stays reachable, minimized in the taskbar.
+- The Linux Hotkeys page now clearly explains that global shortcuts are not
+  operational there yet; saved shortcuts are preserved.
+
+See the [full v1.4.3 changelog](CHANGELOG.md#v143).
+
+## v1.4.3 release validation guide
+
+This guide applies to the published native **Qt desktop** build. The Windows
+installer is the simplest option. If you prefer the portable ZIP, extract it
+first and keep `_internal` next to `WizZDesktop.exe`.
 
 ### Install and launch commands (Windows PowerShell)
 
-Download `WizZDesktop-v1.4.0-windows-x64.zip` and its `.sha256` file from the
+Download `WizZDesktop-v1.4.3-windows-x64.zip` and its `.sha256` file from the
 release, then run the following. Change `$download` only if the files
 were saved somewhere other than Downloads.
 
 ```powershell
 $download = "$env:USERPROFILE\Downloads"
-$zip = Join-Path $download "WizZDesktop-v1.4.0-windows-x64.zip"
+$zip = Join-Path $download "WizZDesktop-v1.4.3-windows-x64.zip"
 $checksum = "$zip.sha256"
-$target = Join-Path $download "WizZDesktop-v1.4.0"
+$target = Join-Path $download "WizZDesktop-v1.4.3"
 
 Get-FileHash -LiteralPath $zip -Algorithm SHA256
 Get-Content -LiteralPath $checksum
@@ -80,21 +92,22 @@ Use real WiZ lights on the same LAN where possible. For every test, note
 5. **Scenes and routines:** create a local scene using a name (not an ID). Make
    a routine with power, RGB color, CCT white, wait, and scene steps; reorder
    steps, save, reopen, and execute it. Apply several named WiZ scenes.
-6. **Quick Panel:** open it through its configured shortcut, use the bulb
-   carousel, select bulbs on later pages, and verify that selection does not
-   reset the current page. Test arrows/page buttons, placement beside the
-   taskbar on each monitor, dragging and snapping to each screen edge,
+6. **Quick Panel:** open it from the tray menu (or a shortcut on Windows), use
+   the bulb carousel, select bulbs on later pages, and verify that selection
+   does not reset the current page. Test arrows/page buttons, placement beside
+   the taskbar on each monitor, dragging and snapping to each screen edge,
    remembered placement after reopening, click-outside dismissal, and edited
    quick actions.
-7. **Hotkeys and tray:** assign a non-conflicting shortcut, restart, and check
-   one action occurs per press with no long freeze. Test restoring from tray and
-   closing/minimizing behavior.
+7. **Hotkeys and tray:** on Windows, assign a non-conflicting shortcut, restart,
+   and check one action occurs per press. On Linux, confirm the Hotkeys page
+   explains that global shortcuts are not yet operational. On both systems,
+   test restoring from the tray and the separate close/minimize settings.
 
 ### Integrations and known boundaries
 
 - **WiZ LAN:** discovery, manual IP setup, power, brightness, RGB, CCT white,
-  named scenes, multi-selection, favorites, routines, tray, and hotkeys are
-  the integrations to exercise.
+  named scenes, multi-selection, favorites, routines, and tray are the
+  integrations to exercise. Global hotkeys currently work on Windows only.
 - **WiZ mobile-app state changes:** if you change a light in the mobile app,
   record whether the desktop view follows it and how long it takes. This is
   observational testing, not a guarantee for every model/firmware.
@@ -102,16 +115,15 @@ Use real WiZ lights on the same LAN where possible. For every test, note
   and an FPS loop. Do not report these as failures;
   mark them **N/A**.
 
-### Run the current source (contributors only)
+### Run the v1.4.3 source (contributors only)
 
-Do not use these commands to validate a downloaded release. They run the
-current development source, which may differ from the public release. In
-PowerShell:
+Do not use these commands to validate a downloaded release: a source run is
+not the packaged executable. In PowerShell:
 
 ```powershell
-git clone https://github.com/yvvvl/WizzController.git
+git clone --branch v1.4.3 --depth 1 https://github.com/yvvvl/WizzController.git
 Set-Location .\WizzController
-py -3 -m venv .venv
+py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-dev.txt
 .\.venv\Scripts\python.exe -m qt_ui.run
 .\.venv\Scripts\python.exe -m pytest -q
@@ -122,7 +134,7 @@ for that launch. Do not set it when testing your real light.
 
 ### Send a useful report
 
-Include app version (`1.4.0`), operating system and display scale, light model
+Include app version (`1.4.3`), operating system and display scale, light model
 and firmware, the exact steps, expected versus actual behavior, repeatability,
 and a short screenshot/video when useful. To inspect the local log without
 sharing private configuration files:
@@ -134,7 +146,7 @@ Get-Content "$env:LOCALAPPDATA\WizZDesktop\logs\wizz.log" -Tail 200
 Redact IP addresses, MAC addresses, access tokens, and private files before
 sharing a report.
 
-## Included in v1.4.0
+## Included in v1.4.3
 
 - Native Qt desktop app for Windows and Linux (x64 and ARM64), with English and
   Spanish UI.
@@ -142,8 +154,9 @@ sharing a report.
   tunable white, WiZ scenes, favorites, and routines.
 - Movable Quick Panel with edge snapping, remembered placement, tray access,
   editable quick actions, and click-outside dismissal.
-- Tray controls, single-instance activation, close-to-tray behavior, and
-  configurable hotkeys.
+- Tray controls, single-instance activation, independent close/minimize-to-tray
+  options, and a simple window-or-tray startup choice. Global hotkeys are
+  available on Windows; the Linux Hotkeys page states the current limitation.
 - Checksum-verified updates for portable Windows and installed Linux builds.
 - Persistent settings, favorites, device names, and logs; native Linux XDG
   storage, AppIndicator tray support, and per-user installation.
@@ -187,7 +200,8 @@ you, you can support development through [GitHub Sponsors](https://github.com/sp
 **Windows**
 
 - Native global hotkeys through `RegisterHotKey`.
-- System tray, close-to-tray, minimized startup, and Windows startup.
+- System tray, independent close/minimize-to-tray options, window-or-tray
+  startup, and Windows start-at-login.
 - Single-instance activation and restoration.
 
 **Linux desktop**
@@ -195,9 +209,9 @@ you, you can support development through [GitHub Sponsors](https://github.com/sp
 - AppIndicator tray integration on supported desktops.
 - XDG-compliant persistent storage.
 - Per-user autostart and desktop application launcher.
-- Global hotkeys are deliberately disabled when no safe, compatible desktop
-  shortcut portal is available. Running the application as root is neither
-  required nor recommended.
+- Global hotkeys are not operational on Linux yet; saved shortcuts are kept
+  for future support. Running the application as root is neither required nor
+  recommended.
 
 ---
 
@@ -206,13 +220,14 @@ you, you can support development through [GitHub Sponsors](https://github.com/sp
 ### Windows 10/11 x64
 
 1. Open the [latest release](https://github.com/yvvvl/WizzController/releases/latest).
-2. Download `WizZDesktop-v1.4.0-windows-x64.zip`.
-3. Extract the complete ZIP archive.
-4. Run `WizZDesktop.exe`.
+2. Download and run `WizZDesktop-v1.4.3-windows-x64-setup.exe`, or download
+   `WizZDesktop-v1.4.3-windows-x64.zip` for a portable copy.
+3. If using the ZIP, extract the complete archive and run `WizZDesktop.exe`.
 
-Windows may display a SmartScreen warning because the executable is not yet
-digitally signed. Select **More info → Run anyway** only if you downloaded the
-file from this repository and verified its checksum.
+Windows may display a SmartScreen warning because the installer and app are
+not yet digitally signed. Confirm that you downloaded them from this
+repository; if using the portable ZIP, also verify its published checksum
+before deciding whether to run it.
 
 ### Linux (x64 and ARM64)
 
@@ -247,13 +262,13 @@ To uninstall the per-user installation:
 Windows PowerShell:
 
 ```powershell
-Get-FileHash .\WizZDesktop-v1.4.0-windows-x64.zip -Algorithm SHA256
+Get-FileHash .\WizZDesktop-v1.4.3-windows-x64.zip -Algorithm SHA256
 ```
 
 Linux:
 
 ```bash
-sha256sum -c WizZDesktop-v1.4.0-linux-<architecture>.tar.gz.sha256
+sha256sum -c WizZDesktop-v1.4.3-linux-<architecture>.tar.gz.sha256
 ```
 
 Compare the result with the checksum published alongside the release assets.
@@ -297,11 +312,13 @@ python -m qt_ui.run
 
 ### Linux
 
+Use a supported Python 3.12 interpreter (some newer distributions default to
+Python 3.14, which is not supported by this project yet).
+
 ```bash
-python3 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt
-python -m pip install -r requirements-dev.txt
+python -m pip install -r requirements-qt-linux.txt -r requirements-dev.txt
 python -m qt_ui.run
 ```
 
@@ -338,7 +355,8 @@ Windows:
 Linux:
 
 ```bash
-bash scripts/build_linux.sh --clean
+python -m pip install -r requirements-build.txt
+PYTHON="$(command -v python)" bash scripts/build_qt_linux.sh --clean
 ```
 
 ---

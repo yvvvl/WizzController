@@ -29,11 +29,23 @@ Las acciones normales se envían por **UDP LAN nativo**, por lo que el control n
 La aplicación combina control de iluminación, automatizaciones y una interfaz
 moderna en un único programa. Windows y Linux (x64 y ARM64) son plataformas
 compatibles. Linux apunta a escritorios compatibles con Ubuntu y se instala
-para el usuario actual, sin `sudo`.
+para el usuario actual, sin `sudo`. Esta release todavía no incluye una
+descarga de macOS compatible oficialmente.
 
-> Release pública preparada: **v1.4.0 · build 1**
+> Última release estable: **[v1.4.3](https://github.com/yvvvl/WizzController/releases/tag/v1.4.3) · build 3**
 
-## Incluido en v1.4.0
+### Novedades de v1.4.3
+
+- Decide por separado si la **X** y el botón **minimizar** ocultan la app en la
+  bandeja. También puedes conservar el cierre normal y la barra de tareas.
+- Elige **Abrir ventana** o **Iniciar en bandeja**. Si el escritorio no tiene
+  bandeja, la app sigue accesible, minimizada en la barra de tareas.
+- La página Hotkeys de Linux ahora aclara que los atajos globales aún no
+  funcionan allí; las combinaciones guardadas se conservan.
+
+Lee el [changelog completo de v1.4.3](CHANGELOG.md#v143).
+
+## Incluido en v1.4.3
 
 - App nativa Qt para Windows y Linux (x64 y ARM64), con interfaz en español e
   inglés.
@@ -41,7 +53,9 @@ para el usuario actual, sin `sudo`.
   RGB, blanco regulable, escenas WiZ, favoritos y rutinas.
 - Panel rápido movible, con ajuste magnético a los bordes, posición recordada,
   acceso desde la bandeja, acciones editables y cierre al hacer clic fuera.
-- Bandeja, instancia única, cierre al área de notificación y hotkeys configurables.
+- Bandeja, instancia única, opciones independientes para cerrar y minimizar en
+  bandeja e inicio en ventana o bandeja. Los hotkeys globales funcionan en
+  Windows; la página de Linux explica su limitación actual.
 - Actualizaciones verificadas por SHA-256 para Windows portable y Linux instalado.
 - Configuración, favoritos, nombres de dispositivos y logs persistentes; Linux
   nativo con rutas XDG, AppIndicator e instalación por usuario.
@@ -51,23 +65,23 @@ para el usuario actual, sin `sudo`.
 WizZ Desktop es un proyecto independiente que desarrollo como estudiante. Si te
 resulta útil, puedes apoyar su desarrollo en [GitHub Sponsors](https://github.com/sponsors/yvvvl); sin presión: tus comentarios y reportes también ayudan mucho.
 
-## Guía de validación para v1.4.0
+## Guía de validación para v1.4.3
 
-Esta guía aplica a la candidata de release con escritorio nativo **Qt**. Es una
-build portable de Windows: no la ejecutes dentro del ZIP y mantén `_internal`
-junto a `WizZDesktop.exe`.
+Esta guía aplica a la versión publicada con escritorio nativo **Qt**. En
+Windows, el instalador es la opción más simple. Si prefieres el ZIP portable,
+extráelo primero y mantén `_internal` junto a `WizZDesktop.exe`.
 
 ### Comandos para instalar y abrir (Windows PowerShell)
 
-Descarga `WizZDesktop-v1.4.0-windows-x64.zip` y su archivo `.sha256` desde la
+Descarga `WizZDesktop-v1.4.3-windows-x64.zip` y su archivo `.sha256` desde la
 release. Luego ejecuta lo siguiente. Cambia `$download` solo si los
 archivos no quedaron en Descargas.
 
 ```powershell
 $download = "$env:USERPROFILE\Downloads"
-$zip = Join-Path $download "WizZDesktop-v1.4.0-windows-x64.zip"
+$zip = Join-Path $download "WizZDesktop-v1.4.3-windows-x64.zip"
 $checksum = "$zip.sha256"
-$target = Join-Path $download "WizZDesktop-v1.4.0"
+$target = Join-Path $download "WizZDesktop-v1.4.3"
 
 Get-FileHash -LiteralPath $zip -Algorithm SHA256
 Get-Content -LiteralPath $checksum
@@ -100,21 +114,24 @@ resultado real.
 5. **Escenas y rutinas:** crea una escena local por nombre (no por ID). Crea una
    rutina con encendido, color RGB, blanco CCT, espera y escena; reordénala,
    guárdala, ábrela de nuevo y ejecútala. Aplica varias escenas WiZ por nombre.
-6. **Panel rápido:** ábrelo con su atajo configurado, usa el carrusel de
-   ampolletas, selecciona ampolletas de páginas posteriores y confirma que no
-   vuelve a la primera página. Prueba flechas/botones de página, posición junto
-   a la barra de tareas en cada monitor, arrastrarlo y ajustarlo a los bordes,
-   que recuerde la posición, cierre al hacer clic fuera y accesos rápidos
-   editados.
-7. **Hotkeys y bandeja:** asigna un atajo que no choque con otro programa,
-   reinicia y confirma una sola acción por pulsación y sin congelamientos. Prueba
-   restaurar desde la bandeja y el comportamiento de cerrar/minimizar.
+6. **Panel rápido:** ábrelo desde la bandeja (o con un atajo en Windows), usa
+   el carrusel de ampolletas, selecciona ampolletas de páginas posteriores y
+   confirma que no vuelve a la primera página. Prueba flechas/botones de
+   página, posición junto a la barra de tareas en cada monitor, arrastrarlo y
+   ajustarlo a los bordes, que recuerde la posición, cierre al hacer clic
+   fuera y accesos rápidos editados.
+7. **Hotkeys y bandeja:** en Windows, asigna un atajo que no choque con otro
+   programa, reinicia y confirma una sola acción por pulsación. En Linux,
+   comprueba que Hotkeys avisa que los atajos globales aún no funcionan. En
+   ambos sistemas, prueba restaurar desde la bandeja y las opciones separadas
+   de cerrar y minimizar.
 
 ### Integraciones y límites conocidos
 
 - **WiZ LAN:** discovery, IP manual, encendido, brillo, RGB, blanco CCT,
-  escenas con nombre, selección múltiple, favoritos, rutinas, bandeja y hotkeys
-  son las integraciones que hay que ejercitar.
+  escenas con nombre, selección múltiple, favoritos, rutinas y bandeja son las
+  integraciones que hay que ejercitar. Los hotkeys globales solo funcionan en
+  Windows por ahora.
 - **Cambios desde la app móvil WiZ:** si cambias una luz desde el teléfono,
   registra si la app de escritorio lo refleja y cuánto tarda. Es una prueba
   observacional, no una garantía para todos los modelos o firmwares.
@@ -124,14 +141,13 @@ resultado real.
 
 ### Probar el código actual (solo colaboradores)
 
-No uses estos comandos para validar el ZIP descargado. Ejecutan el código de
-desarrollo actual, que puede diferir de la versión pública. En PowerShell,
-desde una copia nueva del repositorio:
+No uses estos comandos para validar el ZIP descargado: ejecutar el código
+fuente no equivale a probar el paquete publicado. En PowerShell:
 
 ```powershell
-git clone https://github.com/yvvvl/WizzController.git
+git clone --branch v1.4.3 --depth 1 https://github.com/yvvvl/WizzController.git
 Set-Location .\WizzController
-py -3 -m venv .venv
+py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-dev.txt
 .\.venv\Scripts\python.exe -m qt_ui.run
 .\.venv\Scripts\python.exe -m pytest -q
@@ -143,7 +159,7 @@ tu ampolleta real.
 
 ### Cómo enviar un reporte útil
 
-Incluye versión (`1.4.0`), sistema operativo y escala de pantalla, modelo y
+Incluye versión (`1.4.3`), sistema operativo y escala de pantalla, modelo y
 firmware de la ampolleta, pasos exactos, esperado versus real, repetibilidad y
 una captura/video corto cuando ayude. Para ver el log local sin compartir los
 archivos de configuración privada:
@@ -197,15 +213,15 @@ Oculta IPs, MACs, tokens y archivos privados antes de enviar información.
 - Hotkeys globales nativas mediante `RegisterHotKey`.
 - Fallback selectivo usando `keyboard` cuando una combinación está ocupada.
 - System tray con acciones rápidas.
-- Un clic en el icono de bandeja para restaurar la ventana principal.
-- Cierre a bandeja.
-- Inicio minimizado.
+- Acceso al panel rápido desde la bandeja y restauración de la ventana principal.
+- Opciones independientes para cerrar y minimizar en bandeja.
+- Inicio en ventana o en bandeja.
 - Inicio automático con Windows.
 - Instancia única con restauración de la ventana existente.
-- Beta Linux con bandeja AppIndicator, persistencia XDG, autostart por usuario
+- Linux con bandeja AppIndicator, persistencia XDG, autostart por usuario
   e instalador sin `sudo`.
-- Hotkeys globales deshabilitadas explícitamente en Linux cuando el escritorio
-  no ofrece un portal seguro compatible.
+- Hotkeys globales todavía no operativos en Linux; las combinaciones guardadas
+  se conservan para cuando exista un backend seguro.
 
 ### Gestión de ampolletas
 
@@ -229,13 +245,16 @@ Oculta IPs, MACs, tokens y archivos privados antes de enviar información.
 ### Pasos
 
 1. Abre la [última release](https://github.com/yvvvl/WizzController/releases/latest).
-2. Descarga el archivo `WizZDesktop-v*-windows-x64.zip` de la release elegida.
-3. Extrae todo el contenido del ZIP.
-4. Ejecuta `WizZDesktop.exe`.
+2. Descarga y ejecuta `WizZDesktop-v1.4.3-windows-x64-setup.exe`, o elige
+   `WizZDesktop-v1.4.3-windows-x64.zip` si prefieres una copia portable.
+3. Si usas el ZIP, extrae todo su contenido y ejecuta `WizZDesktop.exe`.
 
-> No ejecutes el programa directamente dentro del ZIP y no separes el `.exe` de las DLL ni de la carpeta `data`.
+> No ejecutes el programa directamente dentro del ZIP y no separes el `.exe` de la carpeta `_internal`.
 
-La descarga incluye un archivo `.sha256` para comprobar la integridad del paquete.
+Los archivos portables incluyen un `.sha256` para comprobar su integridad. El
+instalador no tiene un archivo de checksum separado; descárgalo únicamente
+desde la release oficial. Windows puede mostrar SmartScreen porque todavía no
+está firmado digitalmente.
 
 En Windows, v1.3.0 o posterior permite descargar y verificar la siguiente
 actualización estable desde **Ajustes → Actualizaciones**. En Linux, v1.4.0 o
@@ -249,8 +268,8 @@ instalada conserva tus datos mientras reemplaza los archivos del programa.
 
 ### Linux — Ubuntu Desktop compatible
 
-Linux se distribuye como `WizZDesktop-v1.4.0-linux-x64.tar.gz` o
-`WizZDesktop-v1.4.0-linux-arm64.tar.gz`, cada uno con su archivo `.sha256`.
+Linux se distribuye como `WizZDesktop-v1.4.3-linux-x64.tar.gz` o
+`WizZDesktop-v1.4.3-linux-arm64.tar.gz`, cada uno con su archivo `.sha256`.
 Extrae el archivo, abre una terminal dentro de la carpeta
 extraída y ejecuta `./install.sh`. No requiere `sudo`: instala la app para tu
 usuario, crea el acceso **WizZ Desktop** en Aplicaciones y conserva tus datos
@@ -276,13 +295,13 @@ un backend seguro basado en el portal XDG.
 ### Verificar SHA-256 en PowerShell
 
 ```powershell
-Get-FileHash .\WizZDesktop-v1.4.0-windows-x64.zip -Algorithm SHA256
+Get-FileHash .\WizZDesktop-v1.4.3-windows-x64.zip -Algorithm SHA256
 ```
 
 Compara el resultado con el contenido de:
 
 ```text
-WizZDesktop-v1.4.0-windows-x64.zip.sha256
+WizZDesktop-v1.4.3-windows-x64.zip.sha256
 ```
 
 ---
@@ -293,7 +312,7 @@ WizZDesktop-v1.4.0-windows-x64.zip.sha256
 2. Pulsa **Buscar ampolletas**.
 3. Selecciona la ampolleta activa.
 4. Controla la luz desde **Inicio**, **Color** o **Escenas**.
-5. Configura favoritos, rutinas y hotkeys según tu flujo.
+5. Configura favoritos y rutinas; en Windows también puedes usar hotkeys globales.
 
 Si eliminas una ampolleta, permanecerá fuera de la lista hasta que realices una búsqueda explícita o la agregues nuevamente por IP.
 
@@ -306,7 +325,7 @@ Si eliminas una ampolleta, permanecerá fuera de la lista hasta que realices una
 - Python `>=3.11,<3.14`.
 - Qt for Python / PySide6.
 - Windows para la build estable de Windows.
-- Ubuntu Desktop o WSL para la build beta Linux.
+- Ubuntu Desktop para compilar y probar el paquete Linux.
 
 ### Preparar el entorno
 
@@ -376,9 +395,8 @@ WizZ Desktop utiliza PyInstaller con Qt; Flet no se empaqueta.
 
 ### Requisitos adicionales
 
-- Visual Studio con **Desktop development with C++**.
-- SDK de Windows.
-- Developer Mode cuando Flutter requiera crear enlaces simbólicos.
+- Python 3.12 o 3.13 y las dependencias de `requirements-build.txt`.
+- Inno Setup 6 o 7 si también quieres generar el instalador `.exe`.
 
 ### Generar la build
 
@@ -390,10 +408,10 @@ WizZ Desktop utiliza PyInstaller con Qt; Flet no se empaqueta.
 ### Salidas
 
 ```text
-dist/windows/WizZDesktop.exe
-dist/windows/BUILD_INFO.json
-dist/release/WizZDesktop-v1.2.0-windows-x64.zip
-dist/release/WizZDesktop-v1.2.0-windows-x64.zip.sha256
+dist/windows/WizZDesktop/WizZDesktop.exe
+dist/windows/WizZDesktop/BUILD_INFO.json
+dist/release/WizZDesktop-v1.4.3-windows-x64.zip
+dist/release/WizZDesktop-v1.4.3-windows-x64.zip.sha256
 ```
 
 ### Smoke test
@@ -409,38 +427,41 @@ La guía completa está en
 
 ## Build nativa para Linux
 
-En Ubuntu 22.04 instala las dependencias de compilación y AppIndicator:
+En Ubuntu Desktop instala las bibliotecas Qt/XCB necesarias. La lista exacta
+que usa el flujo oficial está en
+[`build-windows.yml`](.github/workflows/build-windows.yml), trabajo `build-linux`.
+Como mínimo, para la bandeja y el posicionamiento del panel rápido:
 
 ```bash
-sudo apt install -y clang cmake ninja-build pkg-config libgtk-3-dev \
-  lld-14 libcairo2-dev libgirepository1.0-dev \
+sudo apt install -y libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 \
   gir1.2-ayatanaappindicator3-0.1
 ```
 
-Luego crea el entorno Python del proyecto e instala sus dependencias:
+Luego crea un entorno con Python 3.12 e instala sus dependencias (Python 3.14
+todavía no está soportado):
 
 ```bash
-python3 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt -r requirements-dev.txt -r requirements-build.txt
+python -m pip install -r requirements-qt-linux.txt -r requirements-dev.txt -r requirements-build.txt
 ```
 
 Finalmente ejecuta:
 
 ```bash
 source .venv/bin/activate
-bash scripts/build_linux.sh --clean
+bash scripts/build_qt_linux.sh --clean
 ```
 
 Las salidas son:
 
 ```text
-dist/linux/WizZDesktop
-dist/linux/BUILD_INFO.json
-dist/linux/install.sh
-dist/linux/uninstall.sh
-dist/release/WizZDesktop-v1.2.0-linux-x64.tar.gz
-dist/release/WizZDesktop-v1.2.0-linux-x64.tar.gz.sha256
+dist/linux/WizZDesktop/WizZDesktop
+dist/linux/WizZDesktop/BUILD_INFO.json
+dist/linux/WizZDesktop/install.sh
+dist/linux/WizZDesktop/uninstall.sh
+dist/release/WizZDesktop-v1.4.3-linux-x64.tar.gz
+dist/release/WizZDesktop-v1.4.3-linux-x64.tar.gz.sha256
 ```
 
 ---
