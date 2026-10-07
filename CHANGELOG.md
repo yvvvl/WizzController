@@ -24,6 +24,8 @@
 - Restore the Windows sign-in startup switch in Qt Settings. It registers the
   packaged executable and prevents a development checkout from replacing the
   user's startup entry with the legacy launcher.
+- Size the offline-light cleanup button to its translated label so the Spanish
+  text no longer clips inside the rounded control.
 - Keep the retired Flet interface out of normal runtime dependencies while
   retaining its optional development and migration support.
 

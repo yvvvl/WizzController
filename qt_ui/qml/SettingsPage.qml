@@ -115,7 +115,21 @@ Item {
                         contentItem: Text { leftPadding: 13; text: intervalBox.displayText; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: Theme.labelSize }
                         background: Rectangle { color: Theme.bg; radius: 11; border.width: 1; border.color: intervalBox.activeFocus ? Theme.primary : Theme.stroke }
                     }
-                    PressSurface { Layout.preferredWidth: 128; Layout.preferredHeight: 38; radius: 19; color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.error; onClicked: wizz.cleanupOfflineLights(); Text { anchors.centerIn: parent; text: root.t("Limpiar desconectadas", "Remove offline"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold } }
+                    PressSurface {
+                        Layout.preferredWidth: cleanupOfflineLabel.implicitWidth + 32
+                        Layout.minimumWidth: cleanupOfflineLabel.implicitWidth + 24
+                        Layout.preferredHeight: 38; radius: 19
+                        color: "transparent"; outlined: true; border.color: Theme.stroke
+                        accentColor: Theme.error
+                        onClicked: wizz.cleanupOfflineLights()
+                        Text {
+                            id: cleanupOfflineLabel
+                            anchors.centerIn: parent
+                            text: root.t("Limpiar desconectadas", "Remove offline")
+                            color: Theme.text; font.family: Theme.controlFont
+                            font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold
+                        }
+                    }
                 }
             }
         }
