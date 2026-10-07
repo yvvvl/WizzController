@@ -29,7 +29,19 @@ def test_runtime_keeps_only_supported_keys(tmp_path):
     assert "old_feature_toggle" not in saved
     assert data["tray_enabled"] is False
     assert data["open_minimized"] is True
+    assert data["startup_mode"] == "tray"
+    assert data["minimize_window_to_tray"] is False
     assert data["update_channel"] == "stable"
+
+
+def test_runtime_rejects_unknown_startup_mode(tmp_path):
+    manager = AppRuntimeManager.__new__(AppRuntimeManager)
+    manager.base_dir = Path(tmp_path)
+    manager.json_dir = Path(tmp_path)
+    manager.path = Path(tmp_path) / "app_runtime.json"
+    manager.path.write_text('{"startup_mode":"unknown"}', encoding="utf-8")
+
+    assert manager._load()["startup_mode"] == "window"
 
 
 def _runtime_manager_for_test(tmp_path):

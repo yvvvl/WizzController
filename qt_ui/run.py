@@ -98,11 +98,11 @@ def _prepare_virtual_profile(virtual_count: int) -> None:
 
 
 def _prepare_virtual_runtime_settings(settings: AppRuntimeManager, virtual_count: int) -> None:
-    """Keep the simulated app visible and exercise its tray like the real app."""
+    """Exercise the tray with virtual lights without overriding startup choices."""
     if virtual_count:
         # Earlier QA builds persisted tray_enabled=False in the isolated
         # profile. Override that value so existing test installs recover too.
-        settings.update(tray_enabled=True, open_minimized=False)
+        settings.update(tray_enabled=True)
 
 
 def _apply_qa_overrides(window, *, screenshot_path: str | None) -> tuple[bool, str | None]:
@@ -271,7 +271,8 @@ def main() -> int:
         )
         bridge.quitRequested.connect(desktop_runtime.quit_application)
         desktop_runtime.start_single_instance_listener()
-        desktop_runtime.start_initial_visibility()
+        if not screenshot_path:
+            desktop_runtime.start_initial_visibility()
         if screenshot_path:
             _schedule_screenshot(app, window, screenshot_path, quick_panel)
         app.aboutToQuit.connect(bridge.shutdown)

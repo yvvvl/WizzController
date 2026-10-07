@@ -183,8 +183,14 @@ class QtDesktopRuntime(QObject):
         )
 
     def start_initial_visibility(self) -> None:
-        if bool(self.settings.get("open_minimized", False)) and self.tray_active:
+        mode = str(self.settings.get("startup_mode", "window") or "window")
+        if mode == "tray" and self.tray_active:
             self.window.hide()
+        elif mode in {"tray", "minimized"}:
+            # Startup mode is independent of the user's later minimize-button
+            # preference, so a requested taskbar launch must remain visible.
+            self.window.setProperty("startupMinimizing", True)
+            self.window.showMinimized()
 
     def quit_application(self) -> None:
         if self._quitting:

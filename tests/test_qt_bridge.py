@@ -82,6 +82,40 @@ def test_qt_bridge_exposes_linux_start_at_login(bridge, monkeypatch, tmp_path):
     assert calls == [True]
 
 
+def test_tray_behavior_settings_are_independent_and_persist(qt_application, tmp_path, monkeypatch):
+    monkeypatch.setenv("WIZZ_CONFIG_DIR", str(tmp_path))
+    controller = VirtualLightController(1)
+    controller.start()
+    view_model = WizzBridge(controller)
+    try:
+        assert view_model.shouldCloseToTray() is False
+        assert view_model.shouldMinimizeToTray() is False
+        view_model.setTrayAvailable(True)
+        assert view_model.shouldCloseToTray() is True
+        view_model.setCloseToTray(False)
+        view_model.setMinimizeToTray(True)
+        view_model.setStartupMode("minimized")
+        assert view_model.shouldCloseToTray() is False
+        assert view_model.shouldMinimizeToTray() is True
+        assert view_model.startupMode == "minimized"
+        view_model.setStartupMode("unsupported")
+        assert view_model.startupMode == "minimized"
+
+        restored = WizzBridge(controller)
+        try:
+            restored.setTrayAvailable(True)
+            assert restored.closeToTray is False
+            assert restored.minimizeToTray is True
+            assert restored.startupMode == "minimized"
+            restored.setStartupMode("tray")
+            assert restored._runtime.get("open_minimized") is True
+        finally:
+            restored.shutdown()
+    finally:
+        view_model.shutdown()
+        controller.stop()
+
+
 def test_custom_quick_actions_create_edit_apply_delete_and_persist(qt_application, tmp_path, monkeypatch):
     monkeypatch.setenv("WIZZ_CONFIG_DIR", str(tmp_path))
     controller = VirtualLightController(3)

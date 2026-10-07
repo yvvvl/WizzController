@@ -210,6 +210,7 @@ class WizzBridge(QObject):
     languageChanged = Signal()
     routineGroupsChanged = Signal()
     startupChanged = Signal()
+    trayBehaviorChanged = Signal()
 
     def __init__(self, controller) -> None:
         super().__init__()
@@ -367,7 +368,10 @@ class WizzBridge(QObject):
         self._main_window = window
 
     def setTrayAvailable(self, available: bool) -> None:
-        self._tray_available = bool(available)
+        value = bool(available)
+        if value != self._tray_available:
+            self._tray_available = value
+            self.trayBehaviorChanged.emit()
 
     @Slot(int, int, int, int)
     def setQuickPanelTrayGeometry(self, x: int, y: int, width: int, height: int) -> None:
@@ -380,6 +384,43 @@ class WizzBridge(QObject):
     @Slot(result=bool)
     def shouldCloseToTray(self) -> bool:
         return bool(self._tray_available and self._runtime.get("minimize_to_tray", True))
+
+    @Slot(result=bool)
+    def shouldMinimizeToTray(self) -> bool:
+        return bool(self._tray_available and self._runtime.get("minimize_window_to_tray", False))
+
+    @Property(bool, notify=trayBehaviorChanged)
+    def trayAvailable(self) -> bool:
+        return self._tray_available
+
+    @Property(bool, notify=trayBehaviorChanged)
+    def closeToTray(self) -> bool:
+        return bool(self._runtime.get("minimize_to_tray", True))
+
+    @Slot(bool)
+    def setCloseToTray(self, enabled: bool) -> None:
+        self._runtime.set("minimize_to_tray", bool(enabled))
+        self.trayBehaviorChanged.emit()
+
+    @Property(bool, notify=trayBehaviorChanged)
+    def minimizeToTray(self) -> bool:
+        return bool(self._runtime.get("minimize_window_to_tray", False))
+
+    @Slot(bool)
+    def setMinimizeToTray(self, enabled: bool) -> None:
+        self._runtime.set("minimize_window_to_tray", bool(enabled))
+        self.trayBehaviorChanged.emit()
+
+    @Property(str, notify=trayBehaviorChanged)
+    def startupMode(self) -> str:
+        return str(self._runtime.get("startup_mode", "window"))
+
+    @Slot(str)
+    def setStartupMode(self, mode: str) -> None:
+        if mode not in {"window", "minimized", "tray"}:
+            return
+        self._runtime.update(startup_mode=mode, open_minimized=mode == "tray")
+        self.trayBehaviorChanged.emit()
 
     @Slot()
     def quitApplication(self) -> None:

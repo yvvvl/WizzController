@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Improved
+
+- Choose separately whether closing the main window or minimizing it hides it
+  in the system tray. These options only act when a tray is available.
+- Choose how WizZ Desktop opens: normal window, minimized in the taskbar, or
+  hidden in the tray. Existing "open minimized" preferences migrate to the
+  tray mode, and a missing tray falls back to the taskbar.
+- Show a clear notice on the Linux Hotkeys page that global shortcuts are not
+  operational there yet, while saved shortcuts remain intact.
+
 ## v1.4.2
 
 ### Improved

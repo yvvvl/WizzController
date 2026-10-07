@@ -24,6 +24,7 @@ ApplicationWindow {
     property bool qaOpenSceneEditor: false
     property bool qaOpenRoutineEditor: false
     property bool updateToastVisible: false
+    property bool startupMinimizing: false
     readonly property int pageGutter: width < 960 ? 20 : 28
     readonly property int contentMaxWidth: 1420
     readonly property bool compactHeight: height < 740
@@ -68,6 +69,15 @@ ApplicationWindow {
         if (wizz.shouldCloseToTray()) {
             close.accepted = false
             window.hide()
+        }
+    }
+
+    onVisibilityChanged: {
+        if (window.visibility === Window.Minimized) {
+            if (window.startupMinimizing)
+                window.startupMinimizing = false
+            else if (wizz.shouldMinimizeToTray())
+                Qt.callLater(function() { if (window.visibility === Window.Minimized) window.hide() })
         }
     }
 
@@ -127,7 +137,14 @@ ApplicationWindow {
                 Rectangle {
                     Layout.preferredWidth: 42; Layout.preferredHeight: 30; radius: 8; color: minMouse.containsMouse ? Theme.cardHi : "transparent"
                     AppIcon { anchors.centerIn: parent; width: 12; height: 12; name: "minimize"; color: Theme.muted }
-                    MouseArea { id: minMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: window.showMinimized() }
+                    MouseArea {
+                        id: minMouse; anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (wizz.shouldMinimizeToTray()) window.hide()
+                            else window.showMinimized()
+                        }
+                    }
                 }
                 Rectangle {
                     Layout.preferredWidth: 42; Layout.preferredHeight: 30; radius: 8; color: closeMouse.containsMouse ? "#8f2637" : "transparent"

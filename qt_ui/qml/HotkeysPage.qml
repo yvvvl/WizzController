@@ -118,6 +118,36 @@ Item {
         }
 
         Rectangle {
+            visible: Qt.platform.os === "linux"
+            width: parent.width
+            height: Math.max(84, linuxNotice.implicitHeight + 28)
+            radius: Theme.radiusMedium
+            color: Qt.rgba(Theme.warning.r, Theme.warning.g, Theme.warning.b, 0.09)
+            border.width: 1
+            border.color: Qt.rgba(Theme.warning.r, Theme.warning.g, Theme.warning.b, 0.36)
+            RowLayout {
+                id: linuxNotice
+                anchors.fill: parent; anchors.margins: 14; spacing: 11
+                AppIcon { Layout.preferredWidth: 18; Layout.preferredHeight: 18; name: "info"; color: Theme.warning }
+                ColumnLayout {
+                    Layout.fillWidth: true; spacing: 3
+                    Text {
+                        Layout.fillWidth: true
+                        text: root.t("Los atajos globales todavía no funcionan en Linux", "Global hotkeys are not available on Linux yet")
+                        color: Theme.text; font.family: Theme.controlFont
+                        font.pixelSize: 12; font.weight: Font.Bold; wrapMode: Text.WordWrap
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: root.t("Puedes usar los controles desde la ventana y el panel rápido. Tus combinaciones guardadas se conservan, pero no se ejecutarán hasta que agreguemos un backend seguro para Linux.", "Use the app window and Quick Panel for now. Your saved shortcuts are kept, but will not run until a safe Linux backend is available.")
+                        color: Theme.muted; font.family: Theme.uiFont
+                        font.pixelSize: Theme.captionSize; wrapMode: Text.WordWrap
+                    }
+                }
+            }
+        }
+
+        Rectangle {
             visible: Qt.platform.os === "osx"
             width: parent.width
             height: Math.max(84, macosNotice.implicitHeight + 28)

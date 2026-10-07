@@ -25,8 +25,11 @@ class AppRuntimeManager:
 
     DEFAULTS: dict[str, Any] = {
         "tray_enabled": True,
+        # Legacy `minimize_to_tray` means the X button hides the window.
         "minimize_to_tray": True,
+        "minimize_window_to_tray": False,
         "open_minimized": False,
+        "startup_mode": "window",
         "startup_with_windows": False,
         # English is the closed beta's predictable default.  Spanish remains
         # selectable, but a tester's Windows display language must not silently
@@ -77,6 +80,11 @@ class AppRuntimeManager:
         for key in self.DEFAULTS:
             if key in loaded:
                 data[key] = loaded[key]
+        if "startup_mode" not in loaded:
+            # Previous Qt builds used open_minimized to mean start in tray.
+            data["startup_mode"] = "tray" if bool(data["open_minimized"]) else "window"
+        if data["startup_mode"] not in {"window", "minimized", "tray"}:
+            data["startup_mode"] = "window"
         # Early desktop builds stored ``system`` as their implicit language.
         # That made a closed beta downloaded by an English-speaking tester
         # unexpectedly launch in Spanish on the maintainer's Windows locale.

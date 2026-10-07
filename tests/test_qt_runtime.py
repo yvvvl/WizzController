@@ -67,6 +67,31 @@ class _WindowSpy:
     def __init__(self) -> None:
         self.invocations = []
 
+    def hide(self) -> None:
+        self.invocations.append("hide")
+
+    def showMinimized(self) -> None:
+        self.invocations.append("minimize")
+
+    def setProperty(self, name, value) -> None:
+        self.invocations.append((name, value))
+
+
+def test_initial_visibility_respects_window_taskbar_and_tray_modes():
+    for mode, tray_active, expected in (
+        ("window", True, []),
+        ("minimized", True, [("startupMinimizing", True), "minimize"]),
+        ("tray", True, ["hide"]),
+        ("tray", False, [("startupMinimizing", True), "minimize"]),
+    ):
+        runtime = SimpleNamespace(
+            settings=SimpleNamespace(get=lambda key, default: mode if key == "startup_mode" else default),
+            tray_active=tray_active,
+            window=_WindowSpy(),
+        )
+        QtDesktopRuntime.start_initial_visibility(runtime)
+        assert runtime.window.invocations == expected
+
 
 class _BridgeSpy:
     def __init__(self) -> None:

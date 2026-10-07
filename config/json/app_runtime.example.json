@@ -1,7 +1,9 @@
 {
     "tray_enabled": true,
     "minimize_to_tray": true,
+    "minimize_window_to_tray": false,
     "open_minimized": false,
+    "startup_mode": "window",
     "startup_with_windows": false,
     "language": "system"
 }

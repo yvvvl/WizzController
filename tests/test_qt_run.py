@@ -77,7 +77,7 @@ def test_virtual_runtime_restores_tray_after_old_qa_profile_disabled_it():
 
     settings = Settings()
     run._prepare_virtual_runtime_settings(settings, 3)
-    assert settings.data == {"tray_enabled": True, "open_minimized": False}
+    assert settings.data == {"tray_enabled": True, "open_minimized": True}
 
     real_settings = Settings()
     run._prepare_virtual_runtime_settings(real_settings, 0)

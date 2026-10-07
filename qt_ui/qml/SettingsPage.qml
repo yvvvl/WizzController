@@ -285,6 +285,76 @@ Item {
                     text: wizz.startupMessage; color: Theme.error; font.family: Theme.uiFont
                     font.pixelSize: Theme.captionSize; wrapMode: Text.WordWrap
                 }
+                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.stroke }
+                Text {
+                    text: root.t("COMPORTAMIENTO DE LA VENTANA", "WINDOW BEHAVIOR")
+                    color: Theme.muted; font.pixelSize: Theme.labelSize
+                    font.weight: Font.Bold; font.letterSpacing: 0.7
+                }
+                Rectangle {
+                    Layout.fillWidth: true; Layout.preferredHeight: 62; radius: 13
+                    color: Theme.cardHi; border.width: 1; border.color: Theme.stroke
+                    RowLayout {
+                        anchors.fill: parent; anchors.margins: 13; spacing: 12
+                        ColumnLayout {
+                            Layout.fillWidth: true; spacing: 2
+                            Text { text: root.t("Cerrar en bandeja", "Close to tray"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
+                            Text { Layout.fillWidth: true; text: root.t("La X oculta la ventana; Salir en el menú de bandeja cierra la app.", "The X hides the window; Quit in the tray menu closes the app."); color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; wrapMode: Text.WordWrap }
+                        }
+                        PressSurface {
+                            Layout.preferredWidth: 48; Layout.preferredHeight: 28; radius: 14
+                            enabled: wizz.trayAvailable
+                            opacity: wizz.trayAvailable ? 1 : 0.5
+                            color: wizz.closeToTray ? Theme.primary : Theme.stroke; accentColor: Theme.primary
+                            onClicked: wizz.setCloseToTray(!wizz.closeToTray)
+                            Rectangle { width: 20; height: 20; radius: 10; anchors.verticalCenter: parent.verticalCenter; x: wizz.closeToTray ? parent.width - width - 4 : 4; color: Theme.text; Behavior on x { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } } }
+                        }
+                    }
+                }
+                Rectangle {
+                    Layout.fillWidth: true; Layout.preferredHeight: 62; radius: 13
+                    color: Theme.cardHi; border.width: 1; border.color: Theme.stroke
+                    RowLayout {
+                        anchors.fill: parent; anchors.margins: 13; spacing: 12
+                        ColumnLayout {
+                            Layout.fillWidth: true; spacing: 2
+                            Text { text: root.t("Minimizar en bandeja", "Minimize to tray"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
+                            Text { Layout.fillWidth: true; text: root.t("Oculta la ventana al usar el botón minimizar.", "Hides the window when you minimize it."); color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; wrapMode: Text.WordWrap }
+                        }
+                        PressSurface {
+                            Layout.preferredWidth: 48; Layout.preferredHeight: 28; radius: 14
+                            enabled: wizz.trayAvailable
+                            opacity: wizz.trayAvailable ? 1 : 0.5
+                            color: wizz.minimizeToTray ? Theme.primary : Theme.stroke; accentColor: Theme.primary
+                            onClicked: wizz.setMinimizeToTray(!wizz.minimizeToTray)
+                            Rectangle { width: 20; height: 20; radius: 10; anchors.verticalCenter: parent.verticalCenter; x: wizz.minimizeToTray ? parent.width - width - 4 : 4; color: Theme.text; Behavior on x { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } } }
+                        }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true; spacing: 12
+                    ColumnLayout {
+                        Layout.fillWidth: true; spacing: 2
+                        Text { text: root.t("Al abrir la aplicación", "When the app opens"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
+                        Text { Layout.fillWidth: true; text: root.t("Elige ventana, barra de tareas o bandeja. Si no hay bandeja, inicia minimizada.", "Choose window, taskbar, or tray. Without a tray, it starts minimized."); color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; wrapMode: Text.WordWrap }
+                    }
+                    WizComboBox {
+                        id: startupModeBox
+                        Layout.preferredWidth: 182; Layout.preferredHeight: 40
+                        model: wizz.language === "en"
+                            ? ["Open window", "Start minimized", "Start in tray"]
+                            : ["Abrir ventana", "Iniciar minimizada", "Iniciar en bandeja"]
+                        currentIndex: wizz.startupMode === "tray" ? 2 : wizz.startupMode === "minimized" ? 1 : 0
+                        onActivated: wizz.setStartupMode(["window", "minimized", "tray"][currentIndex])
+                        contentItem: Text { leftPadding: 13; text: startupModeBox.displayText; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: Theme.labelSize; elide: Text.ElideRight }
+                        background: Rectangle { color: Theme.bg; radius: 11; border.width: 1; border.color: startupModeBox.activeFocus ? Theme.primary : Theme.stroke }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true; visible: !wizz.trayAvailable
+                    text: root.t("La bandeja no está disponible en esta sesión; las opciones de ocultar se activarán cuando vuelva a estarlo.", "The tray is unavailable in this session; hide-to-tray options will work when it returns.")
+                    color: Theme.warning; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; wrapMode: Text.WordWrap
+                }
             }
         }
 
