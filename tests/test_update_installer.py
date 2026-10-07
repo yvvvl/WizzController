@@ -101,7 +101,9 @@ def test_windows_update_is_staged_with_verified_release_assets(monkeypatch, tmp_
     )
 
     content = script.read_text(encoding="utf-8")
-    viewer = (script.parent / "show-update.ps1").read_text(encoding="utf-8")
+    viewer_path = script.parent / "show-update.ps1"
+    assert viewer_path.read_bytes().startswith(b"\xef\xbb\xbf")
+    viewer = viewer_path.read_text(encoding="utf-8-sig")
     assert script.name == "apply-update.ps1"
     assert "Expand-Archive" in content
     assert "Wait-Process" in content
@@ -170,7 +172,9 @@ def test_windows_progress_window_markup_is_well_formed(tmp_path):
     window = ElementTree.fromstring(match.group(1))
     namespace = "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}"
     assert window.tag == namespace + "Window"
-    assert window.attrib["Title"] == "WizZ Desktop updater"
+    assert window.attrib["Title"] == "WizZ Desktop"
+    assert "'Actualizador de WizZ Desktop'" in viewer
+    assert "'WizZ Desktop updater'" in viewer
     assert {item.attrib.get("Name") for item in window.iter()} >= {
         "StatusText", "HintText", "Progress"
     }

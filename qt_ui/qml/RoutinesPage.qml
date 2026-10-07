@@ -13,8 +13,67 @@ Item {
     property string deletingName: ""
     property string feedback: ""
     property bool openEditorOnLoad: false
+    property bool openScheduleEditorOnLoad: false
+    property bool openScheduleTargetOnLoad: false
+    property string editingScheduleUid: ""
+    property string deletingScheduleUid: ""
+    property var scheduleDays: [0, 1, 2, 3, 4, 5, 6]
 
     function t(spanish, english) { return wizz.language === "en" ? english : spanish }
+
+    function scheduleTargets() {
+        const options = [{label: root.t("Todas las luces", "All lights"), value: "all"}]
+        const groups = wizz.routineGroups
+        for (let i = 0; i < groups.length; ++i)
+            options.push({label: root.t("Grupo: ", "Group: ") + groups[i].label, value: groups[i].value})
+        const bulbs = wizz.routineBulbs
+        for (let i = 0; i < bulbs.length; ++i)
+            options.push({label: bulbs[i].label, value: bulbs[i].value})
+        return options
+    }
+
+    function scheduleDayLabel(day) {
+        const es = ["L", "M", "X", "J", "V", "S", "D"]
+        const en = ["M", "T", "W", "T", "F", "S", "S"]
+        return wizz.language === "en" ? en[day] : es[day]
+    }
+
+    function scheduleTargetLabel(value) {
+        const choices = root.scheduleTargets()
+        for (let i = 0; i < choices.length; ++i)
+            if (choices[i].value === value) return choices[i].label
+        return root.t("Destino no disponible", "Target unavailable")
+    }
+
+    function scheduleStatus(status) {
+        if (status === "running") return root.t("En ejecución", "Running")
+        if (status === "succeeded") return root.t("Última ejecución correcta", "Last run succeeded")
+        if (status === "routine_deleted") return root.t("Rutina eliminada; horario desactivado", "Routine deleted; schedule disabled")
+        if (String(status).startsWith("failed:")) return root.t("Falló la última ejecución", "Last run failed")
+        return root.t("Aún no se ejecuta", "Not run yet")
+    }
+
+    function openNewSchedule() {
+        editingScheduleUid = ""
+        scheduleDays = [0, 1, 2, 3, 4, 5, 6]
+        scheduleTime.text = "07:00"
+        scheduleRoutine.currentIndex = 0
+        scheduleTarget.currentIndex = 0
+        scheduleEnabled.checked = true
+        scheduleFeedback.text = ""
+        scheduleEditor.open()
+    }
+
+    function openEditSchedule(row) {
+        editingScheduleUid = row.id
+        scheduleDays = Array.from(row.days)
+        scheduleTime.text = row.time
+        scheduleRoutine.currentIndex = scheduleRoutine.indexOfValue(row.routine_id)
+        scheduleTarget.currentIndex = scheduleTarget.indexOfValue(row.target)
+        scheduleEnabled.checked = row.enabled
+        scheduleFeedback.text = ""
+        scheduleEditor.open()
+    }
 
     function supportsStepTarget(kind) {
         return ["turn_on", "turn_off", "toggle", "brightness", "brightness_delta", "rgb", "white_kelvin", "white_percent", "scene"].indexOf(kind) >= 0
@@ -93,6 +152,10 @@ Item {
 
     Component.onCompleted: {
         if (openEditorOnLoad) Qt.callLater(root.openNew)
+        if (openScheduleEditorOnLoad) Qt.callLater(function() {
+            root.openNewSchedule()
+            if (openScheduleTargetOnLoad) Qt.callLater(function() { scheduleTarget.popup.open() })
+        })
     }
 
     function defaultValue(kind) {
@@ -283,6 +346,181 @@ Item {
                             AppIcon { anchors.centerIn: parent; width: 15; height: 15; name: "trash"; color: Theme.error }
                         }
                     }
+                }
+            }
+        }
+
+        Rectangle {
+            width: parent.width; height: schedulesContent.implicitHeight + 32
+            radius: Theme.radiusMedium; color: Theme.card
+            border.width: 1; border.color: Theme.stroke
+            ColumnLayout {
+                id: schedulesContent
+                anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+                anchors.margins: 16; spacing: 12
+                RowLayout {
+                    Layout.fillWidth: true; spacing: 12
+                    ColumnLayout {
+                        Layout.fillWidth: true; spacing: 3
+                        Text { text: root.t("HORARIOS LOCALES", "LOCAL SCHEDULES"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 14; font.weight: Font.Bold }
+                        Text { Layout.fillWidth: true; text: root.t("Ejecuta rutinas a la hora de este equipo. WizZ debe permanecer abierto, incluso en la bandeja.", "Run routines using this computer's clock. WizZ must stay open, including in the tray."); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; wrapMode: Text.WordWrap }
+                    }
+                    PressSurface {
+                        Layout.preferredWidth: 154; Layout.preferredHeight: 38; radius: 19
+                        color: Theme.primary; accentColor: Theme.primary
+                        onClicked: root.openNewSchedule()
+                        Text { anchors.centerIn: parent; text: root.t("+ Nuevo horario", "+ New schedule"); color: "white"; font.family: Theme.controlFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
+                    }
+                }
+                Text { visible: wizz.routineScheduleError.length > 0; Layout.fillWidth: true; text: wizz.routineScheduleError; color: Theme.error; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; wrapMode: Text.WordWrap }
+                Text { visible: wizz.routineSchedules.length === 0; text: root.t("Todavía no hay horarios. Crea uno para automatizar una rutina.", "No schedules yet. Create one to automate a routine."); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize }
+                Repeater {
+                    model: wizz.routineSchedules
+                    delegate: Rectangle {
+                        required property var modelData
+                        Layout.fillWidth: true; Layout.preferredHeight: 72
+                        radius: 12; color: Theme.cardHi; border.width: 1; border.color: Theme.stroke
+                        RowLayout {
+                            anchors.fill: parent; anchors.margins: 12; spacing: 10
+                            ColumnLayout {
+                                Layout.fillWidth: true; spacing: 4
+                                Text { Layout.fillWidth: true; text: modelData.time + "  ·  " + modelData.routine_name; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 14; font.weight: Font.Bold; elide: Text.ElideRight }
+                                Text { Layout.fillWidth: true; text: modelData.days.map(root.scheduleDayLabel).join(" ") + "  ·  " + root.scheduleTargetLabel(modelData.target) + "  ·  " + root.scheduleStatus(modelData.last_status); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; elide: Text.ElideRight }
+                            }
+                            PressSurface { Layout.preferredWidth: 88; Layout.preferredHeight: 34; radius: 17; color: modelData.enabled ? Theme.primary : Theme.card; accentColor: Theme.primary; onClicked: wizz.setRoutineScheduleEnabled(modelData.id, !modelData.enabled)
+                                Text { anchors.centerIn: parent; text: modelData.enabled ? root.t("Activo", "On") : root.t("Pausado", "Paused"); color: modelData.enabled ? "white" : Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
+                            }
+                            PressSurface { Layout.preferredWidth: 34; Layout.preferredHeight: 34; radius: 17; color: "transparent"; onClicked: root.openEditSchedule(modelData)
+                                AppIcon { anchors.centerIn: parent; width: 15; height: 15; name: "edit"; color: Theme.primary }
+                            }
+                            PressSurface { Layout.preferredWidth: 34; Layout.preferredHeight: 34; radius: 17; color: "transparent"; onClicked: { root.deletingScheduleUid = modelData.id; confirmScheduleDelete.open() }
+                                AppIcon { anchors.centerIn: parent; width: 15; height: 15; name: "trash"; color: Theme.error }
+                            }
+                        }
+                    }
+                }
+                Text { Layout.fillWidth: true; text: root.t("Si el equipo está apagado o suspendido a esa hora, se omite la ejecución. Cada horario se ejecuta como máximo una vez por minuto y día local.", "Runs missed while the computer is off or asleep are skipped. Each schedule fires at most once per local day and minute."); color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; wrapMode: Text.WordWrap }
+            }
+        }
+    }
+
+    Popup {
+        id: scheduleEditor
+        parent: Overlay.overlay; anchors.centerIn: parent
+        width: Math.min(490, Overlay.overlay.width - 40); height: 490
+        modal: true; focus: true; dim: true; padding: 20
+        closePolicy: Popup.CloseOnEscape
+        Overlay.modal: Rectangle { color: "#a3000000" }
+        background: Rectangle { color: Theme.card; radius: 20; border.width: 1; border.color: Theme.stroke }
+        contentItem: ColumnLayout {
+            spacing: 12
+            Text { text: root.editingScheduleUid ? root.t("Editar horario", "Edit schedule") : root.t("Nuevo horario", "New schedule"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 21; font.weight: Font.Bold }
+            Text { Layout.fillWidth: true; text: root.t("La hora usa el reloj local de este equipo (formato 24 h).", "Time uses this computer's local clock (24-hour format)."); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; wrapMode: Text.WordWrap }
+            Text { text: root.t("Rutina", "Routine"); color: Theme.text; font.pixelSize: Theme.labelSize; font.weight: Font.DemiBold }
+            ComboBox {
+                id: scheduleRoutine; Layout.fillWidth: true; Layout.preferredHeight: 40
+                model: wizz.routineModel; textRole: "title"; valueRole: "uid"
+                contentItem: Text { leftPadding: 12; rightPadding: 25; text: scheduleRoutine.displayText; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
+                background: Rectangle { color: Theme.cardHi; radius: 9; border.width: 1; border.color: scheduleRoutine.activeFocus ? Theme.primary : Theme.stroke }
+                delegate: ItemDelegate {
+                    required property int index
+                    width: scheduleRoutine.width; text: scheduleRoutine.textAt(index)
+                    contentItem: Text { text: parent.text; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
+                    background: Rectangle { color: parent.highlighted ? Theme.cardHi : Theme.card }
+                }
+                popup: Popup {
+                    y: scheduleRoutine.height; width: scheduleRoutine.width
+                    implicitHeight: Math.min(250, contentItem.implicitHeight + 8); padding: 4
+                    contentItem: ListView { clip: true; implicitHeight: contentHeight; model: scheduleRoutine.popup.visible ? scheduleRoutine.delegateModel : null; currentIndex: scheduleRoutine.highlightedIndex; ScrollIndicator.vertical: ScrollIndicator {} }
+                    background: Rectangle { color: Theme.card; radius: 9; border.width: 1; border.color: Theme.stroke }
+                }
+            }
+            RowLayout { Layout.fillWidth: true; spacing: 12
+                ColumnLayout { Layout.fillWidth: true; spacing: 4
+                    Text { text: root.t("Hora (HH:MM)", "Time (HH:MM)"); color: Theme.text; font.pixelSize: Theme.labelSize; font.weight: Font.DemiBold }
+                    TextField { id: scheduleTime; Layout.fillWidth: true; Layout.preferredHeight: 40; text: "07:00"; maximumLength: 5; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 16; background: Rectangle { color: Theme.cardHi; radius: 9; border.width: 1; border.color: scheduleTime.activeFocus ? Theme.primary : Theme.stroke } }
+                }
+                ColumnLayout { Layout.fillWidth: true; spacing: 4
+                    Text { text: root.t("Destino predeterminado", "Default target"); color: Theme.text; font.pixelSize: Theme.labelSize; font.weight: Font.DemiBold }
+                    ComboBox {
+                        id: scheduleTarget; Layout.fillWidth: true; Layout.preferredHeight: 40
+                        model: root.scheduleTargets(); textRole: "label"; valueRole: "value"
+                        contentItem: Text { leftPadding: 12; rightPadding: 25; text: scheduleTarget.displayText; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
+                        background: Rectangle { color: Theme.cardHi; radius: 9; border.width: 1; border.color: scheduleTarget.activeFocus ? Theme.primary : Theme.stroke }
+                        delegate: ItemDelegate {
+                            required property int index
+                            width: scheduleTarget.width; text: scheduleTarget.textAt(index)
+                            contentItem: Text { text: parent.text; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
+                            background: Rectangle { color: parent.highlighted ? Theme.cardHi : Theme.card }
+                        }
+                        popup: Popup {
+                            y: scheduleTarget.height; width: scheduleTarget.width
+                            implicitHeight: Math.min(250, contentItem.implicitHeight + 8); padding: 4
+                            contentItem: ListView { clip: true; implicitHeight: contentHeight; model: scheduleTarget.popup.visible ? scheduleTarget.delegateModel : null; currentIndex: scheduleTarget.highlightedIndex; ScrollIndicator.vertical: ScrollIndicator {} }
+                            background: Rectangle { color: Theme.card; radius: 9; border.width: 1; border.color: Theme.stroke }
+                        }
+                    }
+                }
+            }
+            Text { text: root.t("Días de la semana", "Days of the week"); color: Theme.text; font.pixelSize: Theme.labelSize; font.weight: Font.DemiBold }
+            RowLayout { Layout.fillWidth: true; spacing: 6
+                Repeater { model: 7; delegate: PressSurface {
+                    required property int index
+                    Layout.fillWidth: true; Layout.preferredHeight: 36; radius: 18
+                    color: root.scheduleDays.indexOf(index) >= 0 ? Theme.primary : Theme.cardHi
+                    accentColor: Theme.primary
+                    onClicked: { const next = Array.from(root.scheduleDays); const pos = next.indexOf(index); if (pos >= 0) next.splice(pos, 1); else next.push(index); root.scheduleDays = next }
+                    Text { anchors.centerIn: parent; text: root.scheduleDayLabel(index); color: root.scheduleDays.indexOf(index) >= 0 ? "white" : Theme.text; font.pixelSize: 13; font.weight: Font.Bold }
+                } }
+            }
+            CheckBox {
+                id: scheduleEnabled; checked: true; text: root.t("Horario activo", "Schedule enabled")
+                indicator: Rectangle { x: 0; anchors.verticalCenter: parent.verticalCenter; width: 20; height: 20; radius: 5; color: scheduleEnabled.checked ? Theme.primary : Theme.cardHi; border.width: 1; border.color: Theme.primary
+                    AppIcon { visible: scheduleEnabled.checked; anchors.centerIn: parent; width: 13; height: 13; name: "check"; color: "white" }
+                }
+                contentItem: Text { leftPadding: 29; text: scheduleEnabled.text; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; verticalAlignment: Text.AlignVCenter }
+            }
+            Text { Layout.fillWidth: true; text: root.t("Los destinos específicos de los pasos de la rutina tienen prioridad sobre este destino.", "Targets set on individual routine steps take priority over this default target."); color: Theme.faint; font.pixelSize: Theme.captionSize; wrapMode: Text.WordWrap }
+            Text { id: scheduleFeedback; Layout.fillWidth: true; color: Theme.error; font.pixelSize: Theme.labelSize; wrapMode: Text.WordWrap }
+            Item { Layout.fillHeight: true }
+            RowLayout { Layout.fillWidth: true; spacing: 8
+                Item { Layout.fillWidth: true }
+                PressSurface { Layout.preferredWidth: 90; Layout.preferredHeight: 38; radius: 19; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: scheduleEditor.close()
+                    Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.pixelSize: Theme.labelSize }
+                }
+                PressSurface { Layout.preferredWidth: 100; Layout.preferredHeight: 38; radius: 19; color: Theme.primary; accentColor: Theme.primary
+                    onClicked: {
+                        const uid = wizz.upsertRoutineSchedule(root.editingScheduleUid, String(scheduleRoutine.currentValue || ""), scheduleTime.text.trim(), JSON.stringify(root.scheduleDays), String(scheduleTarget.currentValue || ""), scheduleEnabled.checked)
+                        if (uid) scheduleEditor.close()
+                        else scheduleFeedback.text = wizz.routineScheduleError || root.t("No se pudo guardar el horario.", "Could not save the schedule.")
+                    }
+                    Text { anchors.centerIn: parent; text: root.t("Guardar", "Save"); color: "white"; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
+                }
+            }
+        }
+    }
+
+    Popup {
+        id: confirmScheduleDelete
+        parent: Overlay.overlay; anchors.centerIn: parent
+        width: Math.min(390, Overlay.overlay.width - 48); height: 180
+        modal: true; focus: true; dim: true; padding: 20
+        closePolicy: Popup.CloseOnEscape
+        Overlay.modal: Rectangle { color: "#a3000000" }
+        background: Rectangle { color: Theme.card; radius: 18; border.width: 1; border.color: Theme.stroke }
+        contentItem: ColumnLayout {
+            spacing: 12
+            Text { text: root.t("¿Eliminar este horario?", "Delete this schedule?"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: 19; font.weight: Font.Bold }
+            Text { Layout.fillWidth: true; text: root.t("La rutina seguirá disponible; solo se borrará su programación.", "The routine will remain available; only its schedule will be removed."); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; wrapMode: Text.WordWrap }
+            Item { Layout.fillHeight: true }
+            RowLayout { Layout.fillWidth: true; spacing: 8
+                Item { Layout.fillWidth: true }
+                PressSurface { Layout.preferredWidth: 90; Layout.preferredHeight: 36; radius: 18; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: confirmScheduleDelete.close()
+                    Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.pixelSize: Theme.labelSize }
+                }
+                PressSurface { Layout.preferredWidth: 100; Layout.preferredHeight: 36; radius: 18; color: Theme.error; accentColor: Theme.error
+                    onClicked: { if (wizz.deleteRoutineSchedule(root.deletingScheduleUid)) confirmScheduleDelete.close() }
+                    Text { anchors.centerIn: parent; text: root.t("Eliminar", "Delete"); color: "white"; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
                 }
             }
         }

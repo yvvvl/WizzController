@@ -32,14 +32,14 @@ class ActionSequenceExecutor:
             raise ValueError(f"Rutina no encontrada: {routine_id}")
         return self.execute(routine, threaded=threaded)
 
-    def execute(self, sequence_or_routine: dict[str, Any] | list[dict[str, Any]], threaded: bool = True) -> str:
+    def execute(self, sequence_or_routine: dict[str, Any] | list[dict[str, Any]], threaded: bool = True, *, default_target: str = "") -> str:
         actions = self._extract_actions(sequence_or_routine)
         name = self._extract_name(sequence_or_routine)
         if threaded:
-            th = threading.Thread(target=self._execute_safe, args=(actions, name), daemon=True)
+            th = threading.Thread(target=self._execute_safe, args=(actions, name, False, default_target), daemon=True)
             th.start()
             return name
-        return self._execute_safe(actions, name)
+        return self._execute_safe(actions, name, False, default_target)
 
     def _extract_actions(self, sequence_or_routine: dict[str, Any] | list[dict[str, Any]]) -> list[dict[str, Any]]:
         if isinstance(sequence_or_routine, list):
@@ -57,7 +57,7 @@ class ActionSequenceExecutor:
             return str(obj.get("name") or obj.get("title") or "Rutina")
         return "Rutina"
 
-    def _execute_safe(self, actions: list[dict[str, Any]], name: str, force_ordered: bool = False) -> str:
+    def _execute_safe(self, actions: list[dict[str, Any]], name: str, force_ordered: bool = False, default_target: str = "") -> str:
         # Phase 39: cola ligera. Evita que dos rutinas se mezclen si entran
         # por hotkey/UI casi al mismo tiempo. No bloquea la UI porque esto
         # normalmente corre en thread daemon.
@@ -86,13 +86,13 @@ class ActionSequenceExecutor:
                             labels.append("Detenida por condición")
                             break
                         continue
-                    labels.append(self.execute_action(action, preserve_order=ordered))
+                    labels.append(self.execute_action(action, preserve_order=ordered, default_target=default_target))
             except Exception as exc:
                 _LOG.warning("Rutina %s falló: %s", name, exc, exc_info=True)
                 raise
             return " + ".join([x for x in labels if x]) or name
 
-    def execute_action(self, action: dict[str, Any], *, preserve_order: bool = False) -> str:
+    def execute_action(self, action: dict[str, Any], *, preserve_order: bool = False, default_target: str = "") -> str:
         kind = str(action.get("type") or action.get("kind") or "").strip()
         value = action.get("value")
 
@@ -116,7 +116,7 @@ class ActionSequenceExecutor:
                 return str(action.get("name") or method_name)
             raise RuntimeError(f"Método no disponible: {method_name}")
 
-        raw_target = action.get("target")
+        raw_target = action.get("target") or default_target
         target = (
             [str(item).strip() for item in raw_target if isinstance(item, str) and item.strip()]
             if isinstance(raw_target, list)
@@ -131,6 +131,8 @@ class ActionSequenceExecutor:
                 raise RuntimeError("Este controlador no admite pasos dirigidos a una ampolleta")
             destination = target or "current"
             if not apply_targeted(action, destination):
+                if default_target:
+                    raise RuntimeError(f"Destino no disponible: {destination}")
                 return f"Destino no disponible: {destination}"
             target_label = f"{len(destination)} lights" if isinstance(destination, list) else destination
             return f"{kind} ({target_label})"
@@ -210,7 +212,7 @@ class ActionSequenceExecutor:
             stack.append(uid)
             self._routine_stack.ids = stack
             try:
-                return self._execute_safe(self._extract_actions(routine), str(routine.get("name") or "Rutina"), force_ordered=preserve_order)
+                return self._execute_safe(self._extract_actions(routine), str(routine.get("name") or "Rutina"), force_ordered=preserve_order, default_target=default_target)
             finally:
                 try:
                     stack.pop()

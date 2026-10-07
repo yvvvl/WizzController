@@ -200,6 +200,13 @@ Oculta IPs, MACs, tokens y archivos privados antes de enviar información.
 
 - Favoritos para acciones rápidas.
 - Rutinas con múltiples pasos.
+- Horarios locales semanales para rutinas (Windows/Linux): selecciona hora,
+  días y destino predeterminado (luces o grupo), y pausa o edita desde
+  **Rutinas**. WizZ debe seguir abierto, incluso en la bandeja. Una ejecución
+  perdida se omite y no se recupera después. Consulta la
+  [guía de horarios y pruebas](docs/local-routine-schedules.es.md).
+- Logo reactivo de WizZ: sigue el color de una sola ampolleta o el acento del
+  tema cuando hay varias. Consulta [sus límites de sincronización](docs/reactive-logo.es.md).
 - Acciones compatibles:
   - color;
   - blanco;

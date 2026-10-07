@@ -91,8 +91,8 @@ DEFAULT_ROUTINES: list[dict[str, Any]] = [
 class RoutinesManager(JsonManager):
     """Gestor de rutinas/presets compuestos.
 
-    No maneja horarios ni automatizaciones por tiempo. Solo guarda acciones
-    reutilizables para UI y hotkeys.
+    Guarda las secuencias reutilizables para UI y hotkeys. Sus horarios viven
+    por separado en RoutineSchedulesManager para no alterar rutinas existentes.
     """
 
     def __init__(self, i18n=None) -> None:

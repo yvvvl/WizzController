@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 
 import pytest
 
@@ -10,6 +11,8 @@ from PySide6.QtCore import QCoreApplication
 from PySide6.QtTest import QSignalSpy
 
 import qt_ui.bridge as bridge_module
+from config.routine_schedules_manager import RoutineSchedulesManager
+from core.local_routine_scheduler import LocalRoutineScheduler
 from core.dev_virtual_lights import VirtualLightController
 from qt_ui.bridge import WizzBridge
 
@@ -40,6 +43,70 @@ def test_qt_bridge_exposes_virtual_lights(bridge):
     assert bridge.statusLine.endswith("RGB + Blancos")
     assert len(bridge.routineBulbs) == 3
     assert bridge.routineBulbs[0]["value"].startswith("mac:")
+    assert bridge.logoLightColor == ""  # Multiple bulbs use the theme accent.
+
+
+def test_logo_tracks_only_single_live_bulb_and_animated_virtual_frame():
+    controller = VirtualLightController(1)
+    controller.start()
+    view_model = WizzBridge(controller)
+    try:
+        ip = next(iter(controller.bulbs))
+        state = controller.bulbs[ip]["state"]
+        state.update(state=True, r=255, g=90, b=16)
+        view_model.refresh()
+        assert view_model.logoLightColor == "#ff5a10"
+
+        # Animated scene frames override RGB fields left by a previous mode.
+        state["_virtual_rgb"] = (12, 34, 56)
+        view_model.refresh()
+        assert view_model.logoLightColor == "#0c2238"
+
+        state["state"] = False
+        view_model.refresh()
+        assert view_model.logoLightColor == ""
+        assert WizzBridge._display_color({"state": True, "sceneId": 18}) == bridge_module.wiz_scenes.get(18).color
+    finally:
+        view_model.shutdown()
+        controller.stop()
+
+
+def test_qt_bridge_schedule_crud_and_deleted_routine_safety(bridge, tmp_path, monkeypatch):
+    manager = RoutineSchedulesManager(tmp_path)
+    bridge._schedules_manager = manager
+    bridge._scheduler = LocalRoutineScheduler(manager, bridge._dispatch_scheduled_routine)
+    uid = bridge.upsertRoutineSchedule("", "study", "08:15", "[0,2,4]", "all", True)
+    assert uid
+    assert bridge.routineSchedules[0]["routine_name"]
+    assert bridge.setRoutineScheduleEnabled(uid, False)
+    assert bridge.routineSchedules[0]["enabled"] is False
+    assert bridge.setRoutineScheduleEnabled(uid, True)
+    assert bridge.routineSchedules[0]["enabled"] is True
+    assert bridge.upsertRoutineSchedule(uid, "study", "25:00", "[0]", "all", True) == ""
+    assert bridge.routineSchedules[0]["time"] == "08:15"
+    assert bridge.deleteRoutineSchedule(uid)
+    assert bridge.routineSchedules == []
+
+    schedule_id = bridge.upsertRoutineSchedule("", "study", "08:15", "[0]", "all", True)
+    assert schedule_id
+    monkeypatch.setattr(bridge._routines_manager, "remove_routine", lambda _uid: True)
+    assert bridge.deleteRoutine("study")
+    assert bridge.routineSchedules[0]["enabled"] is False
+    assert bridge.routineSchedules[0]["last_status"] == "routine_deleted"
+
+
+def test_qt_bridge_dispatches_due_schedule_to_virtual_lights(bridge, tmp_path):
+    manager = RoutineSchedulesManager(tmp_path)
+    bridge._schedules_manager = manager
+    scheduler = LocalRoutineScheduler(manager, bridge._dispatch_scheduled_routine)
+    uid = manager.upsert("", "study", "08:15", [0], "all", True)
+    spy = QSignalSpy(bridge.routineSchedulesChanged)
+
+    assert scheduler.tick(datetime(2026, 10, 5, 8, 15)) == 1
+    assert spy.wait(5000)
+    assert manager.list()[0]["id"] == uid
+    assert manager.list()[0]["last_status"] == "succeeded"
+    assert scheduler.tick(datetime(2026, 10, 5, 8, 15)) == 0
 
 
 def test_qt_bridge_windows_startup_requires_packaged_executable(bridge, monkeypatch, tmp_path):

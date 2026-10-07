@@ -125,6 +125,10 @@ def _apply_qa_overrides(window, *, screenshot_path: str | None) -> tuple[bool, s
         window.setProperty("qaOpenSceneEditor", True)
     if os.environ.get("WIZZ_QT_ROUTINE_EDITOR") == "1":
         window.setProperty("qaOpenRoutineEditor", True)
+    if os.environ.get("WIZZ_QT_SCHEDULE_EDITOR") == "1":
+        window.setProperty("qaOpenScheduleEditor", True)
+    if os.environ.get("WIZZ_QT_SCHEDULE_TARGET_OPEN") == "1":
+        window.setProperty("qaOpenScheduleTarget", True)
     if preview_page := os.environ.get("WIZZ_QT_PAGE"):
         try:
             window.setProperty("currentPage", max(0, min(6, int(preview_page))))

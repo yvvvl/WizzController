@@ -23,11 +23,17 @@ ApplicationWindow {
     property string qaFavoriteEditorKind: ""
     property bool qaOpenSceneEditor: false
     property bool qaOpenRoutineEditor: false
+    property bool qaOpenScheduleEditor: false
+    property bool qaOpenScheduleTarget: false
     property bool updateToastVisible: false
     property bool startupMinimizing: false
     readonly property int pageGutter: width < 960 ? 20 : 28
     readonly property int contentMaxWidth: 1420
     readonly property bool compactHeight: height < 740
+    // Only a single configured bulb owns the logo colour. With several bulbs,
+    // or when the light is off/unavailable, branding follows the chosen theme.
+    readonly property color logoColor: wizz.liveBrandAccent && wizz.logoLightColor.length > 0
+                                       ? wizz.logoLightColor : Theme.primary
 
     function navigateTo(index) {
         if (index === currentPage) return
@@ -129,7 +135,8 @@ ApplicationWindow {
             RowLayout {
                 anchors.fill: parent; anchors.leftMargin: 13; anchors.rightMargin: 9; spacing: 9
                 Rectangle {
-                    Layout.preferredWidth: 22; Layout.preferredHeight: 22; radius: 8; color: Theme.primary
+                    Layout.preferredWidth: 22; Layout.preferredHeight: 22; radius: 8; color: window.logoColor
+                    Behavior on color { ColorAnimation { duration: Theme.reduceMotion ? 0 : 130; easing.type: Easing.InOutSine } }
                     BulbIcon { anchors.centerIn: parent; width: 15; height: 15; iconColor: "white" }
                 }
                 Text { text: "WizZ Desktop"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.DemiBold }
@@ -160,17 +167,7 @@ ApplicationWindow {
             anchors.left: parent.left; anchors.top: titleBar.bottom; anchors.bottom: parent.bottom
             width: window.width < 960 ? 86 : 98
             color: Theme.surface
-            property var liveColors: wizz.brandColors
-            property int liveColorIndex: 0
-            readonly property color liveColor: liveColors.length > 0
-                                               ? liveColors[liveColorIndex % liveColors.length]
-                                               : Theme.primary
-            onLiveColorsChanged: liveColorIndex = 0
             Behavior on width { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
-            Timer {
-                interval: 2600; repeat: true; running: wizz.liveBrandAccent && sidebar.liveColors.length > 1
-                onTriggered: sidebar.liveColorIndex = (sidebar.liveColorIndex + 1) % sidebar.liveColors.length
-            }
             Column {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.top; anchors.topMargin: window.compactHeight ? 12 : 18
@@ -178,14 +175,14 @@ ApplicationWindow {
                 Rectangle {
                     anchors.horizontalCenter: parent.horizontalCenter
                     width: 52; height: 52; radius: 17
-                    color: wizz.liveBrandAccent
-                           ? Qt.rgba(sidebar.liveColor.r, sidebar.liveColor.g, sidebar.liveColor.b, 0.18)
-                           : Theme.cardHi
+                    color: Qt.rgba(window.logoColor.r, window.logoColor.g, window.logoColor.b, 0.18)
                     border.width: 1
-                    border.color: wizz.liveBrandAccent ? sidebar.liveColor : Theme.stroke
-                    Behavior on color { ColorAnimation { duration: Theme.motionNormal; easing.type: Easing.InOutCubic } }
-                    Behavior on border.color { ColorAnimation { duration: Theme.motionNormal; easing.type: Easing.InOutCubic } }
-                    BulbIcon { anchors.centerIn: parent; width: 30; height: 30; iconColor: Theme.text }
+                    border.color: window.logoColor
+                    Behavior on color { ColorAnimation { duration: Theme.reduceMotion ? 0 : 130; easing.type: Easing.InOutSine } }
+                    Behavior on border.color { ColorAnimation { duration: Theme.reduceMotion ? 0 : 130; easing.type: Easing.InOutSine } }
+                    BulbIcon { anchors.centerIn: parent; width: 30; height: 30; iconColor: window.logoColor
+                        Behavior on iconColor { ColorAnimation { duration: Theme.reduceMotion ? 0 : 130; easing.type: Easing.InOutSine } }
+                    }
                 }
                 Text { anchors.horizontalCenter: parent.horizontalCenter; text: "WizZ"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.Bold }
                 Repeater {
@@ -547,7 +544,7 @@ ApplicationWindow {
     Component { id: colorPage; ColorPage {} }
     Component { id: scenesPage; ScenesPage { openEditorOnLoad: window.qaOpenSceneEditor } }
     Component { id: favoritesPage; FavoritesPage { openEditorOnLoad: window.qaOpenFavoriteEditor; qaEditorKind: window.qaFavoriteEditorKind } }
-    Component { id: routinesPage; RoutinesPage { openEditorOnLoad: window.qaOpenRoutineEditor } }
+    Component { id: routinesPage; RoutinesPage { openEditorOnLoad: window.qaOpenRoutineEditor; openScheduleEditorOnLoad: window.qaOpenScheduleEditor; openScheduleTargetOnLoad: window.qaOpenScheduleTarget } }
     Component { id: settingsPage; SettingsPage {} }
     Component { id: hotkeysPage; HotkeysPage {} }
 }

@@ -192,6 +192,12 @@ you, you can support development through [GitHub Sponsors](https://github.com/sp
 
 - Favorites for frequently used settings.
 - Multi-step routines.
+- Local weekly routine schedules (Windows/Linux): choose a time, weekdays and
+  default light/group target; pause or edit them in **Routines**. WizZ must
+  stay running, including in the tray. Missed runs are skipped rather than
+  replayed. See [schedule behavior and testing](docs/local-routine-schedules.md).
+- Reactive WizZ logo: follows one live bulb's colour or the theme accent with
+  multiple bulbs. See [what it can and cannot sync](docs/reactive-logo.md).
 - Color, white, brightness, scene, and delay actions.
 - Centralized execution through `ActionSequenceExecutor`.
 

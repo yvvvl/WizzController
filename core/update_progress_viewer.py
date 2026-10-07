@@ -20,7 +20,7 @@ try {
     Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
     [xml]$layout = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        Title="WizZ Desktop updater" Width="430" Height="195"
+        Title="WizZ Desktop" Width="430" Height="195"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="#111827" ShowInTaskbar="True">
   <Border Padding="24">
@@ -46,9 +46,14 @@ try {
     $progress = $window.FindName('Progress')
     $spanish = $false
     try {
-        $settings = Get-Content -LiteralPath $settingsFile -Raw -ErrorAction Stop | ConvertFrom-Json
+        $settings = Get-Content -LiteralPath $settingsFile -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json
         $spanish = [string]$settings.language -eq 'es'
+        if ([string]$settings.language -eq 'system') {
+            $spanish = (Get-Culture).TwoLetterISOLanguageName -eq 'es'
+        }
     } catch { }
+    $window.Title = if ($spanish) { 'Actualizador de WizZ Desktop' } else { 'WizZ Desktop updater' }
+    $statusText.Text = if ($spanish) { 'Preparando la actualización...' } else { 'Preparing the update...' }
     $hintText.Text = if ($spanish) { 'WizZ se reiniciará automáticamente.' } else { 'WizZ will restart automatically.' }
     $script:closeAt = $null
     $script:seenRestarting = $false

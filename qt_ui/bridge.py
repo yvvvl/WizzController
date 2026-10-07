@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import sys
@@ -32,8 +33,14 @@ from config.quick_actions_manager import (
     validated_quick_action,
 )
 from config.routines_manager import RoutinesManager
+from config.routine_schedules_manager import RoutineSchedulesManager
 from core import wiz_scenes
 from core.action_sequence import ActionSequenceExecutor
+from core.local_routine_scheduler import (
+    LocalRoutineScheduler,
+    snapshot_scheduled_routine,
+    validate_scheduled_routine,
+)
 from core.update_checker import ReleaseInfo, is_update_available
 from core.update_client import ReleaseClient
 from core.update_installer import (
@@ -209,6 +216,8 @@ class WizzBridge(QObject):
     controllerStateReceived = Signal(dict)
     languageChanged = Signal()
     routineGroupsChanged = Signal()
+    routineSchedulesChanged = Signal()
+    routineScheduleFinished = Signal(str, str, str)
     startupChanged = Signal()
     trayBehaviorChanged = Signal()
 
@@ -231,6 +240,14 @@ class WizzBridge(QObject):
         self._favorites_manager = FavoritesManager()
         self._scenes_manager = CustomScenesManager()
         self._routines_manager = RoutinesManager()
+        self._schedule_error = ""
+        try:
+            self._schedules_manager = RoutineSchedulesManager()
+        except ValueError as exc:
+            # Preserve malformed/future-version data; keep the rest of the app usable.
+            self._schedules_manager = None
+            self._schedule_error = str(exc)
+            logging.getLogger(__name__).error("Local schedules unavailable: %s", exc)
         self._hotkeys_manager = HotkeysManager(
             controller,
             auto_apply=not bool(getattr(controller, "is_virtual", False)),
@@ -242,6 +259,14 @@ class WizzBridge(QObject):
         # used by the Flet shell.  The two clients can now be alternated
         # without each one silently resetting the user's visual choices.
         self._executor = ActionSequenceExecutor(controller)
+        self._scheduler = (
+            LocalRoutineScheduler(self._schedules_manager, self._dispatch_scheduled_routine)
+            if self._schedules_manager is not None else None
+        )
+        self._schedule_timer = QTimer(self)
+        self._schedule_timer.setInterval(15_000)
+        self._schedule_timer.timeout.connect(self._tick_schedules)
+        self.routineScheduleFinished.connect(self._finish_scheduled_routine)
         self._state: dict[str, Any] = {}
         self._main_window: Any = None
         self._tray_available = False
@@ -350,6 +375,9 @@ class WizzBridge(QObject):
         self.hotkeyActionsLoaded.connect(self._apply_hotkey_actions)
         self.controller.set_callback(self._receive_controller_state)
         self.refresh()
+        if self._scheduler is not None:
+            self._schedule_timer.start()
+            QTimer.singleShot(0, self._tick_schedules)
         QTimer.singleShot(0, self.refreshHotkeyActions)
 
     def _ui(self, spanish: str, english: str) -> str:
@@ -361,6 +389,7 @@ class WizzBridge(QObject):
         return english if self._i18n.language == "en" else spanish
 
     def shutdown(self) -> None:
+        self._schedule_timer.stop()
         self._hotkeys_manager.stop()
 
     def setMainWindow(self, window: Any) -> None:
@@ -480,6 +509,11 @@ class WizzBridge(QObject):
         # The pilot's r/g/b channels are the freshest source and preserve
         # saturated colours exactly.  ``color_rgb`` is a calculated fallback
         # for older summaries which do not include the raw pilot payload.
+        # The virtual controller exposes each animated scene frame separately;
+        # prefer it over RGB fields retained from a previous static colour.
+        animated_rgb = state.get("_virtual_rgb")
+        if isinstance(animated_rgb, (tuple, list)) and len(animated_rgb) == 3:
+            state["r"], state["g"], state["b"] = animated_rgb
         rgb = bulb.get("color_rgb")
         if (
             not all(key in state for key in ("r", "g", "b"))
@@ -497,6 +531,13 @@ class WizzBridge(QObject):
             return "#{:02x}{:02x}{:02x}".format(
                 int(state["r"]), int(state["g"]), int(state["b"])
             )
+        if state.get("sceneId"):
+            try:
+                scene = wiz_scenes.get(int(state["sceneId"]))
+            except (TypeError, ValueError):
+                scene = None
+            if scene:
+                return scene.color
         temp = int(state.get("temp", 4000) or 4000)
         if temp <= 3000:
             return "#ffd9a0"
@@ -751,6 +792,18 @@ class WizzBridge(QObject):
             if bool(item.get("isOn")) and color and color not in colors:
                 colors.append(color)
         return colors or ["#6697ff"]
+
+    @Property(str, notify=colorChanged)
+    def logoLightColor(self) -> str:
+        """Use the sole configured, online, lit bulb; otherwise use theme in QML."""
+        items = self.lights._items
+        if len(items) != 1:
+            return ""
+        bulb = items[0]
+        if not bulb.get("online") or not bulb.get("isOn"):
+            return ""
+        color = str(bulb.get("lightColor") or "")
+        return color if len(color) == 7 and color.startswith("#") else ""
 
     @Property(str, notify=stateChanged)
     def brandState(self) -> str:
@@ -1365,6 +1418,7 @@ class WizzBridge(QObject):
         self._refresh_library_models()
         self.refreshHotkeyActions()
         self.languageChanged.emit()
+        self.routineSchedulesChanged.emit()
         self.hotkeysChanged.emit()
         self.quickActionsChanged.emit()
         self.stateChanged.emit()
@@ -1480,6 +1534,129 @@ class WizzBridge(QObject):
     @Property(QObject, constant=True)
     def routineModel(self) -> QObject:
         return self.routines
+
+    @Property("QVariantList", notify=routineSchedulesChanged)
+    def routineSchedules(self) -> list[dict[str, Any]]:
+        if self._schedules_manager is None:
+            return []
+        rows = self._schedules_manager.list()
+        for row in rows:
+            routine = self._routines_manager.get_routine(row["routine_id"])
+            row["routine_name"] = (
+                (translated_default_routine_name(self._i18n, routine) or str(routine.get("name") or ""))
+                if routine else self._ui("Rutina eliminada", "Deleted routine")
+            )
+        return rows
+
+    @Property(str, notify=routineSchedulesChanged)
+    def routineScheduleError(self) -> str:
+        return self._schedule_error
+
+    def _tick_schedules(self) -> None:
+        if self._scheduler is None:
+            return
+        try:
+            if self._scheduler.tick():
+                self.routineSchedulesChanged.emit()
+        except (OSError, ValueError) as exc:
+            self._schedule_error = str(exc)
+            logging.getLogger(__name__).error("Schedule tick failed: %s", exc)
+            self._schedule_timer.stop()
+            self.routineSchedulesChanged.emit()
+
+    def _dispatch_scheduled_routine(self, schedule: dict[str, Any]) -> None:
+        catalog = {
+            str(routine.get("id") or ""): copy.deepcopy(routine)
+            for routine in self._routines_manager.get_routines()
+        }
+        routine = catalog.get(schedule["routine_id"])
+
+        def worker() -> None:
+            try:
+                if routine is None:
+                    raise ValueError("Routine was deleted")
+                snapshot = snapshot_scheduled_routine(routine, catalog.get)
+                self._executor.execute(snapshot, threaded=False, default_target=schedule["target"])
+                status = "succeeded"
+            except Exception as exc:
+                logging.getLogger(__name__).exception("Scheduled routine %s failed", schedule["id"])
+                status = "failed: " + str(exc)[:180]
+            self.routineScheduleFinished.emit(schedule["id"], schedule["last_occurrence"], status)
+
+        try:
+            threading.Thread(target=worker, name="wizz-routine-schedule", daemon=True).start()
+        except RuntimeError as exc:
+            logging.getLogger(__name__).error("Could not start scheduled routine worker: %s", exc)
+            self._finish_scheduled_routine(schedule["id"], schedule["last_occurrence"], "failed: worker unavailable")
+
+    @Slot(str, str, str)
+    def _finish_scheduled_routine(self, uid: str, occurrence: str, status: str) -> None:
+        if self._schedules_manager is None:
+            return
+        try:
+            self._schedules_manager.finish(uid, occurrence, status)
+        except OSError as exc:
+            self._schedule_error = str(exc)
+            logging.getLogger(__name__).error("Could not save schedule result: %s", exc)
+        self.routineSchedulesChanged.emit()
+
+    @Slot(str, str, str, str, str, bool, result=str)
+    def upsertRoutineSchedule(self, uid: str, routine_id: str, time: str, days_json: str, target: str, enabled: bool) -> str:
+        routine = self._routines_manager.get_routine(routine_id)
+        if self._schedules_manager is None or not routine:
+            return ""
+        try:
+            validate_scheduled_routine(routine, self._routines_manager.get_routine)
+            if target.startswith("group:") and not self._routines_manager.get_light_group(target[6:]):
+                raise ValueError(self._ui("El grupo ya no existe.", "The group no longer exists."))
+            days = json.loads(days_json)
+            result = self._schedules_manager.upsert(uid, routine_id, time, days, target, enabled)
+        except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+            message = str(exc)
+            if message.startswith("Unsupported scheduled step:"):
+                step = message.partition(":")[2].strip()
+                message = self._ui(
+                    f"El paso «{step}» no se puede programar: depende del estado de la interfaz.",
+                    f"The «{step}» step cannot be scheduled: it depends on UI state.",
+                )
+            elif message == "Nested routine cycle":
+                message = self._ui("Las rutinas anidadas forman un ciclo.", "Nested routines contain a cycle.")
+            elif message == "Nested routine not found":
+                message = self._ui("No se encontró una rutina anidada.", "A nested routine was not found.")
+            elif message == "Routine has no actions":
+                message = self._ui("La rutina no tiene pasos.", "The routine has no steps.")
+            elif not message.startswith(("El grupo", "The group")):
+                message = self._ui("Revisa la hora (HH:MM), los días y el destino.", "Check the time (HH:MM), days and target.")
+            self._schedule_error = message
+            self.routineSchedulesChanged.emit()
+            return ""
+        self._schedule_error = ""
+        self.routineSchedulesChanged.emit()
+        return result
+
+    @Slot(str, bool, result=bool)
+    def setRoutineScheduleEnabled(self, uid: str, enabled: bool) -> bool:
+        if self._schedules_manager is None:
+            return False
+        row = next((item for item in self._schedules_manager.list() if item["id"] == uid), None)
+        if row is None:
+            return False
+        return bool(self.upsertRoutineSchedule(uid, row["routine_id"], row["time"], json.dumps(row["days"]), row["target"], enabled))
+
+    @Slot(str, result=bool)
+    def deleteRoutineSchedule(self, uid: str) -> bool:
+        if self._schedules_manager is None:
+            return False
+        try:
+            deleted = self._schedules_manager.delete(uid)
+        except OSError as exc:
+            self._schedule_error = str(exc)
+            self.routineSchedulesChanged.emit()
+            return False
+        if deleted:
+            self._schedule_error = ""
+            self.routineSchedulesChanged.emit()
+        return deleted
 
     @Property(QObject, constant=True)
     def hotkeyModel(self) -> QObject:
@@ -2035,6 +2212,7 @@ class WizzBridge(QObject):
             )
             result = str(created.get("id") or "")
         self._refresh_library_models()
+        self.routineSchedulesChanged.emit()
         return result
 
     @Slot(str, str, str, result=str)
@@ -2060,9 +2238,17 @@ class WizzBridge(QObject):
 
     @Slot(str, result=bool)
     def deleteRoutine(self, uid: str) -> bool:
+        if self._schedules_manager is not None:
+            try:
+                self._schedules_manager.disable_for_routine(str(uid))
+            except OSError as exc:
+                self._schedule_error = str(exc)
+                self.routineSchedulesChanged.emit()
+                return False
         removed = self._routines_manager.remove_routine(str(uid))
         if removed:
             self._refresh_library_models()
+            self.routineSchedulesChanged.emit()
         return bool(removed)
 
     @Slot(str, result=str)
@@ -2077,6 +2263,7 @@ class WizzBridge(QObject):
     def resetRoutineDefaults(self) -> None:
         self._routines_manager.reset_defaults()
         self._refresh_library_models()
+        self.routineSchedulesChanged.emit()
 
     @Slot(bool)
     def setHotkeysEnabled(self, enabled: bool) -> None:

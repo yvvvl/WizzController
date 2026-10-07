@@ -270,7 +270,9 @@ def stage_windows_update(
     )
     (stage / "show-update.ps1").write_text(
         windows_progress_script(state_file, config_dir(), release.version),
-        encoding="utf-8",
+        # Windows PowerShell 5.1 treats UTF-8 without a BOM as the system ANSI
+        # code page, corrupting Spanish accents in the detached WPF window.
+        encoding="utf-8-sig",
     )
     _write_update_state("preparing", "Update download verified; waiting for WizZ Desktop to close")
     return script
