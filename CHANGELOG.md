@@ -1,16 +1,19 @@
 # Changelog
 
-## Unreleased
+## v1.4.3
 
 ### Improved
 
-- Choose separately whether closing the main window or minimizing it hides it
-  in the system tray. These options only act when a tray is available.
-- Choose how WizZ Desktop opens: normal window or hidden in the tray. Existing
-  "open minimized" preferences migrate to the tray mode, and a missing tray
-  falls back to the taskbar.
-- Show a clear notice on the Linux Hotkeys page that global shortcuts are not
-  operational there yet, while saved shortcuts remain intact.
+- Control closing and minimizing independently: the X and minimize button can
+  each hide the main window in the system tray, or use their normal behavior.
+  Tray-only actions are disabled when the desktop has no system tray.
+- Choose whether WizZ Desktop opens as a window or starts in the tray. If the
+  tray is unavailable, it stays reachable, minimized in the taskbar. Existing
+  "open minimized" settings migrate to the single tray-start option.
+- Make Linux hotkey support explicit in the app: global shortcuts are not
+  operational there yet, but saved shortcuts remain intact for future support.
+- Keep virtual-light testing isolated while honoring the selected startup
+  behavior; automated UI screenshots still open the window for inspection.
 
 ## v1.4.2
 

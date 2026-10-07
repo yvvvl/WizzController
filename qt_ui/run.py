@@ -12,7 +12,7 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtWidgets import QApplication
 
-from app_meta import APP_ID, APP_NAME
+from app_meta import APP_ID, APP_NAME, APP_VERSION
 from config.app_runtime_manager import AppRuntimeManager
 from core.dev_virtual_lights import (
     VirtualLightController,
@@ -230,7 +230,7 @@ def main() -> int:
             bridge._update_in_progress = True
             bridge._update_preparing = True
             bridge._update_progress = 68
-            bridge._update_status = "Downloading v1.4.2… 96%"
+            bridge._update_status = f"Downloading v{APP_VERSION}… 96%"
         # Extraction and startup verification vary with disk speed. Keep
         # checking until the detached helper publishes a terminal result.
         _watch_update_completion(app, bridge)

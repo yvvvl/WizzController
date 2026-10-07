@@ -560,12 +560,11 @@ python tools/probe_remove_active_bulb.py --ip 192.168.1.4
 
 ## Estado del proyecto
 
-La guía de publicación anterior documenta v1.4.0. El código de desarrollo
-actual se identifica como v1.4.2; probarlo no equivale a probar una release
-publicada. El trabajo experimental de Govee LAN está en otra rama y aún no
-forma parte de la interfaz Qt de usuario.
+Este código es v1.4.3; descarga un paquete desde GitHub Releases para probar
+la distribución real. El trabajo experimental de Govee LAN está en otra rama
+y aún no forma parte de la interfaz Qt de usuario.
 
-En esta rama de desarrollo, **Ajustes → Acciones rápidas** permite crear,
+En v1.4.3, **Ajustes → Acciones rápidas** permite crear,
 editar, mostrar/ocultar y borrar controles propios de encendido, brillo, blanco
 Kelvin, RGB y escenas WiZ. Hasta seis acciones seleccionadas aparecen en
 Inicio y el panel rápido. Se aplican a las luces seleccionadas.

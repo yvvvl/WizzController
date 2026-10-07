@@ -412,12 +412,11 @@ tests/        Core, UI, runtime, and packaging tests
 
 ## Project status
 
-The published release guide above documents v1.4.0. Current development
-source identifies itself as v1.4.2; it is not a published-release test. The
-experimental local Govee work is on a separate feature branch and is not part
-of the current Qt user interface.
+This source is v1.4.3; download a packaged build from GitHub Releases to test
+the actual distribution. The experimental local Govee work is on a separate
+feature branch and is not part of the current Qt user interface.
 
-In this development branch, **Settings → Quick Actions** lets you create, edit,
+In v1.4.3, **Settings → Quick Actions** lets you create, edit,
 show/hide, and delete custom controls for power, brightness, Kelvin white, RGB,
 and WiZ scenes. Up to six selected actions appear in both Home and the Quick
 Panel. These controls operate on the currently selected lights.
