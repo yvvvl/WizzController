@@ -255,6 +255,9 @@ class WizzBridge(QObject):
         )
         self._hotkey_actions_cache: list[dict[str, Any]] = []
         self._hotkey_actions_loading = False
+        self._shutdown_requested = threading.Event()
+        self._hotkey_actions_thread: threading.Thread | None = None
+        self._hotkey_action_workers: list[threading.Thread] = []
         # Keep Qt's appearance preferences in the same durable runtime store
         # used by the Flet shell.  The two clients can now be alternated
         # without each one silently resetting the user's visual choices.
@@ -266,6 +269,9 @@ class WizzBridge(QObject):
         self._schedule_timer = QTimer(self)
         self._schedule_timer.setInterval(15_000)
         self._schedule_timer.timeout.connect(self._tick_schedules)
+        self._initial_schedule_timer = QTimer(self)
+        self._initial_schedule_timer.setSingleShot(True)
+        self._initial_schedule_timer.timeout.connect(self._tick_schedules)
         self.routineScheduleFinished.connect(self._finish_scheduled_routine)
         self._state: dict[str, Any] = {}
         self._main_window: Any = None
@@ -368,6 +374,9 @@ class WizzBridge(QObject):
         self._model_refresh_timer.setSingleShot(True)
         self._model_refresh_timer.setInterval(220)
         self._model_refresh_timer.timeout.connect(self.refresh)
+        self._initial_hotkey_timer = QTimer(self)
+        self._initial_hotkey_timer.setSingleShot(True)
+        self._initial_hotkey_timer.timeout.connect(self.refreshHotkeyActions)
         self.controllerStateReceived.connect(self._apply_controller_state)
         self.updateResultReceived.connect(self._apply_update_result)
         self.updateInstallResultReceived.connect(self._apply_update_install_result)
@@ -377,8 +386,8 @@ class WizzBridge(QObject):
         self.refresh()
         if self._scheduler is not None:
             self._schedule_timer.start()
-            QTimer.singleShot(0, self._tick_schedules)
-        QTimer.singleShot(0, self.refreshHotkeyActions)
+            self._initial_schedule_timer.start(0)
+        self._initial_hotkey_timer.start(0)
 
     def _ui(self, spanish: str, english: str) -> str:
         """Return UI copy in the active runtime language.
@@ -389,7 +398,20 @@ class WizzBridge(QObject):
         return english if self._i18n.language == "en" else spanish
 
     def shutdown(self) -> None:
+        self._shutdown_requested.set()
+        self._initial_schedule_timer.stop()
+        self._initial_hotkey_timer.stop()
         self._schedule_timer.stop()
+        for timer in (
+            self._brightness_timer, self._light_brightness_timer, self._rgb_timer,
+            self._white_timer, self._scene_timer, self._model_refresh_timer,
+        ):
+            timer.stop()
+        # Never let a catalogue worker emit into a bridge that Qt is tearing down.
+        for worker in self._hotkey_action_workers:
+            if worker is not threading.current_thread():
+                worker.join()
+        self._hotkey_action_workers.clear()
         self._hotkeys_manager.stop()
 
     def setMainWindow(self, window: Any) -> None:
@@ -686,27 +708,45 @@ class WizzBridge(QObject):
     @Slot()
     def refreshHotkeyActions(self) -> None:
         """Build the dynamic action catalogue off the Qt render thread."""
-        if self._hotkey_actions_loading:
+        if self._shutdown_requested.is_set() or self._hotkey_actions_loading:
             return
         self._hotkey_actions_loading = True
+        action_label = self._ui("Acción", "Action")
+        group_label = self._ui("General", "General")
+        manager = self._hotkeys_manager
 
         def worker() -> None:
             try:
                 items = [
                     {"id": str(item.get("id") or ""),
-                     "name": str(item.get("name") or item.get("id") or self._ui("Acción", "Action")),
-                     "group": str(item.get("group") or self._ui("General", "General"))}
-                    for item in self._hotkeys_manager.list_actions()
+                     "name": str(item.get("name") or item.get("id") or action_label),
+                     "group": str(item.get("group") or group_label)}
+                    for item in manager.list_actions()
                     if item.get("id")
                 ]
             except Exception:
                 items = []
-            self.hotkeyActionsLoaded.emit(items)
+            if not self._shutdown_requested.is_set():
+                self.hotkeyActionsLoaded.emit(items)
 
-        threading.Thread(target=worker, daemon=True).start()
+        thread = threading.Thread(target=worker, name="WizzQtHotkeyActions")
+        self._hotkey_action_workers = [
+            existing for existing in self._hotkey_action_workers if existing.is_alive()
+        ]
+        self._hotkey_action_workers.append(thread)
+        self._hotkey_actions_thread = thread
+        try:
+            thread.start()
+        except RuntimeError:
+            self._hotkey_action_workers.remove(thread)
+            self._hotkey_actions_thread = None
+            self._hotkey_actions_loading = False
+            logging.getLogger(__name__).exception("Could not start hotkey catalogue worker")
 
     @Slot(list)
     def _apply_hotkey_actions(self, items: list[dict[str, Any]]) -> None:
+        if self._shutdown_requested.is_set():
+            return
         self._hotkey_actions_loading = False
         self._hotkey_actions_cache = list(items)
         self.hotkeysChanged.emit()
@@ -1553,7 +1593,7 @@ class WizzBridge(QObject):
         return self._schedule_error
 
     def _tick_schedules(self) -> None:
-        if self._scheduler is None:
+        if self._shutdown_requested.is_set() or self._scheduler is None:
             return
         try:
             if self._scheduler.tick():

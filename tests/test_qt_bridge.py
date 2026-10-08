@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from datetime import datetime
 
 import pytest
@@ -31,8 +32,51 @@ def bridge():
     # Runtime language is user-persistent; keep this suite deterministic and
     # assert the established Spanish fixture copy explicitly.
     view_model.setLanguage("es")
-    yield view_model
-    controller.stop()
+    try:
+        yield view_model
+    finally:
+        view_model.shutdown()
+        controller.stop()
+
+
+def test_hotkey_catalogue_worker_stops_before_bridge_shutdown(qt_application, monkeypatch):
+    controller = VirtualLightController(3)
+    controller.start()
+    bridge = WizzBridge(controller)
+    bridge._initial_hotkey_timer.stop()
+    started = threading.Event()
+    release = threading.Event()
+    completed = threading.Event()
+
+    def delayed_actions():
+        started.set()
+        if release.wait(2):
+            completed.set()
+        return [{"id": "toggle", "name": "Toggle", "group": "General"}]
+
+    try:
+        monkeypatch.setattr(bridge._hotkeys_manager, "list_actions", delayed_actions)
+        loaded = QSignalSpy(bridge.hotkeyActionsLoaded)
+        bridge.refreshHotkeyActions()
+        assert started.wait(2)
+
+        release_later = threading.Timer(0.05, release.set)
+        release_later.start()
+        bridge.shutdown()
+        release_later.join(2)
+
+        assert bridge._hotkey_actions_thread is not None
+        assert not bridge._hotkey_actions_thread.is_alive()
+        assert completed.is_set()
+        qt_application.processEvents()
+        assert loaded.count() == 0
+        worker = bridge._hotkey_actions_thread
+        bridge.refreshHotkeyActions()
+        assert bridge._hotkey_actions_thread is worker
+    finally:
+        release.set()
+        bridge.shutdown()
+        controller.stop()
 
 
 def test_qt_bridge_exposes_virtual_lights(bridge):
