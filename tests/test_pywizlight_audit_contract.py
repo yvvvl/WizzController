@@ -14,7 +14,7 @@ def test_pywizlight_phase0_documents_exist() -> None:
         ROOT / "docs" / "third-party" / "2026-07-23-pywizlight-065-upgrade-review.md"
     ).is_file()
     assert (ROOT / "docs" / "adr" / "0001-pywizlight-role.md").is_file()
-    assert (ROOT / "docs" / "codex" / "DOCUMENTATION_GUIDE.md").is_file()
+    assert (ROOT / "THIRD_PARTY_NOTICES.md").is_file()
 
 
 def test_audit_preserves_native_udp_hot_path_decision() -> None:
