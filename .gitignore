@@ -1,8 +1,12 @@
 # Entornos
 .venv/
+.venv*/
 venv/
 env/
 ENV/
+.env
+.env.*
+!.env.example
 
 # Python
 __pycache__/
@@ -37,6 +41,14 @@ backups/
 config/json/*.json
 !config/json/*.example.json
 !config/json/.gitkeep
+*.sqlite
+*.sqlite3
+*.db
+
+# Notas y archivos de trabajo locales (no se distribuyen)
+docs/codex/
+docs/archive/
+artifacts/
 
 # Editor / OS
 .vscode/
@@ -51,5 +63,3 @@ Thumbs.db
 # Artifacts de release
 *.sha256
 console.log
-# Local Qt visual-regression captures.
-artifacts/qt-*.png
