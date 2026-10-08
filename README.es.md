@@ -420,8 +420,9 @@ dist/release/WizZDesktop-v1.4.3-windows-x64.zip.sha256
 .\scripts\test_windows_build.ps1 -LaunchSecondInstance
 ```
 
-La guía completa está en
-[`docs/codex/plans/2026-07-21-windows-build.md`](docs/codex/plans/2026-07-21-windows-build.md).
+El proceso vigente de compilación está definido en
+[`scripts/build_qt_windows.ps1`](scripts/build_qt_windows.ps1); la guía antigua de
+Flet ya no corresponde a la aplicación distribuida.
 
 ---
 
