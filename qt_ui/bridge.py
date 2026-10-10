@@ -255,9 +255,8 @@ class WizzBridge(QObject):
         self._shutdown_requested = threading.Event()
         self._hotkey_actions_thread: threading.Thread | None = None
         self._hotkey_action_workers: list[threading.Thread] = []
-        # Keep Qt's appearance preferences in the same durable runtime store
-        # used by the Flet shell.  The two clients can now be alternated
-        # without each one silently resetting the user's visual choices.
+        # Keep appearance preferences in the shared durable runtime store so
+        # older installations retain their choices after upgrading to Qt.
         self._executor = ActionSequenceExecutor(controller)
         self._scheduler = (
             LocalRoutineScheduler(self._schedules_manager, self._dispatch_scheduled_routine)
@@ -1533,8 +1532,8 @@ class WizzBridge(QObject):
     def favoriteSceneChoices(self) -> list[dict[str, Any]]:
         """All scene sources that a favourite may reference.
 
-        A favourite in the Flet app can reuse both a WiZ scene and a local
-        custom scene.  Keep that distinction here so the UI never asks users
+        A favourite can reuse both a WiZ scene and a local custom scene.
+        Keep that distinction here so the UI never asks users
         to translate a scene into a numeric protocol ID.
         """
         choices = [
@@ -2335,7 +2334,7 @@ class WizzBridge(QObject):
 
     @Slot(result=str)
     def exportHotkeys(self) -> str:
-        """Return the portable configuration used by the Flet export dialog."""
+        """Return the portable hotkey configuration for the Qt export dialog."""
         return self._hotkeys_manager.export_json()
 
     @Slot()

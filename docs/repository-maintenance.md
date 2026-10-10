@@ -31,11 +31,11 @@ moving files solely to alter the chart would obscure their purpose.
 - `core/` owns light control, platform integration, and reusable services.
 - `config/` owns persisted settings and migrations; its JSON examples are
   public templates, while real JSON files may contain private device data.
-- `ui/` and `main.py`'s legacy Flet entry are retained for historical tests.
-  They are not bundled in Qt releases. Removing them should be a separate
-  change after replacing any still-useful coverage.
-- `scripts/build_windows.ps1` and `scripts/build_linux.sh` are legacy build
-  entry points; official builds use `scripts/build_qt_*`.
+- `main.py` is a small compatibility launcher for Qt; the former Flet UI and
+  build scripts were retired after auditing their production references.
+- `config/paths.py` retains detection and migration of old Flet storage, so
+  removing the old UI does not discard existing user settings.
+- Official builds use `scripts/build_qt_*`.
 - `THIRD_PARTY_NOTICES.md` is the single notice index. License texts live in
   `licenses/` and `assets/fonts/`. Notices do not establish a license for
   the project's own source.

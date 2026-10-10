@@ -86,7 +86,7 @@ def test_virtual_runtime_restores_tray_after_old_qa_profile_disabled_it():
 
 def test_packaged_qt_build_ignores_virtual_light_request(monkeypatch):
     monkeypatch.setenv(ENV_NAME, "3")
-    monkeypatch.setattr(dev_virtual_lights, "is_flet_build", lambda: True)
+    monkeypatch.setattr(dev_virtual_lights, "is_packaged_desktop_build", lambda: True)
     sentinel = object()
     monkeypatch.setattr(run, "LightController", lambda: sentinel)
 

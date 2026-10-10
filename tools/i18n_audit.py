@@ -13,9 +13,7 @@ from localization.catalogs import CATALOGS
 from localization.manager import format_fields
 
 SCAN_PATHS = (
-    ROOT / "main.py",
-    ROOT / "ui",
-    ROOT / "core" / "background",
+    ROOT / "qt_ui",
 )
 TEXT_CALLS = {
     "Text",
@@ -126,7 +124,7 @@ def main() -> int:
 
     findings = hardcoded_ui_strings()
     print(f"Catalogs OK: {len(CATALOGS['en'])} keys · en/es")
-    print(f"Potential hardcoded UI strings: {len(findings)}")
+    print(f"Potential hardcoded Python UI strings: {len(findings)} (QML is not scanned)")
     for finding in findings:
         print(f"  {finding}")
 

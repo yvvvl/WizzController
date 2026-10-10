@@ -1,5 +1,3 @@
-import importlib
-import os
 from pathlib import Path
 
 from core.platform.capabilities import CapabilityStatus, CapabilityState, DesktopCapabilities
@@ -10,7 +8,6 @@ from core.platform.linux import (
     LinuxWindowService,
     detect_linux_capabilities,
 )
-from core.background.tray_service import TrayService
 
 
 def test_linux_capabilities_are_explicit_and_do_not_touch_network(monkeypatch):
@@ -181,65 +178,3 @@ def test_linux_tray_backend_can_run_foreground_loop():
     assert created[0].started
     assert not backend.running
     assert backend.icon is None
-
-
-def test_tray_service_prefers_appindicator_on_ubuntu_gnome(monkeypatch):
-    tray_module = importlib.import_module("core.background.tray_service")
-    monkeypatch.setattr(tray_module.sys, "platform", "linux")
-    monkeypatch.delenv("PYSTRAY_BACKEND", raising=False)
-    monkeypatch.setenv("XDG_SESSION_TYPE", "wayland")
-    monkeypatch.setenv("XDG_CURRENT_DESKTOP", "ubuntu:GNOME")
-
-    TrayService._configure_linux_backend()
-
-    assert os.environ["PYSTRAY_BACKEND"] == "appindicator"
-
-
-def test_tray_service_keeps_explicit_linux_backend_choice(monkeypatch):
-    tray_module = importlib.import_module("core.background.tray_service")
-    monkeypatch.setattr(tray_module.sys, "platform", "linux")
-    monkeypatch.setenv("PYSTRAY_BACKEND", "xorg")
-    monkeypatch.setenv("XDG_SESSION_TYPE", "wayland")
-
-    TrayService._configure_linux_backend()
-
-    assert os.environ["PYSTRAY_BACKEND"] == "xorg"
-
-
-def test_linux_indicator_icon_is_compact_and_opaque(monkeypatch):
-    from PIL import Image, ImageDraw
-
-    tray_module = importlib.import_module("core.background.tray_service")
-    monkeypatch.setattr(tray_module.sys, "platform", "linux")
-
-    tray = TrayService(object(), object(), object())
-    tray._Image = Image
-    tray._ImageDraw = ImageDraw
-    image = tray._make_icon()
-
-    assert image.size == (64, 64)
-    assert image.mode == "RGBA"
-    assert image.getpixel((0, 0))[3] == 255
-
-
-def test_linux_tray_service_runs_appindicator_loop_in_worker_thread(monkeypatch):
-    import threading
-
-    tray_module = importlib.import_module("core.background.tray_service")
-    tray = TrayService(object(), object(), object())
-    started = threading.Event()
-
-    class _Icon:
-        def run(self):
-            started.set()
-
-        def run_detached(self):  # pragma: no cover - must not be chosen on Linux
-            raise AssertionError("Linux must own a worker loop")
-
-    tray.icon = _Icon()
-    monkeypatch.setattr(tray_module.sys, "platform", "linux")
-
-    tray._start_icon_loop()
-
-    assert started.wait(1.0)
-    assert tray._thread is not None

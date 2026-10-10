@@ -18,7 +18,7 @@ from localization import LocalizationManager
 class AppRuntimeManager:
     """Configuración de arranque, bandeja e inicio de sesión del escritorio.
 
-    En desarrollo guarda en ``config/json``. En un build Flet usa el storage
+    En desarrollo guarda en ``config/json``. En una build usa el directorio
     persistente de la aplicación y resuelve el launcher real para el registro
     de inicio de Windows.
     """
@@ -311,9 +311,9 @@ def _desktop_exec_path(path: Path) -> str:
 def resolve_packaged_executable() -> Path | None:
     """Resuelve el launcher de producción, no el Python embebido.
 
-    ``flet build`` puede ejecutar el código Python dentro del proceso principal
-    o en un hijo. Se inspecciona el módulo actual, ``sys.executable`` y la cadena
-    de padres; se prioriza un ejecutable cuyo nombre contenga ``wizz``.
+    Se inspecciona el módulo actual, ``sys.executable`` y la cadena de padres;
+    se prioriza un ejecutable cuyo nombre contenga ``wizz``. La ruta de
+    Flet se reconoce solo para instalaciones empaquetadas anteriores.
     """
 
     explicit = str(os.environ.get("WIZZ_EXECUTABLE") or "").strip()

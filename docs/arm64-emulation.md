@@ -30,8 +30,8 @@ imagen Ubuntu ARM64 bajo emulación.
 - El inicio básico de la aplicación en una sesión gráfica ARM64 cuando el
   contenedor tenga un servidor gráfico disponible.
 
-Para crear el artefacto definitivo, usa el flujo **Linux beta build** de
-GitHub Actions. Selecciona el resultado `linux-arm64`; se compila en el
+Para crear el artefacto definitivo, usa el trabajo `build-linux` del flujo
+oficial de GitHub Actions. Selecciona el resultado `linux-arm64`; se compila en el
 ejecutor ARM64, no mediante compilación cruzada desde x64.
 
 ## Prueba en un equipo ARM64 real
@@ -40,7 +40,7 @@ En Ubuntu ARM64, instala las dependencias de desarrollo, crea el entorno
 Python y ejecuta la compilación nativa:
 
 ```bash
-bash scripts/build_linux.sh --arch arm64
+bash scripts/build_qt_linux.sh --arch arm64
 ```
 
 El script rechaza intencionalmente una arquitectura distinta a la del sistema.

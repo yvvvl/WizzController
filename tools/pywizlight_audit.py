@@ -168,12 +168,6 @@ def _classification(root: Path, mentions: list[dict[str, Any]]) -> dict[str, Any
         and re.search(r"^\s*(from|import)\s+pywizlight", item["text"])
         for item in mentions
     )
-    ui_imports = [
-        item
-        for item in mentions
-        if item["path"].startswith("ui/")
-        and re.search(r"^\s*(from|import)\s+pywizlight", item["text"])
-    ]
     pinned = any(_pins(root).values())
     required = bool(direct_color_import or pinned)
     return {
@@ -188,7 +182,6 @@ def _classification(root: Path, mentions: list[dict[str, Any]]) -> dict[str, Any
             else "No direct evidence"
         ),
         "direct_color_import": direct_color_import,
-        "ui_imports": ui_imports,
     }
 
 

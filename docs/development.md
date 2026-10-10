@@ -62,7 +62,7 @@ The [contribution guide](../CONTRIBUTING.md) and
 [repository policy](repository-maintenance.md) explain code ownership, safe
 cleanup, and the files that must remain local.
 
-## Current and legacy paths
+## Current source paths
 
 | Path | Role |
 | --- | --- |
@@ -71,13 +71,11 @@ cleanup, and the files that must remain local.
 | `scripts/build_qt_windows.ps1`, `scripts/build_qt_linux.sh` | Official Windows/Linux release builds. |
 | `.github/workflows/build-windows.yml` | Official three-platform release pipeline and tag publisher. |
 | `scripts/build_qt_macos.sh` | Experimental unsigned Mac smoke build only. |
-| `ui/`, `main.py`'s `run_flet_legacy()` | Retained Flet source for migration/historical tests; not a supported user UI. `python main.py` dispatches to Qt. |
-| `scripts/build_windows.ps1`, `scripts/build_linux.sh` | Retired Flet build paths; do not use for a public release. |
+| `main.py` | Compatibility launcher; `python main.py` dispatches to Qt. |
 
-Flet is an optional `legacy-flet` dependency in `pyproject.toml` and is
-installed by the development requirements for historical tests. It is not
-bundled in Qt releases. Do not delete the legacy code or its tests until
-migration coverage and dependencies are explicitly reviewed.
+The former Flet UI, its build scripts, and its UI-only tests have been retired.
+The app still recognizes old Flet storage locations to migrate user data;
+this compatibility is covered by `tests/test_app_paths.py`.
 
 The active architecture is:
 

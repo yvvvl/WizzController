@@ -114,7 +114,7 @@ def main() -> int:
     print(f"Proyecto: {ROOT}")
     print()
 
-    for mod, label in (("flet", "Flet"), ("pystray", "pystray/tray"), ("PIL", "Pillow/icono"), ("keyboard", "keyboard fallback/grabación")):
+    for mod, label in (("PySide6", "Qt/PySide6"), ("pystray", "pystray/tray"), ("PIL", "Pillow/icono"), ("keyboard", "keyboard fallback/grabación")):
         ok, detail = _module_ok(mod)
         _print_check(label, ok, detail)
 
@@ -146,7 +146,7 @@ def main() -> int:
     print()
     tray_ready = runtime.get("tray_enabled", True) and _module_ok("pystray")[0] and _module_ok("PIL")[0]
     _print_check("Tray listo para iniciar", tray_ready, "requiere app corriendo para prueba visual")
-    print("Tip: prueba visual real = python main.py, luego cerrar con X, restaurar desde bandeja, usar Salir.")
+    print("Tip: prueba visual real = python -m qt_ui.run, luego cerrar con X, restaurar desde bandeja, usar Salir.")
 
     if args.register_test:
         print()

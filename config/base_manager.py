@@ -13,8 +13,8 @@ from .paths import config_dir
 class JsonManager:
     """Base thread-safe para persistencia JSON.
 
-    En desarrollo conserva ``config/json``. En el ejecutable usa el storage
-    persistente que Flet expone para la aplicación.
+    En desarrollo conserva ``config/json``. En el ejecutable usa el directorio
+    persistente de la aplicación.
     """
 
     def __init__(

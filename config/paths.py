@@ -1,4 +1,4 @@
-"""Rutas persistentes y assets para desarrollo y builds de Flet.
+"""Rutas persistentes y assets para desarrollo y builds de escritorio.
 
 Soporte multiplataforma (Linux, Windows, macOS).
 """
@@ -22,14 +22,7 @@ def project_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
-def assets_dir() -> Path:
-    configured = str(os.environ.get("FLET_ASSETS_DIR") or "").strip()
-    if configured:
-        return Path(configured).expanduser().resolve()
-    return (project_root() / "assets").resolve()
-
-
-def is_flet_build() -> bool:
+def is_packaged_desktop_build() -> bool:
     executable_name = Path(sys.executable).name.lower()
     executable_dir = Path(sys.executable).resolve().parent
     packaged_marker = executable_dir / f"{APP_ARTIFACT}.exe"
@@ -67,7 +60,7 @@ def config_dir() -> Path:
     # 2. Windows packaged builds always use LocalAppData.  Flet sets
     # FLET_APP_STORAGE_DATA to its Documents-based folder, but WizZ's release
     # contract is one predictable Windows location that survives upgrades.
-    if is_flet_build():
+    if is_packaged_desktop_build():
         if sys.platform.startswith("win"):
             local_app_data = os.environ.get(
                 "LOCALAPPDATA", str(Path.home() / "AppData" / "Local")
@@ -102,15 +95,15 @@ def logs_dir() -> Path:
     """Directorio para los logs de la aplicación."""
     flet_storage = str(os.environ.get("FLET_APP_STORAGE_DATA") or "").strip()
 
-    if sys.platform.startswith("win") and is_flet_build():
+    if sys.platform.startswith("win") and is_packaged_desktop_build():
         local_app_data = os.environ.get(
             "LOCALAPPDATA", str(Path.home() / "AppData" / "Local")
         )
         target = Path(local_app_data) / APP_ARTIFACT / "logs"
-    elif sys.platform.startswith("linux") and is_flet_build():
+    elif sys.platform.startswith("linux") and is_packaged_desktop_build():
         xdg_state = os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local" / "state"))
         target = Path(xdg_state) / APP_ARTIFACT / "logs"
-    elif sys.platform == "darwin" and is_flet_build():
+    elif sys.platform == "darwin" and is_packaged_desktop_build():
         target = Path.home() / "Library" / "Logs" / APP_ARTIFACT
     elif flet_storage:
         target = Path(flet_storage).expanduser().resolve() / "logs"
@@ -119,11 +112,6 @@ def logs_dir() -> Path:
 
     target.mkdir(parents=True, exist_ok=True)
     return target
-
-
-def console_log_path() -> Path | None:
-    value = str(os.environ.get("FLET_APP_CONSOLE") or "").strip()
-    return Path(value).expanduser().resolve() if value else None
 
 
 def executable_dir() -> Path:

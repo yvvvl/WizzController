@@ -13,7 +13,7 @@ import threading
 import time
 from typing import Any
 
-from config.paths import is_flet_build
+from config.paths import is_packaged_desktop_build
 from core.light_controller import LightController
 from core.wiz_capabilities import Capabilities
 from core import wiz_scenes
@@ -25,7 +25,7 @@ MAX_VIRTUAL_BULBS = 12
 
 def virtual_bulb_count_from_environment() -> int:
     """Return an opt-in source-run-only simulator count, otherwise zero."""
-    if is_flet_build():
+    if is_packaged_desktop_build():
         return 0
     raw = str(os.environ.get(ENV_NAME) or "").strip()
     if not raw:

@@ -21,14 +21,9 @@ dependencies = [
   "PyGObject==3.48.2; sys_platform == 'linux'",
 ]
 
-[project.optional-dependencies]
-# Retained only for developers who need to inspect or migrate the old UI.
-legacy-flet = ["flet==0.85.2"]
-
 [tool.setuptools.packages.find]
-# Explicit discovery makes optional extras installable from this flat-layout
-# repository without treating assets, logs or documentation as Python packages.
-include = ["core*", "config*", "ui*", "qt_ui*", "localization*"]
+# Explicit discovery excludes assets, logs and documentation from Python packages.
+include = ["core*", "config*", "qt_ui*", "localization*"]
 
 [tool.setuptools.package-data]
 qt_ui = ["qml/*.qml", "qml/qmldir"]
