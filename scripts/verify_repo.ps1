@@ -11,6 +11,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Python compilation failed." }
     & $Python tools/repository_hygiene.py
     if ($LASTEXITCODE -ne 0) { throw "Repository hygiene check failed." }
+    & $Python tools/i18n_audit.py --strict
+    if ($LASTEXITCODE -ne 0) { throw "Translation audit failed." }
     & $Python -m ruff check . --select E9,F63,F7,F82
     if ($LASTEXITCODE -ne 0) { throw "Critical Python lint check failed." }
     & $Python -m pytest -q

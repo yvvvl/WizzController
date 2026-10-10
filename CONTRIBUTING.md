@@ -42,6 +42,7 @@ then run `scripts/verify_repo.ps1` on Windows or the equivalent commands:
 python tools/repository_hygiene.py
 python -m ruff check . --select E9,F63,F7,F82
 python -m compileall -q main.py app_meta.py core config qt_ui tests tools
+python tools/i18n_audit.py --strict
 python -m pytest -q
 git diff --check
 ```

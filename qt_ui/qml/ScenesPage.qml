@@ -14,6 +14,13 @@ Item {
     property string deletingCustomUid: ""
     property string deletingCustomName: ""
     property bool openEditorOnLoad: false
+    property var quickScenePresets: [
+        { title: root.t("Fiesta", "Party"), value: 4, color: "#ec4899" },
+        { title: root.t("Océano", "Ocean"), value: 6, color: "#38bdf8" },
+        { title: root.t("Relax", "Relax"), value: 16, color: "#8b5cf6" },
+        { title: root.t("TV / Cine", "TV / Cinema"), value: 18, color: "#7c3aed" },
+        { title: root.t("Día", "Daylight"), value: 20, color: "#d8efff" }
+    ]
 
     function t(spanish, english) { return wizz.language === "en" ? english : spanish }
 
@@ -426,13 +433,7 @@ Item {
                 spacing: 8
                 visible: customTypeBox.currentIndex === 2
                 Repeater {
-                    model: [
-                        { title: "Fiesta", value: 4, color: "#ec4899" },
-                        { title: "Oceano", value: 6, color: "#38bdf8" },
-                        { title: "Relax", value: 16, color: "#8b5cf6" },
-                        { title: "TV / Cine", value: 18, color: "#7c3aed" },
-                        { title: "Dia", value: 20, color: "#d8efff" }
-                    ]
+                    model: root.quickScenePresets
                     delegate: PressSurface {
                         required property var modelData
                         Layout.preferredWidth: 82; Layout.preferredHeight: 32; radius: 16; accentColor: modelData.color

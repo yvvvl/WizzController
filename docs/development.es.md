@@ -49,7 +49,7 @@ Antes de proponer cambios, ejecuta:
 ```bash
 python -m compileall -q main.py app_meta.py core config qt_ui localization tests tools
 python -m pytest -q
-python tools/i18n_audit.py
+python tools/i18n_audit.py --strict
 git diff --check
 ```
 
@@ -59,6 +59,11 @@ reales, escritorio y actualizaciones empaquetadas; las pruebas automatizadas
 no reemplazan esas comprobaciones. Consulta la [guía para contribuir](../CONTRIBUTING.md)
 y la [política del repositorio](repository-maintenance.md) para conocer los
 límites del código y qué archivos deben mantenerse solo en tu equipo.
+
+La auditoría revisa los catálogos, los textos literales de Python y QML, y
+que cada llamada `root.t(es, en)` tenga ambos idiomas. No detecta todos los
+textos construidos con JavaScript ni desbordes visuales: al cambiar textos o
+distribución, comprueba ambos idiomas en la aplicación.
 
 ## Rutas del código vigente
 
