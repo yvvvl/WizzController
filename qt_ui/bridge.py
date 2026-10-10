@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import json
 import logging
 import sys
@@ -38,9 +37,8 @@ from core import wiz_scenes
 from core.action_sequence import ActionSequenceExecutor
 from core.local_routine_scheduler import (
     LocalRoutineScheduler,
-    snapshot_scheduled_routine,
-    validate_scheduled_routine,
 )
+from core.routine_schedule_service import MissingScheduleGroup, save_schedule, start_scheduled_routine
 from core.update_checker import ReleaseInfo, is_update_available
 from core.update_client import ReleaseClient
 from core.update_installer import (
@@ -1604,29 +1602,10 @@ class WizzBridge(QObject):
             self.routineSchedulesChanged.emit()
 
     def _dispatch_scheduled_routine(self, schedule: dict[str, Any]) -> None:
-        catalog = {
-            str(routine.get("id") or ""): copy.deepcopy(routine)
-            for routine in self._routines_manager.get_routines()
-        }
-        routine = catalog.get(schedule["routine_id"])
-
-        def worker() -> None:
-            try:
-                if routine is None:
-                    raise ValueError("Routine was deleted")
-                snapshot = snapshot_scheduled_routine(routine, catalog.get)
-                self._executor.execute(snapshot, threaded=False, default_target=schedule["target"])
-                status = "succeeded"
-            except Exception as exc:
-                logging.getLogger(__name__).exception("Scheduled routine %s failed", schedule["id"])
-                status = "failed: " + str(exc)[:180]
-            self.routineScheduleFinished.emit(schedule["id"], schedule["last_occurrence"], status)
-
-        try:
-            threading.Thread(target=worker, name="wizz-routine-schedule", daemon=True).start()
-        except RuntimeError as exc:
-            logging.getLogger(__name__).error("Could not start scheduled routine worker: %s", exc)
-            self._finish_scheduled_routine(schedule["id"], schedule["last_occurrence"], "failed: worker unavailable")
+        start_scheduled_routine(
+            schedule, self._routines_manager, self._executor,
+            self.routineScheduleFinished.emit,
+        )
 
     @Slot(str, str, str)
     def _finish_scheduled_routine(self, uid: str, occurrence: str, status: str) -> None:
@@ -1641,18 +1620,18 @@ class WizzBridge(QObject):
 
     @Slot(str, str, str, str, str, bool, result=str)
     def upsertRoutineSchedule(self, uid: str, routine_id: str, time: str, days_json: str, target: str, enabled: bool) -> str:
-        routine = self._routines_manager.get_routine(routine_id)
-        if self._schedules_manager is None or not routine:
+        if self._schedules_manager is None or not self._routines_manager.get_routine(routine_id):
             return ""
         try:
-            validate_scheduled_routine(routine, self._routines_manager.get_routine)
-            if target.startswith("group:") and not self._routines_manager.get_light_group(target[6:]):
-                raise ValueError(self._ui("El grupo ya no existe.", "The group no longer exists."))
-            days = json.loads(days_json)
-            result = self._schedules_manager.upsert(uid, routine_id, time, days, target, enabled)
+            result = save_schedule(
+                self._schedules_manager, self._routines_manager,
+                uid, routine_id, time, days_json, target, enabled,
+            )
         except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
             message = str(exc)
-            if message.startswith("Unsupported scheduled step:"):
+            if isinstance(exc, MissingScheduleGroup):
+                message = self._ui("El grupo ya no existe.", "The group no longer exists.")
+            elif message.startswith("Unsupported scheduled step:"):
                 step = message.partition(":")[2].strip()
                 message = self._ui(
                     f"El paso «{step}» no se puede programar: depende del estado de la interfaz.",
