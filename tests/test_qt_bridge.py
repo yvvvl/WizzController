@@ -153,6 +153,47 @@ def test_qt_bridge_dispatches_due_schedule_to_virtual_lights(bridge, tmp_path):
     assert scheduler.tick(datetime(2026, 10, 5, 8, 15)) == 0
 
 
+def test_virtual_schedule_survives_bridge_restart_and_runs_once(qt_application, tmp_path):
+    controller = VirtualLightController(3)
+    controller.start()
+    bridges = []
+    moment = datetime(2026, 10, 5, 8, 15)
+    try:
+        first = WizzBridge(controller)
+        bridges.append(first)
+        first._schedule_timer.stop()
+        first._schedules_manager = RoutineSchedulesManager(tmp_path)
+        uid = first.upsertRoutineSchedule("", "study", "08:15", "[0]", "all", True)
+        assert uid
+        first.shutdown()
+
+        controller.apply_targeted_action({"type": "turn_off"}, "all")
+        second = WizzBridge(controller)
+        bridges.append(second)
+        second._schedule_timer.stop()
+        second._schedules_manager = RoutineSchedulesManager(tmp_path)
+        assert second.routineSchedules[0]["id"] == uid
+        changed = QSignalSpy(second.routineSchedulesChanged)
+        scheduler = LocalRoutineScheduler(second._schedules_manager, second._dispatch_scheduled_routine)
+        assert scheduler.tick(moment) == 1
+        assert changed.wait(5000)
+        assert second.routineSchedules[0]["last_status"] == "succeeded"
+        assert all(bulb["state"]["state"] for bulb in controller.bulbs.values())
+        second.shutdown()
+
+        third = WizzBridge(controller)
+        bridges.append(third)
+        third._schedule_timer.stop()
+        third._schedules_manager = RoutineSchedulesManager(tmp_path)
+        assert third.routineSchedules[0]["last_occurrence"] == "2026-10-05T08:15"
+        assert third.routineSchedules[0]["last_status"] == "succeeded"
+        assert LocalRoutineScheduler(third._schedules_manager, third._dispatch_scheduled_routine).tick(moment) == 0
+    finally:
+        for instance in bridges:
+            instance.shutdown()
+        controller.stop()
+
+
 def test_qt_bridge_windows_startup_requires_packaged_executable(bridge, monkeypatch, tmp_path):
     monkeypatch.setattr(bridge_module.sys, "platform", "win32")
     monkeypatch.setattr(bridge_module, "resolve_packaged_executable", lambda: None)
