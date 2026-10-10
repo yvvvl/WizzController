@@ -70,15 +70,22 @@ def test_qml_navigation_and_scene_presets_update_in_both_languages(tmp_path: Pat
     script = r'''
 from pathlib import Path
 
-from PySide6.QtCore import QObject, QUrl
+from PySide6.QtCore import QObject, QPointF, QUrl
+from PySide6.QtGui import QFont, QFontDatabase
 from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQuick import QQuickItem
 from PySide6.QtWidgets import QApplication
 
 from core.dev_virtual_lights import VirtualLightController
 from qt_ui.bridge import WizzBridge
 
 app = QApplication([])
-controller = VirtualLightController(1)
+font_id = QFontDatabase.addApplicationFont(str(Path.cwd() / "assets" / "fonts" / "InterVariable.ttf"))
+QFontDatabase.addApplicationFont(str(Path.cwd() / "assets" / "fonts" / "WizZInterStrong.ttf"))
+families = QFontDatabase.applicationFontFamilies(font_id)
+if families:
+    app.setFont(QFont(families[0], 11))
+controller = VirtualLightController(3)
 controller.start()
 bridge = WizzBridge(controller)
 engine = QQmlApplicationEngine()
@@ -89,6 +96,15 @@ engine.load(QUrl.fromLocalFile(str(root / "qt_ui" / "qml" / "Main.qml")))
 assert engine.rootObjects(), "Main.qml failed to load"
 window = engine.rootObjects()[0]
 window.show()
+window.resize(820, 600)
+bridge.setPreviewLanguage("es")
+for _ in range(5):
+    app.processEvents()
+home_status = window.findChild(QObject, "homeStatusTitle")
+assert home_status is not None
+assert home_status.property("implicitWidth") <= home_status.property("width"), (
+    home_status.property("text"), home_status.property("implicitWidth"), home_status.property("width")
+)
 window.setProperty("currentPage", 2)
 for _ in range(5):
     app.processEvents()
@@ -126,6 +142,22 @@ assert header_text.property("y") + header_text.property("height") <= actions.pro
     header_text.property("y"), header_text.property("height"), actions.property("y")
 )
 assert actions.property("y") + actions.property("height") <= header.property("height")
+
+# The routine editor must keep its Save action inside the dialog and the
+# viewport, even when multiple lights add a target row to each step.
+popup = window.findChild(QObject, "routineEditorPopup")
+save = window.findChild(QQuickItem, "routineSaveButton")
+assert popup is not None and save is not None
+for language in ("es", "en"):
+    bridge.setPreviewLanguage(language)
+    routines_page.openNew()
+    for _ in range(5):
+        app.processEvents()
+    save_bottom = save.mapToScene(QPointF(0, save.height())).y()
+    dialog_bottom = popup.property("y") + popup.property("height")
+    assert save_bottom <= dialog_bottom, (language, save_bottom, dialog_bottom)
+    assert dialog_bottom <= window.height(), (language, dialog_bottom, window.height())
+    popup.close()
 
 window.close()
 bridge.shutdown()

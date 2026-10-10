@@ -257,7 +257,7 @@ ApplicationWindow {
                         }
                         Item { Layout.fillWidth: true }
                         PressSurface {
-                            Layout.preferredWidth: 236; implicitHeight: 54; radius: 18; accentColor: Theme.success
+                            Layout.preferredWidth: Math.min(340, Math.max(300, homeStatusTitle.implicitWidth + 90)); implicitHeight: 54; radius: 18; accentColor: Theme.success
                             onClicked: quickPanel.visible ? quickPanel.hide() : quickPanel.reveal()
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 14; spacing: 10
@@ -265,7 +265,7 @@ ApplicationWindow {
                                 ColumnLayout {
                                      Layout.fillWidth: true
                                     spacing: 0
-                                     Text { Layout.fillWidth: true; text: wizz.statusLine; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold; elide: Text.ElideRight }
+                                     Text { id: homeStatusTitle; objectName: "homeStatusTitle"; Layout.fillWidth: true; text: wizz.statusLine; color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold; elide: Text.ElideRight }
                                      Text { Layout.fillWidth: true; text: wizz.targetLine; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; elide: Text.ElideRight }
                                 }
                                 AppIcon { Layout.preferredWidth: 16; Layout.preferredHeight: 16; name: "arrowRight"; color: Theme.muted }
