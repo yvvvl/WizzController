@@ -25,6 +25,16 @@ source. The small "Other" slice includes supporting assets and formats.
 These percentages do not affect the app or make the repository less clean;
 moving files solely to alter the chart would obscure their purpose.
 
+The PowerShell files have distinct roles: `build_qt_windows.ps1` and
+`installer_windows.iss` create Windows release artifacts;
+`install_windows.ps1` is copied as an optional release installer;
+`test_windows_build.ps1` validates a packaged build; and
+`verify_repo.ps1` runs local quality checks. End users normally use the
+packaged app or setup executable, not these source-tree scripts. The old
+`clean_runtime_files.ps1` was removed because nothing invoked it and its
+recursive deletion was unnecessary; ignored caches remain local and are not
+included in Git or release packages.
+
 ## Current code ownership
 
 - `qt_ui/` is the supported interface and desktop runtime.
