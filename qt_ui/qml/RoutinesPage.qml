@@ -253,14 +253,21 @@ Item {
         spacing: 16
 
         Item {
-            width: parent.width; height: 48
+            id: routinesHeader
+            objectName: "routinesHeader"
+            width: parent.width; height: width < 830 ? 100 : 48
             Column {
-                anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; spacing: 3
+                id: headerText
+                objectName: "routinesHeaderText"
+                width: routinesHeader.width < 830 ? routinesHeader.width : Math.max(0, routinesHeader.width - headerActions.width - 12)
+                anchors.left: parent.left; anchors.top: parent.top; spacing: 3
                 Text { text: root.t("Rutinas", "Routines"); color: Theme.text; font.family: Theme.displayFont; font.pixelSize: Theme.pageTitleSize; font.weight: Theme.pageTitleWeight }
-                Text { text: root.t("Secuencias visuales para acciones rápidas y hotkeys", "Visual sequences for quick actions and hotkeys"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
+                Text { width: headerText.width; elide: Text.ElideRight; text: root.t("Secuencias visuales para acciones rápidas y hotkeys", "Visual sequences for quick actions and hotkeys"); color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: 13 }
             }
             Row {
-                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing: 10
+                id: headerActions
+                objectName: "routinesHeaderActions"
+                x: routinesHeader.width - width; y: routinesHeader.width < 830 ? 58 : 5; spacing: 10
             PressSurface {
                 width: 150; height: 38; radius: 19
                 color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.primary

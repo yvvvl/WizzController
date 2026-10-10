@@ -110,6 +110,23 @@ for language, expected, preset_names in (
     titles = {item["title"] for item in scenes_page.property("quickScenePresets").toVariant()}
     assert preset_names <= titles, (language, titles)
 
+# At the smallest supported window size, the routine header must put its
+# actions below the copy rather than painting over the subtitle.
+window.resize(820, 600)
+window.setProperty("currentPage", 4)
+for _ in range(5):
+    app.processEvents()
+routines_page = window.findChild(QObject, "routinesPage")
+assert routines_page is not None
+header = routines_page.findChild(QObject, "routinesHeader")
+header_text = routines_page.findChild(QObject, "routinesHeaderText")
+actions = routines_page.findChild(QObject, "routinesHeaderActions")
+assert header is not None and header_text is not None and actions is not None
+assert header_text.property("y") + header_text.property("height") <= actions.property("y"), (
+    header_text.property("y"), header_text.property("height"), actions.property("y")
+)
+assert actions.property("y") + actions.property("height") <= header.property("height")
+
 window.close()
 bridge.shutdown()
 controller.stop()
