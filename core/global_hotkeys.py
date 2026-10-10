@@ -62,6 +62,11 @@ class WindowsNativeHotkeyBackend:
         "[": 0xDB,
         "]": 0xDD,
         "\\": 0xDC,
+        "numpadmultiply": 0x6A,
+        "numpadplus": 0x6B,
+        "numpadminus": 0x6D,
+        "numpaddecimal": 0x6E,
+        "numpaddivide": 0x6F,
     }
 
     def __init__(self) -> None:

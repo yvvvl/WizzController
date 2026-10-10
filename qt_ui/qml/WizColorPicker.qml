@@ -4,11 +4,18 @@ import QtQuick.Layouts
 
 Item {
     id: root
-    implicitHeight: 446
+    implicitHeight: selectorContent.implicitHeight
+    property bool selectionOnly: false
+    property bool showColorSection: true
+    property bool showWhiteSection: true
+    property string selectedHex: "#FF0000"
+    property int selectedKelvin: 2700
+    signal colorSelected(string hex)
+    signal whiteSelected(int kelvin)
     property real hue: 0.67
     property real whiteness: 0.06
-    property int kelvin: wizz.whiteKelvin
-    property color previewColor: wizz.colorHex
+    property int kelvin: selectionOnly ? selectedKelvin : wizz.whiteKelvin
+    property color previewColor: selectionOnly ? selectedHex : wizz.colorHex
     property int pendingRed: 255
     property int pendingGreen: 255
     property int pendingBlue: 255
@@ -20,14 +27,44 @@ Item {
         return "#" + channel(red) + channel(green) + channel(blue)
     }
 
+    function syncSelectionMarker(hex) {
+        if (!selectionOnly || !/^#[0-9a-fA-F]{6}$/.test(String(hex))) return
+        const color = Qt.color(hex)
+        const red = color.r; const green = color.g; const blue = color.b
+        const high = Math.max(red, green, blue)
+        const low = Math.min(red, green, blue)
+        const spread = high - low
+        let position = 0
+        if (spread > 0) {
+            if (high === red) position = ((green - blue) / spread + 6) % 6
+            else if (high === green) position = (blue - red) / spread + 2
+            else position = (red - green) / spread + 4
+        }
+        hue = position / 6
+        whiteness = 1 - low
+    }
+
+    onSelectedHexChanged: syncSelectionMarker(selectedHex)
+    Component.onCompleted: syncSelectionMarker(selectedHex)
+
     function flushPreview() {
         if (rgbDirty) {
             rgbDirty = false
-            wizz.setRgb(pendingRed, pendingGreen, pendingBlue)
+            if (selectionOnly) {
+                selectedHex = String(previewColor).toUpperCase()
+                colorSelected(selectedHex)
+            } else {
+                wizz.setRgb(pendingRed, pendingGreen, pendingBlue)
+            }
         }
         if (whiteDirty) {
             whiteDirty = false
-            wizz.setWhite(kelvin)
+            if (selectionOnly) {
+                selectedKelvin = kelvin
+                whiteSelected(kelvin)
+            } else {
+                wizz.setWhite(kelvin)
+            }
         }
     }
 
@@ -48,27 +85,46 @@ Item {
     function sendHex(hex) {
         var value = hex.substring(1)
         root.previewColor = hex
+        if (selectionOnly) {
+            selectedHex = hex.toUpperCase()
+            colorSelected(selectedHex)
+            return
+        }
         wizz.setRgb(parseInt(value.substring(0, 2), 16),
                     parseInt(value.substring(2, 4), 16),
                     parseInt(value.substring(4, 6), 16))
         wizz.commitCurrentColor()
     }
 
+    function chooseKelvin(value) {
+        root.kelvin = Math.max(2200, Math.min(6500, Math.round(value)))
+        if (selectionOnly) {
+            selectedKelvin = root.kelvin
+            whiteSelected(root.kelvin)
+        } else {
+            wizz.setWhite(root.kelvin)
+            wizz.commitWhite(root.kelvin)
+        }
+    }
+
     ColumnLayout {
+        id: selectorContent
         anchors.fill: parent
         spacing: 10
 
         RowLayout {
+            visible: root.showColorSection
             Layout.fillWidth: true
             Text { text: wizz.language === "en" ? "HUE / SATURATION PALETTE" : "PALETA HUE / PUREZA"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
             Item { Layout.fillWidth: true }
             Text { text: "HEX"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
         }
-        Text { text: wizz.language === "en" ? "Horizontal: hue · vertical: perceptual saturation · no black" : "Horizontal: matiz · vertical: pureza perceptual · sin negro"; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize }
+        Text { visible: root.showColorSection; text: wizz.language === "en" ? "Horizontal: hue · vertical: perceptual saturation · no black" : "Horizontal: matiz · vertical: pureza perceptual · sin negro"; color: Theme.faint; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize }
 
         Rectangle {
             id: spectrum
             objectName: "colorSpectrum"
+            visible: root.showColorSection
             Layout.fillWidth: true
             Layout.preferredHeight: Math.max(142, width / 3)
             radius: 14
@@ -109,7 +165,7 @@ Item {
                 preventStealing: true
                 onPressed: (mouse) => updateColor(mouse.x, mouse.y)
                 onPositionChanged: (mouse) => { if (pressed) updateColor(mouse.x, mouse.y) }
-                onReleased: { root.flushPreview(); wizz.commitCurrentColor() }
+                onReleased: { root.flushPreview(); if (!root.selectionOnly) wizz.commitCurrentColor() }
                 function updateColor(px, py) {
                     root.hue = Math.max(0, Math.min(1, px / width))
                     root.whiteness = Math.max(0, Math.min(1, py / height))
@@ -136,14 +192,16 @@ Item {
         Connections {
             target: wizz
             function onColorChanged() {
-                if (!spectrumPointer.pressed)
+                if (!root.selectionOnly && !spectrumPointer.pressed)
                     root.previewColor = wizz.colorHex
             }
         }
 
         RowLayout {
+            visible: root.showColorSection
             Layout.fillWidth: true; spacing: 10
             PressSurface {
+                visible: !root.selectionOnly
                 Layout.preferredWidth: 132; Layout.preferredHeight: 36; radius: 18
                 color: wizz.currentFavoriteSaved && wizz.colorMode === "rgb" ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.20) : Theme.cardHi
                 accentColor: Theme.primary
@@ -159,10 +217,12 @@ Item {
             Item { Layout.fillWidth: true }
         }
 
-        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.stroke }
-        Text { text: wizz.language === "en" ? "CCT WHITES" : "BLANCOS CCT"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
+        Rectangle { visible: root.showColorSection && root.showWhiteSection; Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.stroke }
+        Text { visible: root.showWhiteSection; text: wizz.language === "en" ? "CCT WHITES" : "BLANCOS CCT"; color: Theme.muted; font.family: Theme.uiFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
         Rectangle {
             id: cctTrack
+            objectName: "whiteCctTrack"
+            visible: root.showWhiteSection
             Layout.fillWidth: true; Layout.preferredHeight: 34; radius: 12
             gradient: Gradient {
                 orientation: Gradient.Horizontal
@@ -171,14 +231,16 @@ Item {
                 GradientStop { position: 1; color: "#d8efff" }
             }
             Rectangle { x: Math.max(0, Math.min(parent.width-width, (root.kelvin-2200)/4300*parent.width-width/2)); y: 5; width: 24; height: 24; radius: 12; color: "#fff"; border.width: 2; border.color: "#b6a58e" }
-            MouseArea { anchors.fill: parent; preventStealing: true; onPressed: (mouse) => updateWhite(mouse.x); onPositionChanged: (mouse) => { if (pressed) updateWhite(mouse.x) }; onReleased: { root.flushPreview(); wizz.commitWhite(root.kelvin) } function updateWhite(px) { root.kelvin = Math.round(2200 + Math.max(0,Math.min(1,px/width))*4300); root.whiteDirty = true; root.schedulePreview() } }
+            MouseArea { anchors.fill: parent; preventStealing: true; onPressed: (mouse) => updateWhite(mouse.x); onPositionChanged: (mouse) => { if (pressed) updateWhite(mouse.x) }; onReleased: { root.flushPreview(); if (!root.selectionOnly) wizz.commitWhite(root.kelvin) } function updateWhite(px) { root.kelvin = Math.round(2200 + Math.max(0,Math.min(1,px/width))*4300); root.whiteDirty = true; root.schedulePreview() } }
         }
         Flow {
             id: presetFlow
+            visible: root.showWhiteSection
             Layout.fillWidth: true
             Layout.preferredHeight: childrenRect.height
             spacing: 8
             PressSurface {
+                visible: !root.selectionOnly
                 width: 132; height: 36; radius: 18
                 color: wizz.currentFavoriteSaved && wizz.colorMode === "white" ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.20) : Theme.cardHi
                 accentColor: Theme.primary
@@ -189,13 +251,13 @@ Item {
             PressSurface {
                 width: 116; height: 36; radius: 18
                 color: Theme.cardHi; accentColor: Theme.warning; outlined: true
-                onClicked: { root.kelvin = 2700; wizz.setWhite(2700); wizz.commitWhite(2700) }
+                onClicked: root.chooseKelvin(2700)
                 Row { anchors.centerIn: parent; spacing: 6; Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 11; height: 11; radius: 6; color: "#ffe0a5" } Text { text: wizz.language === "en" ? "Warm · 2700 K" : "Cálido · 2700 K"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold } }
             }
             PressSurface {
                 width: 140; height: 36; radius: 18
                 color: Theme.cardHi; accentColor: Theme.primary; outlined: true
-                onClicked: { root.kelvin = 6500; wizz.setWhite(6500); wizz.commitWhite(6500) }
+                onClicked: root.chooseKelvin(6500)
                 Row { anchors.centerIn: parent; spacing: 6; Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 11; height: 11; radius: 6; color: "#d8efff" } Text { text: wizz.language === "en" ? "Cool White · 6500 K" : "Blanco frío · 6500 K"; color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.DemiBold } }
             }
             Rectangle {

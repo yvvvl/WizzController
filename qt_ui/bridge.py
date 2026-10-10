@@ -211,7 +211,6 @@ class WizzBridge(QObject):
     updateInstallResultReceived = Signal(str, str)
     updateProgressReceived = Signal(int, str)
     quitRequested = Signal()
-    hotkeyCaptured = Signal(str)
     navigateRequested = Signal(int)
     controllerStateReceived = Signal(dict)
     languageChanged = Signal()
@@ -2361,15 +2360,14 @@ class WizzBridge(QObject):
         return self._hotkeys_manager.export_json()
 
     @Slot()
-    def recordHotkey(self) -> None:
-        if not self._hotkeys_manager.can_record:
-            self.hotkeyCaptured.emit("")
-            return
+    def beginHotkeyCapture(self) -> None:
+        self._hotkeys_manager.begin_capture()
+        self.hotkeysChanged.emit()
 
-        def capture() -> None:
-            self.hotkeyCaptured.emit(self._hotkeys_manager.read_hotkey_blocking() or "")
-
-        threading.Thread(target=capture, name="WizzQtHotkeyCapture", daemon=True).start()
+    @Slot()
+    def endHotkeyCapture(self) -> None:
+        self._hotkeys_manager.end_capture()
+        self.hotkeysChanged.emit()
 
     @Slot(int)
     def navigate(self, index: int) -> None:

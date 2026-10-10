@@ -1,5 +1,42 @@
 # Changelog
 
+## v1.5.0
+
+### Added
+
+- Schedule existing routines locally by time and weekday on Windows and Linux.
+  Choose a fixed bulb, group, or all lights as the default target; explicit
+  targets on routine steps take priority. Edit, pause, resume, or delete each
+  schedule and see its last result. Scheduling stays on your computer and uses
+  the existing WiZ LAN controls—no cloud account or external scheduler.
+- Set exact custom white temperatures (2200–6500 K) as Windows global hotkey
+  actions. Custom color and white hotkeys now use the same visual picker as
+  Color Studio; choosing a value does not change the light until the action
+  is tested or triggered.
+
+### Improved
+
+- Capture shortcuts as a single key chord instead of editable free text.
+  Distinguish the number row from Numpad digits and operators on Windows.
+  Numpad shortcuts require native Windows registration; the keyboard fallback
+  will not silently treat them as number-row shortcuts.
+- Rebuild searchable action lists with aligned group labels, a clear selected
+  state, keyboard navigation, more legible text, and smoother mouse-wheel
+  scrolling. Filtering no longer leaves blank rows or stale scroll positions.
+- Let the WizZ sidebar and title-bar marks follow the color of one online,
+  lit bulb. With several bulbs, or when that bulb is off, they use the theme
+  accent. The animation respects reduced-motion settings.
+- Fix Spanish characters in the detached Windows updater progress window.
+
+### Notes
+
+- The app must remain running for local schedules to execute; it may stay in
+  the tray. Missed times while the computer is off or asleep are not replayed.
+  See the [schedule guide](docs/local-routine-schedules.md) for targeting,
+  daylight-saving behavior, and supported routine steps.
+- Global hotkeys remain Windows-only. macOS is still experimental and has no
+  supported download in this release.
+
 ## v1.4.3
 
 ### Improved

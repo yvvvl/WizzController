@@ -31,20 +31,21 @@ Windows and Linux (x64 and ARM64) are supported desktop platforms. Linux
 packages target Ubuntu-compatible desktops and install per user without `sudo`.
 There is no supported macOS download in this release yet.
 
-> Latest stable release: **[v1.4.3](https://github.com/yvvvl/WizzController/releases/tag/v1.4.3) · build 3**
+> Latest stable release: **[v1.5.0](https://github.com/yvvvl/WizzController/releases/tag/v1.5.0) · build 4**
 
-### New in v1.4.3
+### New in v1.5.0
 
-- Decide independently whether the **X** and **minimize** button hide the app
-  in the system tray. Normal closing and taskbar minimization remain available.
-- Choose **Open window** or **Start in tray** at launch. If the desktop has no
-  tray, the app stays reachable, minimized in the taskbar.
-- The Linux Hotkeys page now clearly explains that global shortcuts are not
-  operational there yet; saved shortcuts are preserved.
+- Schedule routines locally by time and weekday, with a fixed light or group
+  target. Pause, edit, or remove schedules without a cloud service.
+- Create exact-Kelvin white hotkeys and choose custom colors with the Color
+  Studio picker. Windows shortcut capture now distinguishes Numpad keys.
+- Browse cleaner, more readable action lists with smooth scrolling and search.
+- Let the WizZ logo follow one active bulb's color or fall back to the theme
+  accent when several bulbs are present.
 
-See the [full v1.4.3 changelog](CHANGELOG.md#v143).
+See the [full v1.5.0 changelog](CHANGELOG.md#v150).
 
-## v1.4.3 release validation guide
+## v1.5.0 release validation guide
 
 This guide applies to the published native **Qt desktop** build. The Windows
 installer is the simplest option. If you prefer the portable ZIP, extract it
@@ -52,15 +53,15 @@ first and keep `_internal` next to `WizZDesktop.exe`.
 
 ### Install and launch commands (Windows PowerShell)
 
-Download `WizZDesktop-v1.4.3-windows-x64.zip` and its `.sha256` file from the
+Download `WizZDesktop-v1.5.0-windows-x64.zip` and its `.sha256` file from the
 release, then run the following. Change `$download` only if the files
 were saved somewhere other than Downloads.
 
 ```powershell
 $download = "$env:USERPROFILE\Downloads"
-$zip = Join-Path $download "WizZDesktop-v1.4.3-windows-x64.zip"
+$zip = Join-Path $download "WizZDesktop-v1.5.0-windows-x64.zip"
 $checksum = "$zip.sha256"
-$target = Join-Path $download "WizZDesktop-v1.4.3"
+$target = Join-Path $download "WizZDesktop-v1.5.0"
 
 Get-FileHash -LiteralPath $zip -Algorithm SHA256
 Get-Content -LiteralPath $checksum
@@ -91,7 +92,9 @@ Use real WiZ lights on the same LAN where possible. For every test, note
    applying each favorite.
 5. **Scenes and routines:** create a local scene using a name (not an ID). Make
    a routine with power, RGB color, CCT white, wait, and scene steps; reorder
-   steps, save, reopen, and execute it. Apply several named WiZ scenes.
+   steps, save, reopen, and execute it. Apply several named WiZ scenes. Set a
+   local schedule for the next minute, check its fixed target and last result,
+   then pause it and confirm it does not repeat.
 6. **Quick Panel:** open it from the tray menu (or a shortcut on Windows), use
    the bulb carousel, select bulbs on later pages, and verify that selection
    does not reset the current page. Test arrows/page buttons, placement beside
@@ -99,7 +102,9 @@ Use real WiZ lights on the same LAN where possible. For every test, note
    remembered placement after reopening, click-outside dismissal, and edited
    quick actions.
 7. **Hotkeys and tray:** on Windows, assign a non-conflicting shortcut, restart,
-   and check one action occurs per press. On Linux, confirm the Hotkeys page
+   and check one action occurs per press. Compare number-row `1` with
+   `Numpad 1` (Num Lock on), and try custom RGB and exact-Kelvin white actions.
+   On Linux, confirm the Hotkeys page
    explains that global shortcuts are not yet operational. On both systems,
    test restoring from the tray and the separate close/minimize settings.
 
@@ -115,13 +120,13 @@ Use real WiZ lights on the same LAN where possible. For every test, note
   and an FPS loop. Do not report these as failures;
   mark them **N/A**.
 
-### Run the v1.4.3 source (contributors only)
+### Run the v1.5.0 source (contributors only)
 
 Do not use these commands to validate a downloaded release: a source run is
 not the packaged executable. In PowerShell:
 
 ```powershell
-git clone --branch v1.4.3 --depth 1 https://github.com/yvvvl/WizzController.git
+git clone --branch v1.5.0 --depth 1 https://github.com/yvvvl/WizzController.git
 Set-Location .\WizzController
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-dev.txt
@@ -134,7 +139,7 @@ for that launch. Do not set it when testing your real light.
 
 ### Send a useful report
 
-Include app version (`1.4.3`), operating system and display scale, light model
+Include app version (`1.5.0`), operating system and display scale, light model
 and firmware, the exact steps, expected versus actual behavior, repeatability,
 and a short screenshot/video when useful. To inspect the local log without
 sharing private configuration files:
@@ -146,7 +151,7 @@ Get-Content "$env:LOCALAPPDATA\WizZDesktop\logs\wizz.log" -Tail 200
 Redact IP addresses, MAC addresses, access tokens, and private files before
 sharing a report.
 
-## Included in v1.4.3
+## Included in v1.5.0
 
 - Native Qt desktop app for Windows and Linux (x64 and ARM64), with English and
   Spanish UI.
@@ -226,8 +231,8 @@ you, you can support development through [GitHub Sponsors](https://github.com/sp
 ### Windows 10/11 x64
 
 1. Open the [latest release](https://github.com/yvvvl/WizzController/releases/latest).
-2. Download and run `WizZDesktop-v1.4.3-windows-x64-setup.exe`, or download
-   `WizZDesktop-v1.4.3-windows-x64.zip` for a portable copy.
+2. Download and run `WizZDesktop-v1.5.0-windows-x64-setup.exe`, or download
+   `WizZDesktop-v1.5.0-windows-x64.zip` for a portable copy.
 3. If using the ZIP, extract the complete archive and run `WizZDesktop.exe`.
 
 Windows may display a SmartScreen warning because the installer and app are
@@ -268,13 +273,13 @@ To uninstall the per-user installation:
 Windows PowerShell:
 
 ```powershell
-Get-FileHash .\WizZDesktop-v1.4.3-windows-x64.zip -Algorithm SHA256
+Get-FileHash .\WizZDesktop-v1.5.0-windows-x64.zip -Algorithm SHA256
 ```
 
 Linux:
 
 ```bash
-sha256sum -c WizZDesktop-v1.4.3-linux-<architecture>.tar.gz.sha256
+sha256sum -c WizZDesktop-v1.5.0-linux-<architecture>.tar.gz.sha256
 ```
 
 Compare the result with the checksum published alongside the release assets.
@@ -436,11 +441,11 @@ tests/        Core, UI, runtime, and packaging tests
 
 ## Project status
 
-This source is v1.4.3; download a packaged build from GitHub Releases to test
+This source is v1.5.0; download a packaged build from GitHub Releases to test
 the actual distribution. The experimental local Govee work is on a separate
 feature branch and is not part of the current Qt user interface.
 
-In v1.4.3, **Settings → Quick Actions** lets you create, edit,
+In v1.5.0, **Settings → Quick Actions** lets you create, edit,
 show/hide, and delete custom controls for power, brightness, Kelvin white, RGB,
 and WiZ scenes. Up to six selected actions appear in both Home and the Quick
 Panel. These controls operate on the currently selected lights.

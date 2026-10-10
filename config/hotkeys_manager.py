@@ -89,6 +89,8 @@ class HotkeysManager(JsonManager):
         self._exec_lock = threading.Lock()
         self._last_exec: dict[str, float] = {}
         self._native_backend = WindowsNativeHotkeyBackend()
+        self._capture_active = False
+        self._capture_resume_hooks = False
         self._executor = None
         self.last_error: str | None = None
         self.last_warning: str | None = None
@@ -423,6 +425,7 @@ class HotkeysManager(JsonManager):
             add(aid, self._t(key), whites, {"type": "white_percent", "value": pct}, "WB_SUNNY_ROUNDED")
         for pct in (0, 25, 50, 75, 100):
             add(f"white_{pct}", self._t("hotkeys.action.white_range", value=pct), whites, {"type": "white_percent", "value": pct}, "WB_SUNNY_ROUNDED")
+        add("white_custom", self._t("hotkeys.action.white_custom"), whites, None, "WB_SUNNY_ROUNDED")
 
         colors = {
             "red": "#ff0000",
@@ -444,6 +447,10 @@ class HotkeysManager(JsonManager):
                 raw = aid.removeprefix("color_hex_")[:6]
                 if re.fullmatch(r"[0-9a-fA-F]{6}", raw):
                     add(aid, self._t("hotkeys.action.color_hex", value=raw.upper()), self._t("hotkeys.group.custom_colors"), {"type": "rgb", "value": f"#{raw}"}, "COLOR_LENS_ROUNDED")
+            if isinstance(aid, str) and re.fullmatch(r"white_kelvin_\d{4}", aid):
+                kelvin = int(aid.removeprefix("white_kelvin_"))
+                if 2200 <= kelvin <= 6500:
+                    add(aid, self._t("hotkeys.action.white_kelvin", value=kelvin), whites, {"type": "white_kelvin", "value": kelvin}, "WB_SUNNY_ROUNDED")
 
         try:
             from core import wiz_scenes
@@ -500,6 +507,8 @@ class HotkeysManager(JsonManager):
     def _fallback_label(self, action_id: str) -> str:
         if str(action_id).startswith("color_hex_"):
             return self._t("hotkeys.action.color_hex", value=str(action_id).removeprefix("color_hex_")[:6].upper())
+        if re.fullmatch(r"white_kelvin_\d{4}", str(action_id)):
+            return self._t("hotkeys.action.white_kelvin", value=str(action_id).removeprefix("white_kelvin_"))
         if str(action_id).startswith("routine_"):
             return self._t("routines.fallback_name") + " " + str(action_id).split("_", 1)[1]
         return str(action_id)
@@ -533,6 +542,10 @@ class HotkeysManager(JsonManager):
             return {"type": "brightness", "value": int(aid.removeprefix("bri_"))}
         if aid.startswith("white_") and aid.removeprefix("white_").isdigit():
             return {"type": "white_percent", "value": int(aid.removeprefix("white_"))}
+        if re.fullmatch(r"white_kelvin_\d{4}", aid):
+            kelvin = int(aid.removeprefix("white_kelvin_"))
+            if 2200 <= kelvin <= 6500:
+                return {"type": "white_kelvin", "value": kelvin}
         if aid.startswith("color_hex_"):
             raw = aid.removeprefix("color_hex_")[:6]
             if re.fullmatch(r"[0-9a-fA-F]{6}", raw):
@@ -567,6 +580,25 @@ class HotkeysManager(JsonManager):
                     pass
             self._handles.clear()
 
+    def begin_capture(self) -> None:
+        """Let the focused Qt control receive even an already registered shortcut."""
+        with self._hook_lock:
+            if self._capture_active:
+                return
+            self._capture_resume_hooks = self.operational
+            self._capture_active = True
+            self._clear_hooks()
+
+    def end_capture(self) -> None:
+        with self._hook_lock:
+            if not self._capture_active:
+                return
+            resume = self._capture_resume_hooks
+            self._capture_active = False
+            self._capture_resume_hooks = False
+            if resume:
+                self.apply_hooks()
+
     def apply_hooks(self) -> None:
         """Registra hotkeys de forma atómica y conserva resultados parciales.
 
@@ -576,6 +608,8 @@ class HotkeysManager(JsonManager):
         nativas.
         """
         with self._hook_lock:
+            if self._capture_active:
+                return
             self._clear_hooks()
             self.last_error = None
             self.last_warning = None
@@ -706,6 +740,12 @@ class HotkeysManager(JsonManager):
             action_id = str(entry.get("id") or "")
             combo = str(entry.get("combo") or "")
             callback = entry.get("callback")
+            if combo.rsplit("+", 1)[-1].lower().startswith("numpad"):
+                # The keyboard fallback canonicalizes e.g. "num 1" to "1".
+                # Registering it would silently trigger the top-row key too.
+                failed.append({"id": action_id, "combo": combo,
+                               "error": self._t("hotkeys.error.numpad_native_required")})
+                continue
             try:
                 handle = _keyboard.add_hotkey(
                     combo,
@@ -828,7 +868,10 @@ class HotkeysManager(JsonManager):
         return self._executor
 
     def stop(self) -> None:
-        self._clear_hooks()
+        with self._hook_lock:
+            self._capture_active = False
+            self._capture_resume_hooks = False
+            self._clear_hooks()
 
     # ------------------------------------------------------------------ #
     # Utilidades backup/export

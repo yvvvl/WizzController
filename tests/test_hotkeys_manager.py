@@ -99,6 +99,26 @@ def test_execute_static_action_uses_action_sequence(tmp_path, monkeypatch):
     assert ("rgb", 255, 0, 170) in wiz.calls
 
 
+def test_custom_kelvin_hotkey_uses_exact_white_temperature(tmp_path, monkeypatch):
+    _temp_json(monkeypatch, tmp_path)
+    wiz = FakeWiz()
+    manager = HotkeysManager(wiz, auto_apply=False)
+    manager.data["hotkeys"]["white_kelvin_3350"] = "ctrl+alt+w"
+
+    assert any(action["id"] == "white_custom" for action in manager.list_actions())
+    assert manager.action_by_id("white_kelvin_3350")["action"] == {
+        "type": "white_kelvin", "value": 3350,
+    }
+    assert manager.action_by_id("white_kelvin_9999") is None
+
+    manager.execute_action("white_kelvin_3350")
+    import time
+    deadline = time.time() + 1
+    while time.time() < deadline and not wiz.calls:
+        time.sleep(0.02)
+    assert ("white", 3350) in wiz.calls
+
+
 def test_cooldown_prevents_repeated_fire(tmp_path, monkeypatch):
     _temp_json(monkeypatch, tmp_path)
     wiz = FakeWiz()
@@ -118,6 +138,24 @@ def test_native_backend_parser_supports_common_windows_combos():
     assert modifiers & WindowsNativeHotkeyBackend.MOD_CONTROL
     assert modifiers & WindowsNativeHotkeyBackend.MOD_ALT
     assert vk == 0x26
+
+
+def test_numpad_hotkeys_are_distinct_from_top_row_and_support_operators():
+    native = WindowsNativeHotkeyBackend
+    assert native.parse_combo("ctrl+alt+1")[1] == 0x31
+    assert native.parse_combo("ctrl+alt+numpad1")[1] == 0x61
+    assert native.parse_combo("ctrl+alt+numpadplus")[1] == 0x6B
+    assert native.parse_combo("ctrl+alt+numpaddecimal")[1] == 0x6E
+    assert native.parse_combo("ctrl+alt+numpaddivide")[1] == 0x6F
+    assert HotkeysManager.normalize_hotkey("Ctrl + Alt + Numpad 1") == "ctrl+alt+numpad1"
+    assert HotkeysManager.validate_hotkey("ctrl+alt+numpad1")[0] is True
+
+
+def test_numpad_and_top_row_do_not_conflict(tmp_path, monkeypatch):
+    _temp_json(monkeypatch, tmp_path)
+    manager = HotkeysManager(FakeWiz(), auto_apply=False)
+    manager.data["hotkeys"] = {"toggle": "ctrl+alt+1"}
+    assert manager.combo_conflict("ctrl+alt+numpad1") is None
 
 
 def test_plus_key_normalizes_to_supported_name():
@@ -163,6 +201,21 @@ class _FakeKeyboard:
         self.removed.append(handle)
 
 
+def test_numpad_never_falls_back_to_ambiguous_keyboard_hook(tmp_path, monkeypatch):
+    _temp_json(monkeypatch, tmp_path)
+    import config.hotkeys_manager as hotkeys_module
+
+    keyboard = _FakeKeyboard()
+    monkeypatch.setattr(hotkeys_module, "_keyboard", keyboard)
+    manager = HotkeysManager(FakeWiz(), auto_apply=False)
+    success, failed = manager._register_keyboard_entries([
+        {"id": "toggle", "combo": "ctrl+alt+numpad1", "callback": lambda: None},
+    ])
+    assert not success
+    assert failed and "nativo" in failed[0]["error"]
+    assert not keyboard.added
+
+
 def test_partial_native_registration_uses_keyboard_only_for_failed(tmp_path, monkeypatch):
     _temp_json(monkeypatch, tmp_path)
     import config.hotkeys_manager as hotkeys_module
@@ -191,6 +244,28 @@ def test_partial_native_registration_uses_keyboard_only_for_failed(tmp_path, mon
     }
     assert "2/2" in manager.backend_status()
     assert "fallback keyboard" in (manager.last_warning or "")
+
+
+def test_recording_temporarily_releases_and_restores_registered_hotkeys(tmp_path, monkeypatch):
+    _temp_json(monkeypatch, tmp_path)
+    import config.hotkeys_manager as hotkeys_module
+
+    monkeypatch.setattr(hotkeys_module.sys, "platform", "win32")
+    manager = HotkeysManager(FakeWiz(), auto_apply=False)
+    manager._native_backend = _FakeNativeBackend()
+    manager.apply_hooks()
+    assert manager.operational
+    registrations = manager._native_backend.start_calls
+
+    manager.begin_capture()
+    assert not manager.operational
+    manager.apply_hooks()  # Settings changes must not re-register during capture.
+    assert manager._native_backend.start_calls == registrations
+
+    manager.end_capture()
+    assert manager.operational
+    assert manager._native_backend.start_calls == registrations + 1
+    manager.stop()
 
 
 def test_reregister_removes_old_keyboard_handles(tmp_path, monkeypatch):

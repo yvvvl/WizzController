@@ -9,20 +9,35 @@ Item {
     implicitHeight: pageContent.implicitHeight
     property string feedback: ""
     property bool recording: false
+    property bool captureAwaitingRelease: false
+    property string capturePreview: ""
+    property string capturedCombo: ""
     property string actionQuery: ""
     property string actionGroup: ""
     property string exportText: ""
     property string customHex: "#ff0000"
+    property int customKelvin: 4000
+
+    Timer {
+        id: captureReleaseTimer
+        interval: 1000
+        onTriggered: root.endCapture()
+    }
 
     function t(spanish, english) { return wizz.language === "en" ? english : spanish }
 
     readonly property bool editingCustomColor: String(actionBox.currentValue || "") === "color_custom"
+    readonly property bool editingCustomWhite: String(actionBox.currentValue || "") === "white_custom"
+    readonly property bool editingPicker: editingCustomColor || editingCustomWhite
 
     function selectedActionId() {
-        if (!editingCustomColor)
-            return String(actionBox.currentValue || "")
-        const raw = customHex.replace("#", "").replace(/[^0-9a-f]/gi, "").slice(0, 6)
-        return raw.length === 6 ? "color_hex_" + raw.toLowerCase() : ""
+        if (editingCustomColor) {
+            const raw = customHex.replace("#", "").replace(/[^0-9a-f]/gi, "")
+            return raw.length === 6 ? "color_hex_" + raw.toLowerCase() : ""
+        }
+        if (editingCustomWhite)
+            return customKelvin >= 2200 && customKelvin <= 6500 ? "white_kelvin_" + customKelvin : ""
+        return String(actionBox.currentValue || "")
     }
 
     function normalizedHex(value) {
@@ -30,8 +45,104 @@ Item {
         return raw.length === 6 ? "#" + raw.toUpperCase() : ""
     }
 
-    function colorFromHsv(h, s, v) {
-        return Qt.hsva(Math.max(0, Math.min(1, h / 360)), Math.max(0, Math.min(1, s / 100)), Math.max(0.1, Math.min(1, v / 100)), 1).toString().toUpperCase()
+    function formatCombo(combo) {
+        const labels = { ctrl: "Ctrl", alt: "Alt", shift: "Shift", win: "Win",
+                         numpadplus: "Numpad Plus", numpadminus: "Numpad Minus",
+                         numpadmultiply: "Numpad Multiply", numpaddivide: "Numpad Divide",
+                         numpaddecimal: "Numpad Decimal" }
+        return String(combo || "").split("+").map(function(part) {
+            if (/^numpad[0-9]$/.test(part)) return "Numpad " + part.slice(-1)
+            return labels[part] || part.toUpperCase()
+        }).join("  +  ")
+    }
+
+    function keyName(key, modifiers) {
+        if (modifiers & Qt.KeypadModifier) {
+            if (key >= Qt.Key_0 && key <= Qt.Key_9)
+                return "numpad" + String.fromCharCode(key)
+            if (key === Qt.Key_Plus) return "numpadplus"
+            if (key === Qt.Key_Minus) return "numpadminus"
+            if (key === Qt.Key_Asterisk) return "numpadmultiply"
+            if (key === Qt.Key_Slash) return "numpaddivide"
+            if (key === Qt.Key_Period || key === Qt.Key_Comma) return "numpaddecimal"
+            // With Num Lock off Qt reports navigation keys for the keypad;
+            // those cannot be registered as distinct numeric VKs.
+            return ""
+        }
+        if (key >= Qt.Key_A && key <= Qt.Key_Z) return String.fromCharCode(key).toLowerCase()
+        if (key >= Qt.Key_0 && key <= Qt.Key_9) return String.fromCharCode(key)
+        if (key >= Qt.Key_F1 && key <= Qt.Key_F24) return "f" + (key - Qt.Key_F1 + 1)
+        if (key === Qt.Key_Up) return "up"
+        if (key === Qt.Key_Down) return "down"
+        if (key === Qt.Key_Left) return "left"
+        if (key === Qt.Key_Right) return "right"
+        if (key === Qt.Key_Space) return "space"
+        if (key === Qt.Key_Return || key === Qt.Key_Enter) return "enter"
+        if (key === Qt.Key_Tab) return "tab"
+        if (key === Qt.Key_Backspace) return "backspace"
+        if (key === Qt.Key_Delete) return "delete"
+        if (key === Qt.Key_Insert) return "insert"
+        if (key === Qt.Key_Home) return "home"
+        if (key === Qt.Key_End) return "end"
+        if (key === Qt.Key_PageUp) return "page up"
+        if (key === Qt.Key_PageDown) return "page down"
+        if (key === Qt.Key_Plus) return "plus"
+        if (key === Qt.Key_Minus) return "minus"
+        return ""
+    }
+
+    function modifierNames(modifiers) {
+        const names = []
+        if (modifiers & Qt.ControlModifier) names.push("ctrl")
+        if (modifiers & Qt.AltModifier) names.push("alt")
+        if (modifiers & Qt.ShiftModifier) names.push("shift")
+        if (modifiers & Qt.MetaModifier) names.push("win")
+        return names
+    }
+
+    function beginCapture() {
+        if (recording) return
+        wizz.beginHotkeyCapture()
+        recording = true
+        capturePreview = ""
+        feedback = t("Pulsa modificadores y una tecla; Esc cancela.", "Press modifiers and one key; Esc cancels.")
+        shortcutCapture.forceActiveFocus()
+    }
+
+    function endCapture() {
+        if (!recording && !captureAwaitingRelease) return
+        captureReleaseTimer.stop()
+        recording = false
+        captureAwaitingRelease = false
+        capturePreview = ""
+        wizz.endHotkeyCapture()
+    }
+
+    function captureKey(event) {
+        event.accepted = true
+        if (!recording || event.isAutoRepeat) return
+        if (event.key === Qt.Key_Escape) {
+            endCapture()
+            feedback = t("Captura cancelada.", "Capture cancelled.")
+            return
+        }
+        const modifiers = modifierNames(event.modifiers)
+        const key = keyName(event.key, event.modifiers)
+        if (!key) {
+            capturePreview = modifiers.join(" + ") + (modifiers.length ? " + …" : "")
+            if (event.modifiers & Qt.KeypadModifier) {
+                feedback = event.key === Qt.Key_Enter || event.key === Qt.Key_Return
+                    ? t("Numpad Enter no se puede distinguir de Enter en los atajos globales de Windows.", "Windows global shortcuts cannot distinguish Numpad Enter from Enter.")
+                    : t("Activa Bloq Num para capturar esta tecla del teclado numérico.", "Turn on Num Lock to capture this numpad key.")
+            }
+            return
+        }
+        capturedCombo = modifiers.concat([key]).join("+")
+        capturePreview = ""
+        recording = false
+        captureAwaitingRelease = true
+        captureReleaseTimer.restart()
+        feedback = t("Combinación capturada. Revísala y guarda.", "Shortcut captured. Review it and save.")
     }
 
     function actionGroups() {
@@ -49,33 +160,32 @@ Item {
         return (wizz.hotkeyActions || []).filter(function(action) {
             const group = String(action.group || "General")
             const name = String(action.name || "")
-            return (actionGroup === root.t("Todas", "All") || group === actionGroup)
+            return (!actionGroup || actionGroup === root.t("Todas", "All") || group === actionGroup)
                 && (!query || name.toLowerCase().indexOf(query) >= 0 || group.toLowerCase().indexOf(query) >= 0)
         })
     }
 
     function chooseAction(actionId, combo) {
+        if (actionId.indexOf("color_hex_") === 0) {
+            const hex = normalizedHex(actionId.substring(10))
+            if (hex) customPicker.sendHex(hex)
+            actionId = "color_custom"
+        } else if (actionId.indexOf("white_kelvin_") === 0) {
+            const kelvin = Number(actionId.substring(13))
+            if (kelvin >= 2200 && kelvin <= 6500) customPicker.chooseKelvin(kelvin)
+            actionId = "white_custom"
+        }
         for (let i = 0; i < actionBox.count; ++i) {
             if (actionBox.valueAt(i) === actionId) {
                 actionBox.currentIndex = i
                 break
             }
         }
-        comboField.text = combo || ""
+        capturedCombo = combo || ""
     }
 
-    Connections {
-        target: wizz
-        function onHotkeyCaptured(value) {
-            root.recording = false
-            if (value) {
-                comboField.text = value
-                root.feedback = root.t("Combinación capturada. Revísala y guarda.", "Shortcut captured. Review it and save.")
-            } else {
-                root.feedback = root.t("La captura automática no está disponible; escribe la combinación manualmente.", "Automatic capture is unavailable; enter the shortcut manually.")
-            }
-        }
-    }
+    onVisibleChanged: if (!visible) endCapture()
+    Component.onDestruction: endCapture()
 
     Column {
         id: pageContent
@@ -256,17 +366,19 @@ Item {
         }
 
         Rectangle {
-            width: parent.width; height: root.editingCustomColor ? 486 : 300; radius: Theme.radiusMedium
+            width: parent.width; height: editorContent.implicitHeight + 32; radius: Theme.radiusMedium
             color: Theme.card; border.width: 1; border.color: Theme.stroke
             Behavior on height { NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic } }
             ColumnLayout {
-                anchors.fill: parent; anchors.margins: 16; spacing: 11
+                id: editorContent
+                x: 16; y: 16; width: parent.width - 32; spacing: 11
                 Text { text: root.t("CREAR / EDITAR ATAJO", "CREATE / EDIT SHORTCUT"); color: Theme.muted; font.pixelSize: Theme.captionSize; font.weight: Font.Bold; font.letterSpacing: 1 }
-                Text { text: root.t("Elige una acción, escribe o captura la combinación y guárdala.", "Choose an action, enter or capture the combination, then save it."); color: Theme.muted; font.pixelSize: Theme.labelSize }
+                Text { text: root.t("Elige una acción, captura una combinación y guárdala.", "Choose an action, capture a shortcut, then save it."); color: Theme.muted; font.pixelSize: Theme.labelSize }
                 RowLayout {
                     Layout.fillWidth: true; spacing: 10
                     WizComboBox {
                         id: groupBox
+                        objectName: "hotkeyGroupBox"
                         Layout.preferredWidth: 190; Layout.preferredHeight: 40
                         model: root.actionGroups()
                         currentIndex: Math.max(0, model.indexOf(root.actionGroup))
@@ -286,6 +398,7 @@ Item {
                     Layout.fillWidth: true; spacing: 10
                     WizComboBox {
                         id: actionBox
+                        objectName: "hotkeyActionBox"
                         Layout.fillWidth: true; Layout.preferredHeight: 44
                         searchable: true
                         sectionRole: "group"
@@ -294,28 +407,46 @@ Item {
                         indicator: AppIcon { x: actionBox.width - width - 12; anchors.verticalCenter: parent.verticalCenter; width: 12; height: 12; name: "chevronDown"; color: Theme.muted }
                         background: Rectangle { color: Theme.cardHi; radius: 12; border.width: 1; border.color: actionBox.activeFocus ? Theme.primary : Theme.stroke }
                     }
-                    TextField {
-                        id: comboField
+                    FocusScope {
+                        id: shortcutCapture
+                        objectName: "shortcutCapture"
                         Layout.preferredWidth: 260; Layout.preferredHeight: 44
-                        placeholderText: "ctrl+alt+l"; placeholderTextColor: Theme.faint; color: Theme.text; leftPadding: 13; rightPadding: 13
-                        onTextEdited: root.feedback = ""
-                        selectionColor: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.42)
-                        background: Rectangle { color: Theme.cardHi; radius: 12; border.width: 1; border.color: comboField.activeFocus ? Theme.primary : Theme.stroke }
+                        activeFocusOnTab: true
+                        onActiveFocusChanged: if (!activeFocus) root.endCapture()
+                        Keys.onPressed: (event) => root.captureKey(event)
+                        Keys.onReleased: (event) => {
+                            event.accepted = true
+                            if (root.captureAwaitingRelease && event.modifiers === Qt.NoModifier)
+                                root.endCapture()
+                        }
+                        Rectangle {
+                            anchors.fill: parent; color: Theme.cardHi; radius: 12
+                            border.width: 1; border.color: shortcutCapture.activeFocus && root.recording ? Theme.primary : Theme.stroke
+                            Text {
+                                anchors.fill: parent; anchors.leftMargin: 13; anchors.rightMargin: 13
+                                verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight
+                                text: root.recording ? (root.capturePreview || root.t("Pulsa Ctrl + Alt + una tecla…", "Press Ctrl + Alt + a key…"))
+                                     : (root.capturedCombo ? root.formatCombo(root.capturedCombo) : root.t("Haz clic para capturar", "Click to capture"))
+                                color: root.capturedCombo || root.recording ? Theme.text : Theme.faint
+                                font.family: Theme.controlFont; font.pixelSize: Theme.labelSize; font.weight: Font.DemiBold
+                            }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.beginCapture() }
+                        }
                     }
                 }
                 RowLayout {
                     Layout.fillWidth: true; spacing: 8
                     PressSurface {
                         Layout.preferredWidth: 104; Layout.preferredHeight: 38; radius: 19; color: Theme.primary; accentColor: Theme.primary
-                        enabled: !root.recording
-                        onClicked: { root.recording = true; root.feedback = root.t("Pulsa la combinación…", "Press the shortcut…"); wizz.recordHotkey() }
-                        Text { anchors.centerIn: parent; text: root.recording ? root.t("Escuchando…", "Listening…") : root.t("Grabar", "Record"); color: "white"; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
+                        onClicked: root.recording ? root.endCapture() : root.beginCapture()
+                        Text { anchors.centerIn: parent; text: root.recording ? root.t("Cancelar", "Cancel") : root.t("Grabar", "Record"); color: "white"; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
                     }
                     PressSurface {
                         Layout.preferredWidth: 100; Layout.preferredHeight: 38; radius: 19; color: Theme.primaryDark; accentColor: Theme.primary
                         onClicked: {
+                            root.endCapture()
                             const actionId = root.selectedActionId()
-                            root.feedback = actionId ? wizz.saveHotkey(actionId, comboField.text) : root.t("Indica un color HEX válido.", "Enter a valid HEX color.")
+                            root.feedback = actionId ? wizz.saveHotkey(actionId, root.capturedCombo) : root.t("Elige una acción y un valor válido.", "Choose an action and a valid value.")
                         }
                         Text { anchors.centerIn: parent; text: root.t("Guardar", "Save"); color: "white"; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
                     }
@@ -329,87 +460,67 @@ Item {
                     }
                     PressSurface {
                         Layout.preferredWidth: 92; Layout.preferredHeight: 38; radius: 19; color: "transparent"; outlined: true; border.color: Theme.stroke; accentColor: Theme.error
-                        onClicked: { const actionId = root.selectedActionId(); if (actionId) wizz.clearHotkey(actionId); comboField.text = ""; root.feedback = root.t("Atajo quitado.", "Shortcut removed.") }
+                        onClicked: { root.endCapture(); const actionId = root.selectedActionId(); if (actionId) wizz.clearHotkey(actionId); root.capturedCombo = ""; root.feedback = root.t("Atajo quitado.", "Shortcut removed.") }
                         Text { anchors.centerIn: parent; text: root.t("Quitar", "Remove"); color: Theme.error; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold }
                     }
                     Item { Layout.fillWidth: true }
                 }
                 Rectangle {
-                    Layout.fillWidth: true; Layout.preferredHeight: 218
-                    visible: root.editingCustomColor
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: customPicker.implicitHeight + 26
+                    visible: root.editingPicker
                     color: Theme.bg; radius: 14; border.width: 1; border.color: Theme.stroke
-                    ColumnLayout {
-                        anchors.fill: parent; anchors.margins: 13; spacing: 9
-                        RowLayout {
-                            Layout.fillWidth: true; spacing: 10
-                            Rectangle {
-                                Layout.preferredWidth: 42; Layout.preferredHeight: 42; radius: 13
-                                color: root.customHex; border.width: 2; border.color: Qt.rgba(Theme.highlight.r, Theme.highlight.g, Theme.highlight.b, 0.34)
-                            }
-                            ColumnLayout {
-                                Layout.fillWidth: true; spacing: 2
-                                Text { text: root.t("COLOR PERSONALIZADO", "CUSTOM COLOR"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: Theme.labelSize; font.weight: Font.Bold }
-                                Text { text: root.customHex; color: Theme.muted; font.family: Theme.monoFont; font.pixelSize: Theme.labelSize }
-                            }
-                            TextField {
-                                id: customHexField
-                                Layout.preferredWidth: 142; Layout.preferredHeight: 38
-                                text: root.customHex; placeholderText: "#FF0000"; color: Theme.text; font.family: Theme.monoFont; font.pixelSize: Theme.labelSize
-                                validator: RegularExpressionValidator { regularExpression: /#?[0-9a-fA-F]{0,6}/ }
-                                onEditingFinished: { const hex = root.normalizedHex(text); if (hex) root.customHex = hex; text = root.customHex }
-                                background: Rectangle { color: Theme.cardHi; radius: 10; border.width: 1; border.color: customHexField.activeFocus ? Theme.primary : Theme.stroke }
-                            }
+                    WizColorPicker {
+                        id: customPicker
+                        objectName: "hotkeyCustomPicker"
+                        anchors.fill: parent; anchors.margins: 13
+                        selectionOnly: true
+                        showColorSection: root.editingCustomColor
+                        showWhiteSection: root.editingCustomWhite
+                        selectedHex: root.customHex
+                        selectedKelvin: root.customKelvin
+                        onColorSelected: (hex) => root.customHex = hex
+                        onWhiteSelected: (kelvin) => root.customKelvin = kelvin
+                    }
+                }
+                RowLayout {
+                    visible: root.editingPicker
+                    Layout.fillWidth: true; spacing: 10
+                    Rectangle {
+                        Layout.preferredWidth: 32; Layout.preferredHeight: 32; radius: 10
+                        color: root.editingCustomColor ? root.customHex : (root.customKelvin < 4100 ? "#ffe0a5" : "#d8efff")
+                        border.width: 1; border.color: Theme.stroke
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: root.editingCustomColor ? root.t("HEX EXACTO", "EXACT HEX") : root.t("KELVIN EXACTO · 2200–6500 K", "EXACT KELVIN · 2200–6500 K")
+                        color: Theme.muted; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold
+                    }
+                    TextField {
+                        id: customHexField
+                        visible: root.editingCustomColor
+                        Layout.preferredWidth: 150; Layout.preferredHeight: 38
+                        text: root.customHex; placeholderText: "#FF0000"; color: Theme.text; font.family: Theme.monoFont; font.pixelSize: Theme.labelSize
+                        validator: RegularExpressionValidator { regularExpression: /#?[0-9a-fA-F]{0,6}/ }
+                        onEditingFinished: {
+                            const hex = root.normalizedHex(text)
+                            if (hex) customPicker.sendHex(hex)
+                            text = root.customHex
                         }
-                        Text { text: root.t("COLORES RÁPIDOS", "QUICK COLORS"); color: Theme.muted; font.pixelSize: Theme.captionSize; font.weight: Font.Bold; font.letterSpacing: 0.8 }
-                        RowLayout {
-                            Layout.fillWidth: true; spacing: 7
-                            Repeater {
-                                model: ["#FF0000", "#FF7F00", "#FFD000", "#00FF40", "#00D5FF", "#0055FF", "#7F00FF", "#FF4FA3", "#FFFFFF", "#FFBF75"]
-                                delegate: PressSurface {
-                                    required property string modelData
-                                    Layout.fillWidth: true; Layout.preferredHeight: 31; radius: 10
-                                    color: Qt.rgba(Qt.color(modelData).r, Qt.color(modelData).g, Qt.color(modelData).b, 0.18)
-                                    accentColor: Qt.color(modelData)
-                                    border.color: root.customHex === modelData ? Theme.text : Qt.rgba(Qt.color(modelData).r, Qt.color(modelData).g, Qt.color(modelData).b, 0.56)
-                                    outlined: true; showTopHighlight: false
-                                    onClicked: root.customHex = modelData
-                                    Rectangle { anchors.centerIn: parent; width: 15; height: 15; radius: 8; color: parent.modelData; border.width: 1; border.color: Qt.rgba(Theme.highlight.r, Theme.highlight.g, Theme.highlight.b, 0.45) }
-                                }
-                            }
+                        background: Rectangle { color: Theme.cardHi; radius: 10; border.width: 1; border.color: customHexField.activeFocus ? Theme.primary : Theme.stroke }
+                    }
+                    TextField {
+                        id: customKelvinField
+                        visible: root.editingCustomWhite
+                        Layout.preferredWidth: 110; Layout.preferredHeight: 38
+                        text: String(root.customKelvin); placeholderText: "4000"; color: Theme.text; font.family: Theme.monoFont; font.pixelSize: Theme.labelSize
+                        validator: IntValidator { bottom: 2200; top: 6500 }
+                        onEditingFinished: {
+                            const value = Number(text)
+                            if (value >= 2200 && value <= 6500) customPicker.chooseKelvin(value)
+                            text = String(root.customKelvin)
                         }
-                        RowLayout {
-                            Layout.fillWidth: true; spacing: 9
-                            Text { text: root.t("Matiz", "Hue"); color: Theme.muted; font.pixelSize: Theme.captionSize; Layout.preferredWidth: 58 }
-                            Slider {
-                                id: hueSlider
-                                Layout.fillWidth: true; from: 0; to: 360; stepSize: 1; value: 0
-                                onMoved: root.customHex = root.colorFromHsv(value, saturationSlider.value, lightnessSlider.value)
-                                background: Rectangle { x: hueSlider.leftPadding; y: hueSlider.topPadding + hueSlider.availableHeight / 2 - 2; width: hueSlider.availableWidth; height: 4; radius: 2; gradient: Gradient { GradientStop { position: 0; color: "#ff0000" } GradientStop { position: .17; color: "#ffff00" } GradientStop { position: .34; color: "#00ff40" } GradientStop { position: .51; color: "#00d5ff" } GradientStop { position: .68; color: "#0055ff" } GradientStop { position: .84; color: "#7f00ff" } GradientStop { position: 1; color: "#ff0000" } } }
-                                handle: Rectangle { x: hueSlider.leftPadding + hueSlider.visualPosition * (hueSlider.availableWidth - width); y: hueSlider.topPadding + hueSlider.availableHeight / 2 - height / 2; width: 15; height: 15; radius: 8; color: Theme.text }
-                            }
-                        }
-                        RowLayout {
-                            Layout.fillWidth: true; spacing: 9
-                            Text { text: root.t("Saturación", "Saturation"); color: Theme.muted; font.pixelSize: Theme.captionSize; Layout.preferredWidth: 58 }
-                            Slider {
-                                id: saturationSlider
-                                Layout.fillWidth: true; from: 0; to: 100; stepSize: 1; value: 100
-                                onMoved: root.customHex = root.colorFromHsv(hueSlider.value, value, lightnessSlider.value)
-                                background: Rectangle { x: saturationSlider.leftPadding; y: saturationSlider.topPadding + saturationSlider.availableHeight / 2 - 2; width: saturationSlider.availableWidth; height: 4; radius: 2; color: Theme.stroke; Rectangle { width: saturationSlider.visualPosition * parent.width; height: parent.height; radius: 2; color: Theme.accent } }
-                                handle: Rectangle { x: saturationSlider.leftPadding + saturationSlider.visualPosition * (saturationSlider.availableWidth - width); y: saturationSlider.topPadding + saturationSlider.availableHeight / 2 - height / 2; width: 15; height: 15; radius: 8; color: Theme.text }
-                            }
-                        }
-                        RowLayout {
-                            Layout.fillWidth: true; spacing: 9
-                            Text { text: root.t("Luminosidad", "Lightness"); color: Theme.muted; font.pixelSize: Theme.captionSize; Layout.preferredWidth: 58 }
-                            Slider {
-                                id: lightnessSlider
-                                Layout.fillWidth: true; from: 10; to: 100; stepSize: 1; value: 100
-                                onMoved: root.customHex = root.colorFromHsv(hueSlider.value, saturationSlider.value, value)
-                                background: Rectangle { x: lightnessSlider.leftPadding; y: lightnessSlider.topPadding + lightnessSlider.availableHeight / 2 - 2; width: lightnessSlider.availableWidth; height: 4; radius: 2; color: Theme.stroke; Rectangle { width: lightnessSlider.visualPosition * parent.width; height: parent.height; radius: 2; color: Theme.accent } }
-                                handle: Rectangle { x: lightnessSlider.leftPadding + lightnessSlider.visualPosition * (lightnessSlider.availableWidth - width); y: lightnessSlider.topPadding + lightnessSlider.availableHeight / 2 - height / 2; width: 15; height: 15; radius: 8; color: Theme.text }
-                            }
-                        }
+                        background: Rectangle { color: Theme.cardHi; radius: 10; border.width: 1; border.color: customKelvinField.activeFocus ? Theme.primary : Theme.stroke }
                     }
                 }
                 Text { Layout.fillWidth: true; text: root.feedback; visible: text.length > 0; color: Theme.accent; font.pixelSize: Theme.labelSize; wrapMode: Text.WordWrap }
@@ -497,7 +608,7 @@ Item {
                             width: 166; height: 30; radius: 9
                             color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08)
                             border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.28)
-                            Text { anchors.centerIn: parent; text: assignedCard.rawValue.toUpperCase().split("+").join("  +  "); color: Theme.accent; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
+                            Text { anchors.centerIn: parent; text: root.formatCombo(assignedCard.rawValue); color: Theme.accent; font.family: Theme.controlFont; font.pixelSize: Theme.captionSize; font.weight: Font.Bold }
                         }
                         PressSurface {
                             width: 30; height: 30; anchors.right: parent.right; anchors.rightMargin: 11; anchors.verticalCenter: parent.verticalCenter
