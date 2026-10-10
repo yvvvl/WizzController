@@ -6,645 +6,97 @@
 
 # WizZ Desktop
 
-### Control local, rápido y privado para ampolletas WiZ
+### Control local para ampolletas WiZ
 
 [![Release](https://img.shields.io/github/v/release/yvvvl/WizzController?label=release)](https://github.com/yvvvl/WizzController/releases/latest)
 [![CI](https://github.com/yvvvl/WizzController/actions/workflows/ci.yml/badge.svg)](https://github.com/yvvvl/WizzController/actions/workflows/ci.yml)
-[![Windows Build](https://github.com/yvvvl/WizzController/actions/workflows/build-windows.yml/badge.svg)](https://github.com/yvvvl/WizzController/actions/workflows/build-windows.yml)
-[![Python](https://img.shields.io/badge/Python-3.11%20%E2%80%93%203.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Qt](https://img.shields.io/badge/UI-Qt%20%2F%20PySide6-41CD52)](https://www.qt.io/)
+[![Build Windows y Linux](https://github.com/yvvvl/WizzController/actions/workflows/build-windows.yml/badge.svg)](https://github.com/yvvvl/WizzController/actions/workflows/build-windows.yml)
 
-[Descargar última versión](https://github.com/yvvvl/WizzController/releases/latest) · [Reportar un problema](https://github.com/yvvvl/WizzController/issues)
+[Descargar](https://github.com/yvvvl/WizzController/releases/latest) · [Reportar un problema](https://github.com/yvvvl/WizzController/issues) · [Apoyar el desarrollo](https://github.com/sponsors/yvvvl)
 
 </div>
 
 ---
 
-## Qué es WizZ Desktop
+WizZ Desktop controla ampolletas WiZ en tu red local. Los comandos habituales
+usan el protocolo WiZ UDP LAN, sin depender de un servicio en la nube. La
+aplicación de escritorio compatible usa Qt/PySide6 y está disponible para
+**Windows x64** y **Linux compatible con Ubuntu x64/ARM64**. macOS sigue en
+fase experimental.
 
-**WizZ Desktop** es una aplicación de escritorio para controlar ampolletas WiZ directamente dentro de la red local.
+## Novedades de v1.5.0
 
-Las acciones normales se envían por **UDP LAN nativo**, por lo que el control no depende de la nube de WiZ y mantiene una respuesta rápida incluso cuando la conexión a Internet no está disponible.
+- Programa rutinas localmente por hora y día de la semana, con una ampolleta
+  o grupo guardado como destino predeterminado. Puedes editarlas o pausarlas.
+- Graba atajos Windows como combinaciones reales, distingue el teclado
+  numérico del principal y elige visualmente blancos Kelvin exactos.
+- Usa listas de acciones más claras, el selector mejorado de Color Studio y
+  un logo que refleja el color de una única ampolleta activa.
 
-La aplicación combina control de iluminación, automatizaciones y una interfaz
-moderna en un único programa. Windows y Linux (x64 y ARM64) son plataformas
-compatibles. Linux apunta a escritorios compatibles con Ubuntu y se instala
-para el usuario actual, sin `sudo`. Esta release todavía no incluye una
-descarga de macOS compatible oficialmente.
+Lee el [changelog completo](CHANGELOG.md#v150). La app debe seguir abierta
+para ejecutar horarios, aunque esté en la bandeja; las horas perdidas no se
+recuperan. Los hotkeys globales aún son exclusivos de Windows. Screen Sync y
+sincronización de audio no forman parte de esta release.
 
-> Última release estable: **[v1.5.0](https://github.com/yvvvl/WizzController/releases/tag/v1.5.0) · build 4**
+## Primeros pasos
 
-### Novedades de v1.5.0
+1. [Descarga la última versión](https://github.com/yvvvl/WizzController/releases/latest).
+   Windows ofrece instalador o ZIP portable; Linux ofrece paquetes x64 y
+   ARM64 con instalador por usuario. Los ZIP/tar incluyen archivos SHA-256.
+2. Instala o extrae el paquete completo y abre **WizZ Desktop**. En Windows
+   portable, mantén `_internal` junto al ejecutable.
+3. Conecta el PC y las ampolletas WiZ a la misma red. Búscalas en **Ajustes**
+   o agrega manualmente una IP local conocida.
+4. Selecciona una, varias o todas y usa Inicio, Color Studio, Escenas,
+   Favoritos, Rutinas o el panel rápido.
 
-- Programa rutinas por hora y días de la semana, con una ampolleta, un grupo
-  o todas como destino predeterminado. Todo se ejecuta localmente.
-- Captura atajos como combinaciones reales: los números del teclado principal
-  y los del teclado numérico se distinguen en Windows.
-- Usa el selector visual de Color Studio para atajos de color y blanco Kelvin,
-  y navega listas de acciones más claras y fluidas.
-- El logo refleja el color de una única ampolleta encendida; con varias
-  ampolletas o una apagada, utiliza el color del tema.
-
-Lee el [changelog completo de v1.5.0](CHANGELOG.md#v150).
-
-## Incluido en v1.5.0
-
-- App nativa Qt para Windows y Linux (x64 y ARM64), con interfaz en español e
-  inglés.
-- Control de una, varias o todas las ampolletas: encendido, brillo individual,
-  RGB, blanco regulable, escenas WiZ, favoritos y rutinas.
-- Panel rápido movible, con ajuste magnético a los bordes, posición recordada,
-  acceso desde la bandeja, acciones editables y cierre al hacer clic fuera.
-- Bandeja, instancia única, opciones independientes para cerrar y minimizar en
-  bandeja e inicio en ventana o bandeja. Los hotkeys globales funcionan en
-  Windows; la página de Linux explica su limitación actual.
-- Actualizaciones verificadas por SHA-256 para Windows portable y Linux instalado.
-- Horarios locales para rutinas mientras la app está abierta, incluso en la
-  bandeja. Los horarios perdidos durante suspensión o apagado no se recuperan.
-- Configuración, favoritos, nombres de dispositivos y logs persistentes; Linux
-  nativo con rutas XDG, AppIndicator e instalación por usuario.
-
-> Screen Sync y sincronización de audio no están incluidos en esta release.
-
-WizZ Desktop es un proyecto independiente que desarrollo como estudiante. Si te
-resulta útil, puedes apoyar su desarrollo en [GitHub Sponsors](https://github.com/sponsors/yvvvl); sin presión: tus comentarios y reportes también ayudan mucho.
-
-## Guía de validación para v1.5.0
-
-Esta guía aplica a la versión publicada con escritorio nativo **Qt**. En
-Windows, el instalador es la opción más simple. Si prefieres el ZIP portable,
-extráelo primero y mantén `_internal` junto a `WizZDesktop.exe`.
-
-### Comandos para instalar y abrir (Windows PowerShell)
-
-Descarga `WizZDesktop-v1.5.0-windows-x64.zip` y su archivo `.sha256` desde la
-release. Luego ejecuta lo siguiente. Cambia `$download` solo si los
-archivos no quedaron en Descargas.
-
-```powershell
-$download = "$env:USERPROFILE\Downloads"
-$zip = Join-Path $download "WizZDesktop-v1.5.0-windows-x64.zip"
-$checksum = "$zip.sha256"
-$target = Join-Path $download "WizZDesktop-v1.5.0"
-
-Get-FileHash -LiteralPath $zip -Algorithm SHA256
-Get-Content -LiteralPath $checksum
-Expand-Archive -LiteralPath $zip -DestinationPath $target -Force
-Set-Location $target
-.\WizZDesktop.exe
-```
-
-El hash que muestra `Get-FileHash` debe coincidir con el hash del archivo
-`.sha256`. Antes de probar, cierra todas las demás copias de WizZ Desktop y
-respalda `%LOCALAPPDATA%\WizZDesktop` si quieres conservar su configuración.
-
-### Qué debe probar
-
-Usa ampolletas WiZ reales en la misma red local cuando sea posible. En cada
-prueba anota **PASS**, **FAIL** o **N/A**, junto con el resultado esperado y el
-resultado real.
-
-1. **Conexión y selección:** en Ajustes busca ampolletas y prueba también
-   agregar una IP conocida manualmente. Selecciona una, varias y todas.
-2. **Controles de Inicio:** alterna encendido; prueba 20%, 50% y 100% de
-   brillo; aplica rojo, verde, azul, blanco cálido y blanco frío. Confirma que
-   el resultado físico coincide con la interfaz, en una y varias ampolletas.
-3. **Nueva interfaz:** redimensiona la ventana, cambia temas y revisa listas
-   largas, tarjetas, textos centrados en opciones, listas redondeadas y el
-   tintado del tema. Reinicia y confirma que se conservan tema e ítems guardados.
-4. **Favoritos y Color:** crea favoritos RGB y blancos CCT. Prueba los colores
-   rápidos, campo HEX/Kelvin, cursor del picker, vista previa, guardar, reabrir
-   y aplicar cada favorito.
-5. **Escenas y rutinas:** crea una escena local por nombre (no por ID). Crea una
-   rutina con encendido, color RGB, blanco CCT, espera y escena; reordénala,
-   guárdala, ábrela de nuevo y ejecútala. Aplica varias escenas WiZ por nombre.
-   Programa un horario local para el minuto siguiente, revisa el destino fijo
-   y el último resultado; luego páusalo y confirma que no vuelva a ejecutarse.
-6. **Panel rápido:** ábrelo desde la bandeja (o con un atajo en Windows), usa
-   el carrusel de ampolletas, selecciona ampolletas de páginas posteriores y
-   confirma que no vuelve a la primera página. Prueba flechas/botones de
-   página, posición junto a la barra de tareas en cada monitor, arrastrarlo y
-   ajustarlo a los bordes, que recuerde la posición, cierre al hacer clic
-   fuera y accesos rápidos editados.
-7. **Hotkeys y bandeja:** en Windows, asigna un atajo que no choque con otro
-   programa, prueba también números del teclado numérico, reinicia y confirma
-   una sola acción por pulsación. En Linux,
-   comprueba que Hotkeys avisa que los atajos globales aún no funcionan. En
-   ambos sistemas, prueba restaurar desde la bandeja y las opciones separadas
-   de cerrar y minimizar.
-
-### Integraciones y límites conocidos
-
-- **WiZ LAN:** discovery, IP manual, encendido, brillo, RGB, blanco CCT,
-  escenas con nombre, selección múltiple, favoritos, rutinas y bandeja son las
-  integraciones que hay que ejercitar. Los hotkeys globales solo funcionan en
-  Windows por ahora.
-- **Cambios desde la app móvil WiZ:** si cambias una luz desde el teléfono,
-  registra si la app de escritorio lo refleja y cuánto tarda. Es una prueba
-  observacional, no una garantía para todos los modelos o firmwares.
-- **No incluido:** Screen Sync/Ambilight, sincronización de audio, efectos
-  experimentales para tiras y bucle de FPS. No los
-  reportes como fallas; márcalos como **N/A**.
-
-### Probar el código actual (solo colaboradores)
-
-No uses estos comandos para validar el ZIP descargado: ejecutar el código
-fuente no equivale a probar el paquete publicado. En PowerShell:
-
-```powershell
-git clone --branch v1.5.0 --depth 1 https://github.com/yvvvl/WizzController.git
-Set-Location .\WizzController
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-dev.txt
-.\.venv\Scripts\python.exe -m qt_ui.run
-.\.venv\Scripts\python.exe -m pytest -q
-```
-
-Para probar la interfaz sin ampolletas físicas, define
-`WIZZ_DEV_VIRTUAL_BULBS=3` solo durante esa ejecución. No lo actives al probar
-tu ampolleta real.
-
-### Cómo enviar un reporte útil
-
-Incluye versión (`1.5.0`), sistema operativo y escala de pantalla, modelo y
-firmware de la ampolleta, pasos exactos, esperado versus real, repetibilidad y
-una captura/video corto cuando ayude. Para ver el log local sin compartir los
-archivos de configuración privada:
-
-```powershell
-Get-Content "$env:LOCALAPPDATA\WizZDesktop\logs\wizz.log" -Tail 200
-```
-
-Oculta IPs, MACs, tokens y archivos privados antes de enviar información.
-
----
+Las instalaciones compatibles pueden actualizarse desde **Ajustes → Buscar
+actualización → Instalar y reiniciar**. La
+[guía de instalación](docs/installation.es.md) explica checksums, requisitos
+Linux, rutas de datos y desinstalación.
 
 ## Funciones principales
 
-### Control local WiZ
-
-- Encendido, apagado y alternancia.
-- Brillo independiente mediante `dimming`.
-- Colores RGB.
-- Blancos configurables por temperatura Kelvin.
-- Escenas oficiales WiZ.
-- Sincronización con cambios realizados desde la aplicación móvil.
-- Control de una ampolleta específica o de todas las detectadas.
-
-### Color Studio
-
-- Paleta perceptual de matiz y pureza.
-- Color visible y valor enviado calculados desde la misma fuente.
-- Brillo separado del RGB.
-- Blancos Kelvin separados del modo color.
-- Edición precisa mediante HEX, RGB, H y S.
-- Aplicación en vivo o manual.
-- Colores recientes, favoritos y presets.
-- Conversión del color lógico hacia los canales físicos RGBTW de WiZ.
-- Arrastre fluido con protección de bordes y coordenadas fuera del picker.
-
-### Automatización
-
-- Favoritos para acciones rápidas.
-- Rutinas con múltiples pasos.
-- Horarios locales semanales para rutinas (Windows/Linux): selecciona hora,
-  días y destino predeterminado (luces o grupo), y pausa o edita desde
-  **Rutinas**. WizZ debe seguir abierto, incluso en la bandeja. Una ejecución
-  perdida se omite y no se recupera después. Consulta la
-  [guía de horarios y pruebas](docs/local-routine-schedules.es.md).
-- Logo reactivo de WizZ: sigue el color de una sola ampolleta o el acento del
-  tema cuando hay varias. Consulta [sus límites de sincronización](docs/reactive-logo.es.md).
-- Acciones compatibles:
-  - color;
-  - blanco;
-  - brillo;
-  - escena;
-  - espera.
-- Ejecución centralizada mediante `ActionSequenceExecutor`.
-
-### Integración de escritorio
-
-- Hotkeys globales nativas mediante `RegisterHotKey`.
-- Fallback selectivo usando `keyboard` cuando una combinación está ocupada.
-- System tray con acciones rápidas.
-- Acceso al panel rápido desde la bandeja y restauración de la ventana principal.
-- Opciones independientes para cerrar y minimizar en bandeja.
-- Inicio en ventana o en bandeja.
-- Inicio automático con Windows.
-- Instancia única con restauración de la ventana existente.
-- Linux con bandeja AppIndicator, persistencia XDG, autostart por usuario
-  e instalador sin `sudo`.
-- Hotkeys globales todavía no operativos en Linux; las combinaciones guardadas
-  se conservan para cuando exista un backend seguro.
-
-### Gestión de ampolletas
-
-- Discovery híbrido mediante UDP local y `pywizlight` como apoyo.
-- Búsqueda por broadcast e interfaces de red.
-- Adición manual por IP.
-- Renombrado de dispositivos.
-- Eliminación persistente.
-- Redescubrimiento explícito mediante **Buscar ampolletas**.
-- Protección contra respuestas tardías que puedan volver a registrar un dispositivo eliminado.
-
----
-
-## Instalación para usuarios
-
-### Windows estable — requisitos
-
-- Windows 10 u 11 de 64 bits.
-- Una ampolleta WiZ conectada a la misma red local que el PC.
-
-### Pasos
-
-1. Abre la [última release](https://github.com/yvvvl/WizzController/releases/latest).
-2. Descarga y ejecuta `WizZDesktop-v1.5.0-windows-x64-setup.exe`, o elige
-   `WizZDesktop-v1.5.0-windows-x64.zip` si prefieres una copia portable.
-3. Si usas el ZIP, extrae todo su contenido y ejecuta `WizZDesktop.exe`.
-
-> No ejecutes el programa directamente dentro del ZIP y no separes el `.exe` de la carpeta `_internal`.
-
-Los archivos portables incluyen un `.sha256` para comprobar su integridad. El
-instalador no tiene un archivo de checksum separado; descárgalo únicamente
-desde la release oficial. Windows puede mostrar SmartScreen porque todavía no
-está firmado digitalmente.
-
-En Windows, v1.3.0 o posterior permite descargar y verificar la siguiente
-actualización estable desde **Ajustes → Actualizaciones**. En Linux, v1.4.0 o
-posterior hace lo mismo con el paquete x64 o ARM64 correspondiente. La app
-instalada conserva tus datos mientras reemplaza los archivos del programa.
-
-> Una beta cerrada no se publica como release de este repositorio público. Para
-> compartirla con personas seleccionadas se usa una distribución privada con
-> cuentas o accesos individuales; un código dentro de la app no vuelve privada
-> una descarga pública.
-
-### Linux — Ubuntu Desktop compatible
-
-Linux se distribuye como `WizZDesktop-v1.5.0-linux-x64.tar.gz` o
-`WizZDesktop-v1.5.0-linux-arm64.tar.gz`, cada uno con su archivo `.sha256`.
-Extrae el archivo, abre una terminal dentro de la carpeta
-extraída y ejecuta `./install.sh`. No requiere `sudo`: instala la app para tu
-usuario, crea el acceso **WizZ Desktop** en Aplicaciones y conserva tus datos
-al actualizar. Luego puedes abrirla desde Actividades y anclarla al dock.
-
-Para retirar la aplicación instalada, ejecuta
-`~/.local/share/WizZDesktop/uninstall.sh`. Esto elimina la app y su lanzador,
-pero conserva tus configuraciones, ampolletas, favoritos y logs.
-
-También puedes ejecutar `./WizZDesktop` directamente desde la carpeta
-extraída si prefieres usarla en modo portable. La plataforma validada es Ubuntu
-Desktop con GNOME. En sesiones Wayland, WizZ prefiere XWayland cuando están
-disponibles sus bibliotecas XCB para poder ajustar el panel a los bordes. Si el
-inicio informa que faltan, instala `libxcb-cursor0`, `libxcb-icccm4` y
-`libxcb-keysyms1`. Si se fuerza manualmente Wayland, la posición queda a cargo
-del compositor.
-
-La bandeja requiere un escritorio compatible con AppIndicator. Si no está
-disponible, la aplicación sigue siendo usable como ventana normal. Los hotkeys
-globales están deshabilitados intencionalmente en Linux hasta contar con
-un backend seguro basado en el portal XDG.
-
-### Verificar SHA-256 en PowerShell
-
-```powershell
-Get-FileHash .\WizZDesktop-v1.5.0-windows-x64.zip -Algorithm SHA256
-```
-
-Compara el resultado con el contenido de:
-
-```text
-WizZDesktop-v1.5.0-windows-x64.zip.sha256
-```
-
----
-
-## Uso básico
-
-1. Abre **Ajustes**.
-2. Pulsa **Buscar ampolletas**.
-3. Selecciona la ampolleta activa.
-4. Controla la luz desde **Inicio**, **Color** o **Escenas**.
-5. Configura favoritos y rutinas; en Windows también puedes usar hotkeys globales.
-
-Si eliminas una ampolleta, permanecerá fuera de la lista hasta que realices una búsqueda explícita o la agregues nuevamente por IP.
-
----
-
-## Desarrollo
-
-### Requisitos
-
-- Python `>=3.11,<3.14`.
-- Qt for Python / PySide6.
-- Windows para la build estable de Windows.
-- Ubuntu Desktop para compilar y probar el paquete Linux.
-
-### Preparar el entorno
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt -r requirements-dev.txt
-```
-
-### Ejecutar en modo desarrollo
-
-```powershell
-python -m qt_ui.run
-```
-
-> `python main.py` también abre Qt para compatibilidad. Flet ya no es una ruta de ejecución ni de distribución pública.
-
-### Probar rutinas con ampolletas virtuales
-
-Al ejecutar desde el código fuente, `WIZZ_DEV_VIRTUAL_BULBS=3` abre la misma
-interfaz Qt con tres luces simuladas. No envía comandos WiZ por LAN y guarda las
-rutinas de prueba en un perfil separado del real. Las builds empaquetadas
-ignoran este modo.
-
-Windows (PowerShell):
-
-```powershell
-$env:WIZZ_DEV_VIRTUAL_BULBS = "3"
-try { python -m qt_ui.run }
-finally { Remove-Item Env:WIZZ_DEV_VIRTUAL_BULBS }
-```
-
-Linux:
-
-```bash
-WIZZ_DEV_VIRTUAL_BULBS=3 python -m qt_ui.run
-```
-
-En Rutinas, crea un paso «Apagar» y elige «Virtual bulb 2» como destino.
-Al ejecutarlo, solo la segunda luz debe apagarse. «Selección actual» conserva
-el comportamiento anterior y «Todas las luces» ignora la selección actual
-solo para ese paso.
-Para actuar sobre dos o más, pulsa «Varias…» junto al destino, marca las
-ampolletas y pulsa «Usar selección». Si les pones nombre y pulsas «Crear grupo»,
-podrás reutilizar ese grupo en otras rutinas; editarlo actualizará sus miembros
-en todas ellas.
-
-### Validar el repositorio
-
-```powershell
-python -m compileall -q main.py app_meta.py core config qt_ui tests tools
-python -m pytest -q
-```
-
-También puedes usar:
-
-```powershell
-.\scripts\verify_repo.ps1
-```
-
----
-
-## Build nativa para Windows
-
-WizZ Desktop utiliza PyInstaller con Qt; Flet no se empaqueta.
-
-### Requisitos adicionales
-
-- Python 3.12 o 3.13 y las dependencias de `requirements-build.txt`.
-- Inno Setup 6 o 7 si también quieres generar el instalador `.exe`.
-
-### Generar la build
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-.\scripts\build_qt_windows.ps1 -Clean
-```
-
-### Salidas
-
-```text
-dist/windows/WizZDesktop/WizZDesktop.exe
-dist/windows/WizZDesktop/BUILD_INFO.json
-dist/release/WizZDesktop-v1.5.0-windows-x64.zip
-dist/release/WizZDesktop-v1.5.0-windows-x64.zip.sha256
-```
-
-### Smoke test
-
-```powershell
-.\scripts\test_windows_build.ps1 -LaunchSecondInstance
-```
-
-El proceso vigente de compilación está definido en
-[`scripts/build_qt_windows.ps1`](scripts/build_qt_windows.ps1); la guía antigua de
-Flet ya no corresponde a la aplicación distribuida.
-
----
-
-## Build nativa para Linux
-
-En Ubuntu Desktop instala las bibliotecas Qt/XCB necesarias. La lista exacta
-que usa el flujo oficial está en
-[`build-windows.yml`](.github/workflows/build-windows.yml), trabajo `build-linux`.
-Como mínimo, para la bandeja y el posicionamiento del panel rápido:
-
-```bash
-sudo apt install -y libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 \
-  gir1.2-ayatanaappindicator3-0.1
-```
-
-Luego crea un entorno con Python 3.12 e instala sus dependencias (Python 3.14
-todavía no está soportado):
-
-```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements-qt-linux.txt -r requirements-dev.txt -r requirements-build.txt
-```
-
-Finalmente ejecuta:
-
-```bash
-source .venv/bin/activate
-bash scripts/build_qt_linux.sh --clean
-```
-
-Las salidas son:
-
-```text
-dist/linux/WizZDesktop/WizZDesktop
-dist/linux/WizZDesktop/BUILD_INFO.json
-dist/linux/WizZDesktop/install.sh
-dist/linux/WizZDesktop/uninstall.sh
-dist/release/WizZDesktop-v1.5.0-linux-x64.tar.gz
-dist/release/WizZDesktop-v1.5.0-linux-x64.tar.gz.sha256
-```
-
----
-
-## Datos y privacidad
-
-WizZ Desktop no necesita una cuenta propia ni una base de datos remota para controlar las luces por LAN.
-
-En desarrollo, los archivos locales viven en:
-
-```text
-config/json/
-```
-
-En el ejecutable Windows, configuraciones y logs se guardan en:
-
-```text
-%LOCALAPPDATA%\WizZDesktop
-```
-
-Las instalaciones Flet anteriores se migran automáticamente la primera vez que
-se ejecuta esta versión, pero Flet ya no se inicia ni se empaqueta para usuarios.
-
-En Linux, la configuración y los logs respetan las rutas XDG:
-
-```text
-~/.config/WizZDesktop/config
-~/.local/state/WizZDesktop/logs
-```
-
-El instalador por usuario guarda la aplicación bajo
-`~/.local/share/WizZDesktop` y crea un acceso directo en el menú de
-aplicaciones.
-
-Puedes abrir las ubicaciones reales desde:
-
-```text
-Ajustes → Acerca de → Datos
-Ajustes → Acerca de → Logs
-```
-
-Los JSON personales no se versionan porque pueden contener:
-
-- direcciones IP;
-- direcciones MAC;
-- hotkeys;
-- preferencias locales.
-
-El repositorio conserva únicamente archivos `*.example.json` seguros.
-
----
-
-## Arquitectura
-
-```text
-UI / Tray / Hotkeys / Favoritos / Rutinas
-                    │
-                    ▼
-         ActionSequenceExecutor
-                    │
-                    ▼
-             LightController
-                    │
-                    ▼
-          UDP LAN nativo WiZ :38899
-```
-
-Principios del proyecto:
-
-- control local como camino principal;
-- `setPilot` fire-and-forget para baja latencia;
-- lectura y verificación fuera del hot path;
-- una sola capa de ejecución para acciones;
-- configuración persistente y segura ante escrituras concurrentes;
-- UI optimizada para evitar repaints innecesarios.
-
----
-
-## Estructura del repositorio
-
-```text
-app_meta.py   Metadatos, versión e identificadores del producto
-core/         WiZ, acciones, hotkeys, tray, instancia única y logging
-config/       Configuración persistente y managers JSON
-ui/           Aplicación y componentes Flet
-assets/       Iconos y recursos visuales
-docs/         Guías y checklists
-scripts/      Verificación, instaladores y builds de Windows/Linux
-tools/        Diagnósticos y probes
-tests/        Pruebas de core, UI, runtime y packaging
-```
-
----
-
-## Diagnóstico
-
-### Hotkeys y runtime de escritorio
-
-```powershell
-python tools/desktop_selftest.py
-python tools/desktop_runtime_probe.py
-```
-
-### Pipeline de color WiZ
-
-```powershell
-python tools/wiz_color_probe.py --hex FFAD9E
-```
-
-### Eliminación activa de ampolletas
-
-```powershell
-python tools/probe_remove_active_bulb.py --ip 192.168.1.4
-```
-
----
-
-## Estado del proyecto
-
-Este código es v1.5.0; descarga un paquete desde GitHub Releases para probar
-la distribución real. El trabajo experimental de Govee LAN está en otra rama
-y aún no forma parte de la interfaz Qt de usuario.
-
-En v1.5.0, **Ajustes → Acciones rápidas** permite crear,
-editar, mostrar/ocultar y borrar controles propios de encendido, brillo, blanco
-Kelvin, RGB y escenas WiZ. Hasta seis acciones seleccionadas aparecen en
-Inicio y el panel rápido. Se aplican a las luces seleccionadas.
-
-La interfaz de escritorio compatible es Qt/PySide6. El código antiguo de Flet
-se conserva para migración y pruebas históricas, pero Flet ya no es una
-dependencia normal de ejecución; los requisitos de desarrollo aún lo incluyen
-para poder ejecutar esas pruebas.
-
-El proyecto cuenta con pruebas automatizadas para:
-
-- control y targeting;
-- Color Studio;
-- pipeline RGBTW;
-- persistencia concurrente;
-- eliminación y redescubrimiento;
-- responsive UI;
-- hotkeys;
-- tray e instancia única;
-- packaging de Windows y Linux.
-
----
-
-## Autor
-
-Desarrollado por **Ignacio** (`yvvvl`).
-
-Proyecto construido como una aplicación personal de escritorio para control local de iluminación WiZ.
-
-
----
-
-## Acknowledgements
-
-WizZ Desktop uses:
-
-- `pywizlight` by Stephan Traub and contributors.
-
-See:
-
-- `THIRD_PARTY_NOTICES.md`
-- `licenses/pywizlight-LICENSE.txt`
-
-for license information.
-
-WizZ Desktop is an independent community project and is not
-affiliated with WiZ Connected or Signify.
+| Área | Funciones |
+| --- | --- |
+| Luces | Encendido, brillo, RGB, blancos Kelvin, escenas WiZ, búsqueda, IP manual y selección múltiple. |
+| Color Studio | Paleta de matiz/saturación, brillo y CCT independientes, valores exactos, recientes y favoritos. |
+| Automatización | Rutinas de varios pasos, grupos guardados y horarios locales por día y hora. |
+| Escritorio | Panel rápido movible y magnético, bandeja, inicio de sesión, temas, idiomas español/inglés y actualización desde la app. |
+| Hotkeys Windows | Atajos globales nativos que distinguen Numpad y admiten RGB/Kelvin personalizados. |
+
+El control habitual permanece en la LAN. Configuración y logs quedan en el
+equipo; pueden contener IP/MAC de las luces y deben ocultarse antes de
+compartirlos. Consulta las [rutas de datos](docs/installation.es.md#verificación-y-datos-guardados).
+
+## Documentación y desarrollo
+
+- [Índice de documentación](docs/README.md): guías en español e inglés.
+- [Validación de release](docs/release-validation.es.md): pruebas con luces
+  reales, bandeja y actualización empaquetada.
+- [Horarios locales](docs/local-routine-schedules.es.md): destinos, reloj,
+  límites y pruebas.
+- [Desarrollo](docs/development.es.md): entorno, ampolletas virtuales,
+  tests, arquitectura y scripts de build.
+
+Para ejecutar desde el código fuente, instala los requisitos y usa
+`python -m qt_ui.run`. Define `WIZZ_DEV_VIRTUAL_BULBS=3` solo si quieres
+un perfil de prueba simulado que no envía tráfico WiZ LAN. Los paquetes
+públicos ignoran esa variable.
+
+La interfaz y los scripts vigentes están en `qt_ui/` y `build_qt_*`. `ui/`
+conserva el antiguo código Flet por migración y pruebas históricas; no se
+empaqueta ni se abre para usuarios. Consulta el
+[mapa de rutas actuales y de legado](docs/development.es.md#rutas-actuales-y-de-legado)
+antes de cambiar o eliminar archivos.
+
+## Proyecto y agradecimientos
+
+WizZ Desktop es un proyecto independiente de **Ignacio** (`yvvvl`), sin
+afiliación con WiZ Connected ni Signify. Si te resulta útil, puedes
+[apoyar su desarrollo](https://github.com/sponsors/yvvvl); también ayudan
+mucho los comentarios y reportes reproducibles.
+
+El repositorio **todavía no tiene una licencia propia seleccionada**. Los
+[avisos de terceros](THIRD_PARTY_NOTICES.md) y archivos en `licenses/`
+corresponden a dependencias y recursos incluidos, no al código del proyecto.

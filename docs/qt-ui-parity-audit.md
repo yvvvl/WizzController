@@ -1,50 +1,39 @@
-# Qt UI parity audit
+# Qt desktop capability audit (v1.5.0)
 
-Source of truth: the mature Flet panels under `ui/components/` and the accepted WiZ-style color picker reference.
+This is a **current capability map**, not the original Flet-to-Qt migration
+checklist. The former checklist said that tray lifecycle, localization,
+routine editing, settings, and hotkeys were missing; those statements became
+obsolete as the Qt interface was completed. The supported desktop UI is
+`qt_ui/`, not `ui/`. See [development](development.md#current-and-legacy-paths)
+for the legacy boundary.
 
-## Shared shell
+| Area | Present in the Qt desktop | Where to inspect |
+| --- | --- | --- |
+| Shell and Quick Panel | Native Qt window, themed navigation, tray integration, movable/snap-capable Quick Panel, persisted position and visibility behavior | [`Main.qml`](../qt_ui/qml/Main.qml), [`QuickPanel.qml`](../qt_ui/qml/QuickPanel.qml), [`runtime.py`](../qt_ui/runtime.py) |
+| Home and targeting | Single/multiple/all bulb selection, power, brightness, quick actions, device status | [`Main.qml`](../qt_ui/qml/Main.qml), [`LightCard.qml`](../qt_ui/qml/LightCard.qml), [`bridge.py`](../qt_ui/bridge.py) |
+| Color Studio | RGB palette, Kelvin whites, independent brightness, HEX and recent/favorite controls | [`ColorPage.qml`](../qt_ui/qml/ColorPage.qml), [`WizColorPicker.qml`](../qt_ui/qml/WizColorPicker.qml) |
+| Scenes and favorites | WiZ scenes plus local scene/favorite creation and application | [`ScenesPage.qml`](../qt_ui/qml/ScenesPage.qml), [`FavoritesPage.qml`](../qt_ui/qml/FavoritesPage.qml) |
+| Routines | Multi-step editor, targets/groups, execution, local time-and-weekday schedules | [`RoutinesPage.qml`](../qt_ui/qml/RoutinesPage.qml), [schedule guide](local-routine-schedules.md) |
+| Settings | Language, theme, device setup, tray/startup behavior, quick-action editor, in-app updates with progress | [`SettingsPage.qml`](../qt_ui/qml/SettingsPage.qml), [`QuickActionsEditor.qml`](../qt_ui/qml/QuickActionsEditor.qml) |
+| Hotkeys | Windows shortcut capture/registration, Numpad distinction, custom RGB and Kelvin picker | [`HotkeysPage.qml`](../qt_ui/qml/HotkeysPage.qml), [`global_hotkeys.py`](../core/global_hotkeys.py) |
 
-- Done: frameless window, sidebar, theme tokens, page transitions, expansive press feedback, wheel/trackpad scrolling, dynamic content heights, native QA screenshots.
-- Partial: responsive breakpoints and reduced-motion preference.
-- Missing: tray lifecycle, updater surfaces, localization wiring and persisted window geometry.
+Automated coverage includes Qt bridge/runtime, UI models, schedules, hotkeys,
+and packaging tests under `tests/`. The
+[manual release checklist](release-validation.md) is still required to verify
+physical WiZ devices, tray behavior, multi-monitor placement, and packaged
+updates. This table is not a claim of pixel-for-pixel Flet parity or complete
+hardware compatibility.
 
-## Home
+## Current limits
 
-- Done: light cards, target selection, master power, live brightness, quick actions and favorite shortcuts.
-- Missing: device refresh feedback, offline/error states, richer target selector and parity with every Flet status state.
+- Global hotkeys are operational on Windows, not Linux. Saved Linux shortcuts
+  remain in configuration until a safe backend is available.
+- Linux tray support depends on AppIndicator; a forced Wayland backend can
+  limit exact Quick Panel placement.
+- macOS is an experimental smoke-build target, not a supported release.
+- Screen Sync/Ambilight and audio sync are not included in the Qt release.
+- Local routine schedules require the app to keep running and do not replay
+  missed times after sleep or shutdown.
 
-## Color Studio
-
-- Done: WiZ RGB picker, CCT picker, continuous sampled transport, live brightness, correct RGB/white mode, save current, recent values and quick favorites.
-- Missing: precise HEX/RGB/HSV editor, persisted history, live/apply mode switch and detected device temperature range.
-
-## Scenes
-
-- Done: grouped WiZ catalog, selected-scene feedback, continuously sampled speed, save-current flow and custom scene create/edit/delete for RGB, white and WiZ modes.
-- Missing: combo/multi-action scene editor, richer icon selection and translated catalog names.
-
-## Favorites
-
-- Done: dedicated responsive card grid, apply, create, edit and confirmed delete; persisted RGB, white, brightness and WiZ-scene values; reusable modal editor.
-- Missing: visual spectrum/CCT controls inside the modal and drag reordering.
-
-## Routines
-
-- Done: list and execute existing routines.
-- Missing: create/edit/duplicate/delete, ordered action editor, delays, conditions, targets and capture-current-state flow.
-
-## Settings
-
-- Done: theme selection.
-- Missing: discovery, add-by-IP, destination selection, slider cadence, language, reduced motion, tray/startup settings and updater controls.
-
-## Hotkeys
-
-- Done: read-only starter shortcuts.
-- Missing: enable/suppress/release toggles, anti-repeat, action search, recorder, save/test/remove, templates and registered-hotkey list.
-
-## Implementation order
-
-1. Routine action editor with delay, condition and destination actions.
-2. Settings and Hotkeys parity.
-3. Responsive QA across every page and Quick Panel.
+Update this map when a capability is shipped or removed; put prospective
+design ideas in separate proposals, not in a permanently stale “missing” list.
