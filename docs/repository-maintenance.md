@@ -19,6 +19,12 @@ environment. Release scripts currently install from platform-specific
 requirements files, so updating the lock file alone does **not** change a
 release dependency. Review both whenever dependencies change.
 
+GitHub's language chart includes QML because it is the current interface and
+PowerShell because Windows build, install, and validation scripts are real
+source. The small "Other" slice includes supporting assets and formats.
+These percentages do not affect the app or make the repository less clean;
+moving files solely to alter the chart would obscure their purpose.
+
 ## Current code ownership
 
 - `qt_ui/` is the supported interface and desktop runtime.
