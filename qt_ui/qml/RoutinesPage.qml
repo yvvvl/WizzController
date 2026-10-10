@@ -535,12 +535,15 @@ Item {
 
     Popup {
         id: editor
+        objectName: "routineEditorPopup"
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(780, Overlay.overlay.width - 40)
         // The editor grows with the number of steps, rather than leaving a
         // large empty well when a routine is just being created.
-        height: Math.min(690, Math.max(470, routineEditorContent.implicitHeight + 40))
+        // Keep the footer inside the dialog on short displays. The step list
+        // absorbs any height reduction and remains independently scrollable.
+        height: Math.min(690, Overlay.overlay.height - 16, Math.max(470, routineEditorContent.implicitHeight + 100))
         modal: true; focus: true; dim: true; padding: 0
         closePolicy: Popup.CloseOnEscape
         Overlay.modal: Rectangle { color: "#a3000000" }
@@ -548,7 +551,7 @@ Item {
 
         contentItem: ColumnLayout {
             id: routineEditorContent
-            anchors.fill: parent; anchors.margins: 20; spacing: 13
+            anchors.fill: parent; anchors.leftMargin: 20; anchors.rightMargin: 20; anchors.topMargin: 0; anchors.bottomMargin: 20; spacing: 13
             Item {
                 Layout.fillWidth: true; Layout.preferredHeight: 42
                 Column {
@@ -590,7 +593,8 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(380, Math.max(132, actionDraft.count * (wizz.totalCount > 1 ? 107 : 65) + 16))
+                Layout.minimumHeight: 96
+                Layout.preferredHeight: Math.min(380, Math.max(132, actionDraft.count * (wizz.totalCount > 1 ? 107 : 65) + 16), Math.max(96, (editor.parent ? editor.parent.height : 600) - 345))
                 radius: 14
                 color: Theme.bg; border.width: 1; border.color: Theme.stroke
                 ListView {
@@ -646,7 +650,7 @@ Item {
                                 id: conditionValue
                                 visible: stepRow.kind === "condition"
                                 Layout.fillWidth: true; Layout.preferredHeight: 40
-                                model: ["Luces encendidas", "Luces apagadas"]
+                                model: [root.t("Luces encendidas", "Lights on"), root.t("Luces apagadas", "Lights off")]
                                 currentIndex: stepRow.value === "power_off" ? 1 : 0
                                 onActivated: function(index) { actionDraft.setProperty(stepRow.index, "value", index === 1 ? "power_off" : "power_on") }
                                 contentItem: Text { leftPadding: 11; text: conditionValue.displayText; color: Theme.text; verticalAlignment: Text.AlignVCenter; font.pixelSize: 12 }
@@ -764,6 +768,7 @@ Item {
                 Item { Layout.fillWidth: true }
                 PressSurface { Layout.preferredWidth: 94; Layout.preferredHeight: 40; radius: 20; color: "transparent"; outlined: true; border.color: Theme.stroke; onClicked: editor.close(); Text { anchors.centerIn: parent; text: root.t("Cancelar", "Cancel"); color: Theme.text; font.family: Theme.controlFont; font.pixelSize: 12; font.weight: Font.Bold } }
                 PressSurface {
+                    objectName: "routineSaveButton"
                     Layout.preferredWidth: 112; Layout.preferredHeight: 40; radius: 20; color: Theme.primary; accentColor: Theme.primary
                     onClicked: {
                         const result = wizz.upsertRoutine(root.editingUid, routineName.text, routineDescription.text, routineColor.text, root.serializedActions())
