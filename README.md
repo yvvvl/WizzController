@@ -77,6 +77,8 @@ before sharing. See [installation and data paths](docs/installation.md#checksum-
   clock behavior, limitations, and tests.
 - [Development](docs/development.md): source setup, virtual bulbs, tests,
   architecture, and release builders.
+- [Contributing](CONTRIBUTING.md) and [repository policy](docs/repository-maintenance.md):
+  code boundaries, safe cleanup, and what must remain local.
 
 For a source run, install the requirements and start `python -m qt_ui.run`.
 Set `WIZZ_DEV_VIRTUAL_BULBS=3` only when you want a separate simulated test

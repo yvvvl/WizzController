@@ -78,6 +78,8 @@ compartirlos. Consulta las [rutas de datos](docs/installation.es.md#verificació
   límites y pruebas.
 - [Desarrollo](docs/development.es.md): entorno, ampolletas virtuales,
   tests, arquitectura y scripts de build.
+- [Contribuir](CONTRIBUTING.md) y [política del repositorio](docs/repository-maintenance.md):
+  organización del código, limpieza segura y datos que deben permanecer locales.
 
 Para ejecutar desde el código fuente, instala los requisitos y usa
 `python -m qt_ui.run`. Define `WIZZ_DEV_VIRTUAL_BULBS=3` solo si quieres

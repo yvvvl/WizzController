@@ -87,7 +87,7 @@ def test_qt_beta_build_packages_the_qt_shell_and_its_resources():
 
 def test_linux_build_declares_native_x64_and_arm64_artifacts():
     build_script = (ROOT / "scripts" / "build_qt_linux.sh").read_text(encoding="utf-8")
-    workflow = (ROOT / ".github" / "workflows" / "linux-beta-build.yml").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github" / "workflows" / "build-windows.yml").read_text(encoding="utf-8")
 
     assert "--arch x64|arm64" in build_script
     assert '"architecture": "$ARCH"' in build_script

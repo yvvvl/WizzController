@@ -58,6 +58,9 @@ git diff --check
 On Windows, `scripts/verify_repo.ps1` provides a local shortcut. See the
 [manual release checklist](release-validation.md) for real-device, desktop,
 and packaged-update checks. Automated tests do not replace those checks.
+The [contribution guide](../CONTRIBUTING.md) and
+[repository policy](repository-maintenance.md) explain code ownership, safe
+cleanup, and the files that must remain local.
 
 ## Current and legacy paths
 

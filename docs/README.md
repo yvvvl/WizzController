@@ -15,6 +15,7 @@ detalladas viven aquí.
 
 Additional maintainer references:
 
+- [Contributing](../CONTRIBUTING.md) and [repository boundaries](repository-maintenance.md).
 - [ARM64 emulation from Windows](arm64-emulation.md).
 - [Qt interface capability audit](qt-ui-parity-audit.md). This replaces the
   obsolete migration checklist; it is not a list of current missing features.

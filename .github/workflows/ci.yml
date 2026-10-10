@@ -39,5 +39,10 @@ jobs:
       - name: Compile Python files
         run: python -m compileall -q main.py app_meta.py core config qt_ui tests tools
 
+      - name: Check tracked files and critical Python errors
+        run: |
+          python tools/repository_hygiene.py
+          python -m ruff check . --select E9,F63,F7,F82
+
       - name: Run tests
         run: python -m pytest -q

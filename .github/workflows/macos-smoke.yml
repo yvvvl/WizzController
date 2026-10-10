@@ -1,12 +1,19 @@
 name: macOS Qt smoke test (experimental)
 
 on:
-  push:
-    branches:
-      - "codex/macos-smoke-support"
   pull_request:
     branches:
-      - "release/**"
+      - main
+    paths:
+      - "core/**"
+      - "config/**"
+      - "localization/**"
+      - "qt_ui/**"
+      - "assets/**"
+      - "scripts/build_qt_macos.sh"
+      - "pyproject.toml"
+      - "requirements*.txt"
+      - ".github/workflows/macos-smoke.yml"
   workflow_dispatch:
 
 permissions:

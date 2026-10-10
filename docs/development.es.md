@@ -56,7 +56,9 @@ git diff --check
 En Windows, `scripts/verify_repo.ps1` sirve como atajo local. La
 [lista de validación manual](release-validation.es.md) cubre ampolletas
 reales, escritorio y actualizaciones empaquetadas; las pruebas automatizadas
-no la reemplazan.
+no reemplazan esas comprobaciones. Consulta la [guía para contribuir](../CONTRIBUTING.md)
+y la [política del repositorio](repository-maintenance.md) para conocer los
+límites del código y qué archivos deben mantenerse solo en tu equipo.
 
 ## Rutas actuales y de legado
 
