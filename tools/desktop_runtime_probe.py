@@ -129,7 +129,7 @@ def start_tray_probe(wiz: DummyWiz):
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Prueba local de hotkeys globales y tray sin abrir Flet ni controlar luces reales.")
+    parser = argparse.ArgumentParser(description="Prueba local de hotkeys globales y tray sin abrir Qt ni controlar luces reales.")
     parser.add_argument("--seconds", type=int, default=0, help="Cierra automáticamente después de N segundos. 0 = esperar Ctrl+C.")
     parser.add_argument("--no-tray", action="store_true", help="Solo prueba hotkeys.")
     args = parser.parse_args()

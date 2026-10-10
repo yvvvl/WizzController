@@ -138,7 +138,7 @@ def test_windows_packaged_executable_is_detected_without_frozen_flag(monkeypatch
     monkeypatch.setattr(paths.sys, "frozen", False, raising=False)
     _reset_paths()
 
-    assert paths.is_flet_build()
+    assert paths.is_packaged_desktop_build()
     assert paths.config_dir() == (local_app_data / paths.APP_ARTIFACT / "config").resolve()
 
 
@@ -155,7 +155,7 @@ def test_windows_embedded_runtime_detects_neighboring_app_executable(monkeypatch
     monkeypatch.setattr(paths.sys, "frozen", False, raising=False)
     _reset_paths()
 
-    assert paths.is_flet_build()
+    assert paths.is_packaged_desktop_build()
     assert paths.config_dir() == (local_app_data / paths.APP_ARTIFACT / "config").resolve()
 
 
@@ -170,7 +170,7 @@ def test_windows_launcher_argument_detects_packaged_runtime(monkeypatch, tmp_pat
     monkeypatch.setattr(paths.sys, "frozen", False, raising=False)
     _reset_paths()
 
-    assert paths.is_flet_build()
+    assert paths.is_packaged_desktop_build()
     assert paths.config_dir() == (local_app_data / paths.APP_ARTIFACT / "config").resolve()
 
 
@@ -190,7 +190,7 @@ def test_flet_embedded_app_zip_detects_packaged_runtime(monkeypatch, tmp_path):
     )
     _reset_paths()
 
-    assert paths.is_flet_build()
+    assert paths.is_packaged_desktop_build()
     assert paths.config_dir() == (local_app_data / paths.APP_ARTIFACT / "config").resolve()
 
 

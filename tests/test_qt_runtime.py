@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 from PySide6.QtWidgets import QSystemTrayIcon
 
-from qt_ui.runtime import QtDesktopRuntime
+from qt_ui.runtime import QtDesktopRuntime, activate_existing_instance
 
 
 class _RuntimeSpy:
@@ -315,3 +315,23 @@ def test_runtime_quit_bypasses_close_to_tray_behaviour():
 
     assert runtime._quitting
     assert runtime.app.quit_calls == 1
+
+
+def test_second_launch_signals_existing_qt_instance():
+    class Guard:
+        def __init__(self, signaled, owner):
+            self.signaled = signaled
+            self.owner = owner
+            self.calls = 0
+
+        def signal_existing(self):
+            self.calls += 1
+            return self.signaled
+
+        def owner_pid(self):
+            return self.owner
+
+    for signaled, owner, expected in ((True, None, True), (False, 42, True), (False, None, False)):
+        guard = Guard(signaled, owner)
+        assert activate_existing_instance(guard) is expected
+        assert guard.calls == 1

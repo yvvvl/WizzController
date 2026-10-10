@@ -60,7 +60,7 @@ no reemplazan esas comprobaciones. Consulta la [guía para contribuir](../CONTRI
 y la [política del repositorio](repository-maintenance.md) para conocer los
 límites del código y qué archivos deben mantenerse solo en tu equipo.
 
-## Rutas actuales y de legado
+## Rutas del código vigente
 
 | Ruta | Función |
 | --- | --- |
@@ -69,13 +69,11 @@ límites del código y qué archivos deben mantenerse solo en tu equipo.
 | `scripts/build_qt_windows.ps1`, `scripts/build_qt_linux.sh` | Builds oficiales de Windows/Linux. |
 | `.github/workflows/build-windows.yml` | Compilación oficial para tres plataformas y publicación por tag. |
 | `scripts/build_qt_macos.sh` | Build Mac experimental, sin firma; solo smoke test. |
-| `ui/`, `run_flet_legacy()` en `main.py` | Código Flet conservado por migración y pruebas históricas; no es la interfaz pública. `python main.py` abre Qt. |
-| `scripts/build_windows.ps1`, `scripts/build_linux.sh` | Builds Flet retiradas; no usar para una release. |
+| `main.py` | Entrada de compatibilidad; `python main.py` abre Qt. |
 
-Flet figura como dependencia opcional `legacy-flet` en `pyproject.toml` y en
-los requisitos de desarrollo para pruebas históricas. No se empaqueta en las
-releases Qt. No elimines el código legado ni sus pruebas sin revisar antes la
-cobertura de migración y las dependencias.
+La antigua interfaz Flet, sus scripts de compilación y sus pruebas exclusivas
+de interfaz fueron retiradas. La aplicación sigue reconociendo las rutas de
+datos de Flet para migrar configuraciones; `tests/test_app_paths.py` lo verifica.
 
 La arquitectura vigente es:
 

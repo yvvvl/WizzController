@@ -85,10 +85,9 @@ Set `WIZZ_DEV_VIRTUAL_BULBS=3` only when you want a separate simulated test
 profile with no WiZ LAN traffic. Packaged public builds ignore that flag.
 
 The supported interface and builders live in `qt_ui/` and the `build_qt_*`
-scripts. `ui/` contains retired Flet code retained for migration and
-historical tests; it is not packaged or launched for users. See the
-[current/legacy path map](docs/development.md#current-and-legacy-paths)
-before changing or removing those files.
+scripts. `python main.py` remains a compatibility shortcut to the Qt app;
+older installation data is still migrated when necessary. See the
+[source path map](docs/development.md#current-source-paths).
 
 ## Project and acknowledgements
 

@@ -53,22 +53,27 @@ def test_runtime_dependencies_are_declared_for_qt_build():
 def test_flet_is_not_a_release_configuration():
     data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     assert "flet" not in data.get("tool", {})
-    assert "legacy-flet" in data["project"]["optional-dependencies"]
+    assert "legacy-flet" not in data["project"].get("optional-dependencies", {})
     assert all("flet" not in dependency.casefold() for dependency in data["project"]["dependencies"])
     requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8").casefold()
+    dev_requirements = (ROOT / "requirements-dev.txt").read_text(encoding="utf-8").casefold()
     assert "flet==" not in requirements
+    assert "flet==" not in dev_requirements
+    assert not (ROOT / "ui").joinpath("app.py").exists()
+    assert "from qt_ui.run import main" in (ROOT / "main.py").read_text(encoding="utf-8")
 
 
 def test_windows_build_and_smoke_scripts_are_present():
-    build_script = (ROOT / "scripts" / "build_windows.ps1").read_text(
+    build_script = (ROOT / "scripts" / "build_qt_windows.ps1").read_text(
         encoding="utf-8"
     )
     smoke_script = (ROOT / "scripts" / "test_windows_build.ps1").read_text(
         encoding="utf-8"
     )
 
-    assert "retired" in build_script
-    assert "build_qt_windows.ps1" in build_script
+    assert "PyInstaller" in build_script
+    assert not (ROOT / "scripts" / "build_windows.ps1").exists()
+    assert not (ROOT / "scripts" / "build_linux.sh").exists()
     assert "WizZDesktop.exe" in smoke_script
     assert "LaunchSecondInstance" in smoke_script
 

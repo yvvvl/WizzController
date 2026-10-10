@@ -13,7 +13,7 @@ class ActionSequenceExecutor:
     """Motor único de acciones para rutinas, hotkeys y favoritos compuestos.
 
     Diseño:
-    - Python puro, sin Flet.
+    - Python puro, independiente de la interfaz.
     - No agenda por hora.
     - Por defecto ejecuta en thread para no bloquear UI/hotkeys.
     - Las acciones WiZ siguen siendo fire-and-forget; `wait` y `condition`

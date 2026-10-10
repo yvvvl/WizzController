@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SERVICE_PACKAGES = ("core", "config", "localization")
-UI_PACKAGES = {"qt_ui", "ui", "PySide6", "flet"}
+UI_PACKAGES = {"qt_ui", "PySide6", "flet"}
 
 
 def test_services_do_not_import_desktop_ui():

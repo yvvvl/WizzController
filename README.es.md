@@ -86,11 +86,10 @@ Para ejecutar desde el código fuente, instala los requisitos y usa
 un perfil de prueba simulado que no envía tráfico WiZ LAN. Los paquetes
 públicos ignoran esa variable.
 
-La interfaz y los scripts vigentes están en `qt_ui/` y `build_qt_*`. `ui/`
-conserva el antiguo código Flet por migración y pruebas históricas; no se
-empaqueta ni se abre para usuarios. Consulta el
-[mapa de rutas actuales y de legado](docs/development.es.md#rutas-actuales-y-de-legado)
-antes de cambiar o eliminar archivos.
+La interfaz y los scripts vigentes están en `qt_ui/` y `build_qt_*`.
+`python main.py` sigue abriendo Qt por compatibilidad; los datos de
+instalaciones anteriores se migran cuando corresponde. Consulta el
+[mapa de código vigente](docs/development.es.md#rutas-del-código-vigente).
 
 ## Proyecto y agradecimientos
 

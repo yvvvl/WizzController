@@ -445,6 +445,17 @@ def test_qt_update_progress_is_clamped_and_exposed(bridge):
     assert bridge.updateProgress == 100
 
 
+def test_qt_update_result_recovers_from_network_error(bridge):
+    bridge._update_in_progress = True
+    bridge._update_preparing = True
+    bridge._apply_update_result(None, "Update service unavailable")
+
+    assert bridge.updateInProgress is False
+    assert bridge.updatePreparing is False
+    assert bridge.updateUrl == ""
+    assert bridge.updateStatus == "Update service unavailable"
+
+
 def test_qt_bridge_shows_update_completion_after_restart(bridge, monkeypatch):
     monkeypatch.setattr(bridge_module, "consume_update_result", lambda: ("succeeded", "1.4.1"))
     bridge.setPreviewLanguage("en")

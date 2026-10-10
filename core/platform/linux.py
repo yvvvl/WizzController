@@ -265,7 +265,7 @@ class LinuxSystemIntegrationService(SystemIntegrationService):
 
 @dataclass(slots=True)
 class LinuxWindowService(WindowService):
-    """Callback-based window boundary for Flet/compositor-specific wiring."""
+    """Callback-based window boundary for compositor-specific wiring."""
 
     capabilities: DesktopCapabilities
     show_callback: Callable[[], bool] | None = None

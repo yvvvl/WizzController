@@ -1,8 +1,8 @@
 # Contributing to WizZ Desktop
 
 Thank you for helping improve WizZ Desktop. The supported product is the Qt
-application in `qt_ui/`; the older Flet UI in `ui/` is retained for migration
-and historical tests, not for new features.
+application in `qt_ui/`. The retired Flet UI is no longer part of the source;
+only legacy user-data migration remains in `config/paths.py`.
 
 ## Before changing code
 
@@ -21,7 +21,7 @@ and historical tests, not for new features.
 - Put desktop interaction and QML presentation in `qt_ui/`, reusable light
   behavior in `core/`, persistence and settings in `config/`, and translated
   user-facing strings in `localization/`. The architecture test prevents
-  services from importing either desktop UI.
+  services from importing the desktop UI.
 - Keep device/network work away from the UI thread. Expose a clear result or
   error state so the interface can recover when a bulb is offline.
 - Preserve existing JSON configuration. New fields need defaults and a test

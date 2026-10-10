@@ -18,7 +18,7 @@ class SingleInstanceGuard:
 
     1. solicitar que la primera restaure su ventana;
     2. pedir un relevo controlado cuando la primera quedó viva pero perdió su
-       sesión/ventana de Flet (el conocido proceso "zombie" de modo dev).
+       ventana o servicio de escritorio.
 
     En otros sistemas se usa un lock de archivo como fallback para desarrollo.
     """

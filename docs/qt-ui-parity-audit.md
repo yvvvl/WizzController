@@ -4,8 +4,8 @@ This is a **current capability map**, not the original Flet-to-Qt migration
 checklist. The former checklist said that tray lifecycle, localization,
 routine editing, settings, and hotkeys were missing; those statements became
 obsolete as the Qt interface was completed. The supported desktop UI is
-`qt_ui/`, not `ui/`. See [development](development.md#current-and-legacy-paths)
-for the legacy boundary.
+`qt_ui/`. See [development](development.md#current-source-paths) for the
+current code boundary and data-migration compatibility.
 
 | Area | Present in the Qt desktop | Where to inspect |
 | --- | --- | --- |
