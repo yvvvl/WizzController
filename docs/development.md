@@ -51,7 +51,7 @@ Run validation before proposing changes:
 ```bash
 python -m compileall -q main.py app_meta.py core config qt_ui localization tests tools
 python -m pytest -q
-python tools/i18n_audit.py
+python tools/i18n_audit.py --strict
 git diff --check
 ```
 
@@ -61,6 +61,11 @@ and packaged-update checks. Automated tests do not replace those checks.
 The [contribution guide](../CONTRIBUTING.md) and
 [repository policy](repository-maintenance.md) explain code ownership, safe
 cleanup, and the files that must remain local.
+
+The translation audit checks catalog parity, Python UI literals, direct QML
+text assignments, and complete `root.t(es, en)` pairs. It cannot infer every
+string assembled by JavaScript or catch text clipping; check both languages
+in the running desktop UI when changing copy or layout.
 
 ## Current source paths
 

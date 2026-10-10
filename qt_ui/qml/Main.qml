@@ -25,6 +25,15 @@ ApplicationWindow {
     property bool qaOpenRoutineEditor: false
     property bool qaOpenScheduleEditor: false
     property bool qaOpenScheduleTarget: false
+    property var navigationItems: [
+        {title: wizz.language === "en" ? "Home" : "Inicio", icon: "home"},
+        {title: "Color", icon: "palette"},
+        {title: wizz.language === "en" ? "Scenes" : "Escenas", icon: "scenes"},
+        {title: wizz.language === "en" ? "Favorites" : "Favoritos", icon: "heart"},
+        {title: wizz.language === "en" ? "Routines" : "Rutinas", icon: "routines"},
+        {title: wizz.language === "en" ? "Settings" : "Ajustes", icon: "settings"},
+        {title: "Hotkeys", icon: "keyboard"}
+    ]
     property bool updateToastVisible: false
     property bool startupMinimizing: false
     readonly property int pageGutter: width < 960 ? 20 : 28
@@ -186,17 +195,7 @@ ApplicationWindow {
                 }
                 Text { anchors.horizontalCenter: parent.horizontalCenter; text: "WizZ"; color: Theme.text; font.family: Theme.uiFont; font.pixelSize: 12; font.weight: Font.Bold }
                 Repeater {
-                    model: wizz.language === "en" ? [
-                        {title: "Home", icon: "home"}, {title: "Color", icon: "palette"},
-                        {title: "Scenes", icon: "scenes"}, {title: "Favorites", icon: "heart"},
-                        {title: "Routines", icon: "routines"}, {title: "Settings", icon: "settings"},
-                        {title: "Hotkeys", icon: "keyboard"}
-                    ] : [
-                        {title: "Inicio", icon: "home"}, {title: "Color", icon: "palette"},
-                        {title: "Escenas", icon: "scenes"}, {title: "Favoritos", icon: "heart"},
-                        {title: "Rutinas", icon: "routines"}, {title: "Ajustes", icon: "settings"},
-                        {title: "Hotkeys", icon: "keyboard"}
-                    ]
+                    model: window.navigationItems
                     delegate: NavButton {
                         required property int index
                         required property var modelData

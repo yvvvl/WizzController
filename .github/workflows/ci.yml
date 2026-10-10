@@ -42,6 +42,7 @@ jobs:
       - name: Check tracked files and critical Python errors
         run: |
           python tools/repository_hygiene.py
+          python tools/i18n_audit.py --strict
           python -m ruff check . --select E9,F63,F7,F82
 
       - name: Run tests

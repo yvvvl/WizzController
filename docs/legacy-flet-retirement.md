@@ -35,5 +35,7 @@ physical bulb control. Use `docs/release-validation.md` before a release.
 
 The supported Linux builder is `scripts/build_qt_linux.sh`, including on
 native ARM64. The Windows builder is `scripts/build_qt_windows.ps1`.
-The translation audit checks catalogs and Python UI calls; it does not parse
-QML literals, so a zero hardcoded-string count is not a full QML language audit.
+The translation audit now checks catalogs, Python UI calls, direct QML text
+literals, and complete `root.t(es, en)` pairs. It does not parse arbitrary
+JavaScript-generated text or prove that translated labels fit their layouts;
+those still need a two-language desktop check.
